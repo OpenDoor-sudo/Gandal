@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ventuno AI - Admin Command Console</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* Lumina Intelligence Design Tokens & Admin Command Styling */
+        :root {
+            --bg-color: #000000;
+            --surface: #0a0a0a;
+            --surface-container-low: #111111;
+            --surface-container: #161616;
+            --surface-container-high: #222222;
+            --border-color: #222222;
+            
+            --on-surface: #e5e2e1;
+            --on-surface-variant: #a1a1aa;
+            --outline: #52525b;
+            --outline-variant: #27272a;
+            
+            --primary: #c084fc; /* Neon purple light */
+            --primary-neon: #a855f7; /* Pure neon purple */
+            --primary-glow: rgba(168, 85, 247, 0.2);
+            --secondary: #aac7ff;
+            --tertiary: #e9b3ff;
+            
+            --text-primary: #f4f4f5;
+            --text-secondary: #a1a1aa;
+            
+            --success-color: #34d399;
+            --success-glow: rgba(52, 211, 153, 0.2);
+            --warning-color: #fbbf24;
+            --alert-color: #f87171;
+            --alert-glow: rgba(248, 113, 113, 0.2);
+            
+            /* Border Radii shapes */
+            --radius-sm: 4px;
+            --radius-default: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-full: 9999px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Hanken Grotesk', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+        }
+
+        /* 1. Layout & Theme Matrix */
+        .admin-layout {
+            display: flex;
+            width: 100vw;
+            min-height: 100vh;
+        }
+
+        /* 2. Left Sidebar */
+        .sidebar {
+            width: 260px;
+            background: #09090b;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-family: 'Geist', monospace;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-header h2 svg {
+            width: 16px;
+            height: 16px;
+            fill: var(--primary-neon);
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 14px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-family: 'Geist', monospace;
+            font-size: 0.85rem;
+            border-radius: var(--radius-default);
+            transition: all 0.2s ease;
+            position: relative;
+            border: 1px solid transparent;
+        }
+
+        .nav-item:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .nav-item.active {
+            color: #fff;
+            background: rgba(168, 85, 247, 0.08);
+            border: 1px solid rgba(168, 85, 247, 0.20);
+        }
+
+        .nav-indicator {
+            width: 4px;
+            height: 16px;
+            background: transparent;
+            border-radius: var(--radius-full);
+            margin-right: 12px;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item.active .nav-indicator {
+            background: var(--primary-neon);
+            box-shadow: 0 0 8px var(--primary-neon);
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Deploy patch CTA button with subtle neon purple styling */
+        .deploy-patch-btn {
+            width: 100%;
+            background: transparent;
+            border: 1px solid var(--primary-neon);
+            color: var(--primary);
+            padding: 12px;
+            font-family: 'Geist', monospace;
+            font-weight: 600;
+            font-size: 0.8rem;
+            border-radius: var(--radius-default);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .deploy-patch-btn:hover {
+            background: var(--primary-neon);
+            color: #fff;
+            box-shadow: 0 0 15px var(--primary-neon);
+        }
+
+        /* Main Dashboard Area */
+        .main-content {
+            flex-grow: 1;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            max-width: calc(100% - 260px);
+        }
+
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        .title-section h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .title-section h1 .badge {
+            font-size: 0.7rem;
+            font-family: 'Geist', monospace;
+            background: rgba(168, 85, 247, 0.15);
+            color: var(--primary);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .sys-clock {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            padding: 5px 12px;
+            border-radius: var(--radius-full);
+            font-family: 'Geist', monospace;
+        }
+
+        .parent-link-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-family: 'Geist', monospace;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 6px 14px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .parent-link-btn:hover {
+            border-color: var(--primary-neon);
+            color: #fff;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .parent-link-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        /* 3-Column / Split Layout Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (min-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1.15fr 1fr;
+            }
+        }
+
+        /* Dashboard panels */
+        .dashboard-card {
+            background: var(--surface-container-low);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .card-header h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .status-indicator {
+            font-size: 0.65rem;
+            font-family: 'Geist', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+        }
+
+        /* 3. Main Analytics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .metric-box {
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px 12px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .metric-label {
+            font-size: 0.62rem;
+            font-family: 'Geist', monospace;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .metric-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .progress-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .progress-section h4 {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-family: 'Geist', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .progress-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .progress-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8rem;
+        }
+
+        .progress-label {
+            width: 100px;
+            font-family: 'Geist', monospace;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .progress-bar-bg {
+            flex-grow: 1;
+            height: 6px;
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-full);
+            margin: 0 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--primary-neon);
+            border-radius: var(--radius-full);
+            box-shadow: 0 0 8px var(--primary-neon);
+        }
+
+        .progress-value {
+            font-family: 'Geist', monospace;
+            font-weight: 600;
+            color: var(--primary);
+            width: 45px;
+            text-align: right;
+        }
+
+        /* 4. Notebook Vault Grid */
+        .vault-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .pdf-card {
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .pdf-card:hover {
+            border-color: var(--primary-neon);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .pdf-icon-wrap {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pdf-icon-wrap svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--text-secondary);
+            transition: fill 0.2s ease;
+        }
+
+        .pdf-card:hover .pdf-icon-wrap svg {
+            fill: var(--primary);
+        }
+
+        .badge-verified {
+            font-size: 0.6rem;
+            font-family: 'Geist', monospace;
+            background: rgba(52, 211, 153, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(52, 211, 153, 0.25);
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            text-transform: uppercase;
+        }
+
+        .badge-flagged {
+            font-size: 0.6rem;
+            font-family: 'Geist', monospace;
+            background: rgba(248, 113, 113, 0.1);
+            color: var(--alert-color);
+            border: 1px solid rgba(248, 113, 113, 0.25);
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            text-transform: uppercase;
+        }
+
+        .pdf-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .pdf-filename {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pdf-meta {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+        }
+
+        /* eSIM Mesh Control widget */
+        .mesh-widget {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 24px;
+            margin-top: 8px;
+        }
+
+        .mesh-widget .border-top {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .mesh-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .mesh-stat {
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            text-align: center;
+        }
+
+        .mesh-stat .label {
+            display: block;
+            font-size: 0.6rem;
+            font-family: 'Geist', monospace;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .mesh-stat strong {
+            font-size: 1rem;
+            color: var(--primary);
+            font-family: 'Geist', monospace;
+        }
+
+        .mesh-log-panel {
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            height: 150px;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: 'Geist', monospace;
+            font-size: 0.72rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        .mesh-log-entry {
+            line-height: 1.4;
+            display: flex;
+            gap: 6px;
+        }
+
+        .mesh-log-entry .time {
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .mesh-log-entry .msg {
+            color: var(--success-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="admin-layout">
+        
+        <!-- Left Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                    <span>Admin Command</span>
+                </h2>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" onclick="selectNavItem('Analytics', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Analytics</span>
+                </a>
+                <a href="#" class="nav-item" onclick="selectNavItem('Traffic Control', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Traffic Control</span>
+                </a>
+                <a href="#" class="nav-item" onclick="selectNavItem('Handwriting Vault', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Handwriting Vault</span>
+                </a>
+                <a href="#" class="nav-item" onclick="selectNavItem('Student Fleet', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Student Fleet</span>
+                </a>
+                <a href="#" class="nav-item" onclick="selectNavItem('Network Logs', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Network Logs</span>
+                </a>
+                <a href="#" class="nav-item" onclick="selectNavItem('Teacher Management', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Teacher Management</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <button class="deploy-patch-btn" onclick="deployPatch()">Deploy Patch</button>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard Area -->
+        <main class="main-content">
+            
+            <!-- Main Header -->
+            <header class="main-header">
+                <div class="title-section">
+                    <h1>Fleet Control Console <span class="badge">Active</span></h1>
+                </div>
+                <div class="header-actions">
+                    <button class="parent-link-btn" onclick="generateParentLink()" title="Generate Parent Progress Report Link">
+                        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                        <span>Generate Parent Link</span>
+                    </button>
+                    <div class="sys-clock" id="sysTime">SYS_CLOCK: 00:00:00</div>
+                </div>
+            </header>
+
+            <!-- Grid Layout -->
+            <div class="dashboard-grid" id="analyticsView">
+                
+                <!-- Left Column: Student Analytics -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Student Fleet Analytics</h3>
+                        <span class="status-indicator">SQLite Live Sync</span>
+                    </div>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-box">
+                            <span class="metric-label">Active Terminals</span>
+                            <strong class="metric-value" id="activeTerminalsVal">3</strong>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">Milestones Logged</span>
+                            <strong class="metric-value" id="milestonesLoggedVal">3</strong>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">Mastery Ratio</span>
+                            <strong class="metric-value" id="masteryRatioVal">66.7%</strong>
+                        </div>
+                    </div>
+
+                    <div class="progress-section">
+                        <h4>Student Curriculum Progress</h4>
+                        <div class="progress-list" id="progressList">
+                            <div style="text-align:center; padding: 10px; color: var(--text-secondary); font-size:0.8rem;">
+                                Querying SQLite database profiles...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Vault Gallery & eSIM Controls -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Authentic Handwriting Vault</h3>
+                        <span class="status-indicator">Note Scans</span>
+                    </div>
+
+                    <div class="vault-grid">
+                        <div class="pdf-card" onclick="window.open('/saved_notebooks/physics_pendulums_derivation.pdf', '_blank')">
+                            <div class="pdf-icon-wrap">
+                                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 6h-4v2h4v2h-4v2h4v2H9V7h6v2z"/></svg>
+                                <span class="badge-verified">Verified</span>
+                            </div>
+                            <div class="pdf-details">
+                                <span class="pdf-filename">physics_pendulums_derivation.pdf</span>
+                                <span class="pdf-meta">Physics | 2.4 MB</span>
+                            </div>
+                        </div>
+
+                        <div class="pdf-card" onclick="window.open('/saved_notebooks/philosophy_stoic_impressions.pdf', '_blank')">
+                            <div class="pdf-icon-wrap">
+                                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 6h-4v2h4v2h-4v2h4v2H9V7h6v2z"/></svg>
+                                <span class="badge-flagged">Flagged</span>
+                            </div>
+                            <div class="pdf-details">
+                                <span class="pdf-filename">philosophy_stoic_impressions.pdf</span>
+                                <span class="pdf-meta">Philosophy | 1.1 MB</span>
+                            </div>
+                        </div>
+
+                        <div class="pdf-card" onclick="window.open('/saved_notebooks/mechanics_period_derivation.pdf', '_blank')">
+                            <div class="pdf-icon-wrap">
+                                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 6h-4v2h4v2h-4v2h4v2H9V7h6v2z"/></svg>
+                                <span class="badge-verified">Verified</span>
+                            </div>
+                            <div class="pdf-details">
+                                <span class="pdf-filename">mechanics_period_derivation.pdf</span>
+                                <span class="pdf-meta">Physics | 1.8 MB</span>
+                            </div>
+                        </div>
+
+                        <div class="pdf-card" onclick="window.open('/saved_notebooks/stoic_logic_compound.pdf', '_blank')">
+                            <div class="pdf-icon-wrap">
+                                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 6h-4v2h4v2h-4v2h4v2H9V7h6v2z"/></svg>
+                                <span class="badge-verified">Verified</span>
+                            </div>
+                            <div class="pdf-details">
+                                <span class="pdf-filename">stoic_logic_compound.pdf</span>
+                                <span class="pdf-meta">Philosophy | 940 KB</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- eSIM Mesh Traffic Control Widget -->
+                    <div class="mesh-widget">
+                        <div class="card-header border-top">
+                            <h3>eSIM Mesh Traffic Control</h3>
+                            <span class="status-indicator" style="border-color: rgba(52, 211, 153, 0.3); color: var(--success-color);">Wi-Fi 6 P2P Active</span>
+                        </div>
+                        
+                        <div class="mesh-stats-grid">
+                            <div class="mesh-stat">
+                                <span class="label">Total Data</span>
+                                <strong id="meshTotalBytes">12.82 GB</strong>
+                            </div>
+                            <div class="mesh-stat">
+                                <span class="label">Active Nodes</span>
+                                <strong id="meshActiveNodes">4 Nodes</strong>
+                            </div>
+                            <div class="mesh-stat">
+                                <span class="label">Signal Quality</span>
+                                <strong id="meshSignalQuality">98 dBm</strong>
+                            </div>
+                        </div>
+
+                        <div class="mesh-log-panel" id="meshLogs">
+                            <div class="mesh-log-entry">
+                                <span class="time">[06:45:01]</span>
+                                <span class="msg">Wi-Fi 6 AP: Broadcast initialized SSID 'Ventuno_AP_6'</span>
+                            </div>
+                            <div class="mesh-log-entry">
+                                <span class="time">[06:45:03]</span>
+                                <span class="msg">Mesh Network: Registered node 'Node_01' (192.168.10.2)</span>
+                            </div>
+                            <div class="mesh-log-entry">
+                                <span class="time">[06:45:05]</span>
+                                <span class="msg">Vector Sync: Table 'curriculum_rag' weights synced to 'Node_01'</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Teacher Management View -->
+            <div class="dashboard-card" id="teacherView" style="display: none; background: #000000; border: 1px solid var(--border-color); padding: 24px; max-width: 600px; margin: 0 auto;">
+                <div class="card-header" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                    <h3>Register New Instructor</h3>
+                    <span class="status-indicator">Intake Panel</span>
+                </div>
+                <form id="teacherForm" onsubmit="submitTeacherForm(event)">
+                    <div style="display: flex; flex-direction: column; gap: 16px;">
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Full Name</label>
+                            <input type="text" id="teacherFullName" required style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Phone Number</label>
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <div style="display: flex; gap: 8px;">
+                                    <div style="position: relative; flex: 1;">
+                                        <input type="text" id="countrySearchInput" placeholder="Search country (e.g. Portugal)..." oninput="filterCountries(this.value)" style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                    </div>
+                                    <input type="text" id="teacherPhone" placeholder="e.g. 912345678" required style="flex: 1.2; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                </div>
+                                <select id="countrySelect" size="4" onchange="selectCountry(this.value)" style="width: 100%; padding: 6px; background: #0a0a0a; border: 1px solid var(--border-color); color: #aaa; border-radius: var(--radius-default); outline: none; cursor: pointer; height: 90px; font-size: 0.78rem;">
+                                    <!-- Countries populated by JS -->
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Experience (Years)</label>
+                            <input type="number" id="teacherExperience" required style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Subjects</label>
+                            <input type="text" id="teacherSubjects" placeholder="e.g. Calculus, Physics" required style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Profile Image Destination Path</label>
+                            <input type="text" id="teacherProfileImage" placeholder="static/images/teachers/prof_evans.jpg" required style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Biography / Comment</label>
+                            <textarea id="teacherBiography" placeholder="Brief comment/biography about the instructor..." style="width: 100%; height: 80px; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none; resize: vertical; font-family: inherit; font-size: 0.85rem;"></textarea>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Assign to Lesson Video</label>
+                            <select id="teacherLinkedVideo" style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none; cursor: pointer;">
+                                <option value="">None</option>
+                                <option value="vid_physics_01">vid_physics_01 (Physics Pendulums Intro)</option>
+                                <option value="vid_physics_02">vid_physics_02 (Physics Period Derivation)</option>
+                                <option value="vid_philosophy_01">vid_philosophy_01 (Philosophy Stoic Impressions)</option>
+                                <option value="vid_philosophy_02">vid_philosophy_02 (Philosophy Stoic Logic)</option>
+                                <option value="vid_calculus_01">vid_calculus_01 (Calculus Derivatives)</option>
+                            </select>
+                        </div>
+                        <button type="submit" style="margin-top: 10px; padding: 12px; background: var(--primary-neon); border: none; color: #fff; font-family: 'Geist', monospace; font-weight: 600; border-radius: var(--radius-default); cursor: pointer; transition: background 0.2s; box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);">Register & Link Instructor</button>
+                    </div>
+                </form>
+            </div>
+
+        </main>
+        
+    </div>
+
+    <script>
+        // Set dynamic clock
+        setInterval(() => {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            document.getElementById('sysTime').innerText = "SYS_CLOCK: " + timeStr;
+        }, 1000);
+
+        // Sidebar Navigation click visual feedback
+        function selectNavItem(name, element) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+            showToast("Navigation", `Switched tab context to '${name}'`);
+            
+            const analyticsView = document.getElementById('analyticsView');
+            const teacherView = document.getElementById('teacherView');
+            
+            if (name === 'Teacher Management') {
+                if (analyticsView) analyticsView.style.display = 'none';
+                if (teacherView) teacherView.style.display = 'block';
+            } else {
+                if (analyticsView) analyticsView.style.display = 'grid';
+                if (teacherView) teacherView.style.display = 'none';
+            }
+        }
+
+        // Searchable Country Code dropdown configuration
+        const COUNTRIES = [
+            { name: "United States", code: "+1" },
+            { name: "United Kingdom", code: "+44" },
+            { name: "Portugal", code: "+351" },
+            { name: "Brazil", code: "+55" },
+            { name: "Saudi Arabia", code: "+966" },
+            { name: "United Arab Emirates", code: "+971" },
+            { name: "France", code: "+33" },
+            { name: "Spain", code: "+34" },
+            { name: "China", code: "+86" },
+            { name: "Germany", code: "+49" },
+            { name: "India", code: "+91" },
+            { name: "Canada", code: "+1" },
+            { name: "Australia", code: "+61" },
+            { name: "Egypt", code: "+20" },
+            { name: "Japan", code: "+81" },
+            { name: "Mexico", code: "+52" },
+            { name: "South Africa", code: "+27" }
+        ];
+
+        function initCountrySelect() {
+            const select = document.getElementById('countrySelect');
+            if (!select) return;
+            select.innerHTML = "";
+            COUNTRIES.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.code;
+                opt.innerText = `${c.name} (${c.code})`;
+                select.appendChild(opt);
+            });
+        }
+
+        function filterCountries(query) {
+            const select = document.getElementById('countrySelect');
+            if (!select) return;
+            select.innerHTML = "";
+            const filtered = COUNTRIES.filter(c => c.name.toLowerCase().includes(query.toLowerCase()));
+            filtered.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.code;
+                opt.innerText = `${c.name} (${c.code})`;
+                select.appendChild(opt);
+            });
+        }
+
+        function selectCountry(code) {
+            const select = document.getElementById('countrySelect');
+            const selectedOpt = select.options[select.selectedIndex];
+            if (selectedOpt) {
+                document.getElementById('countrySearchInput').value = selectedOpt.innerText;
+                document.getElementById('teacherPhone').focus();
+            }
+        }
+
+        // Handle teacher registration form submission
+        async function submitTeacherForm(event) {
+            event.preventDefault();
+            const fullName = document.getElementById('teacherFullName').value.trim();
+            const phoneCode = document.getElementById('countrySelect').value || "";
+            const rawPhone = document.getElementById('teacherPhone').value.trim();
+            const phone = (phoneCode + " " + rawPhone).trim();
+            const experience = document.getElementById('teacherExperience').value.trim();
+            const subjects = document.getElementById('teacherSubjects').value.trim();
+            const profileImage = document.getElementById('teacherProfileImage').value.trim();
+            const biography = document.getElementById('teacherBiography').value.trim();
+            const videoId = document.getElementById('teacherLinkedVideo').value;
+
+            const payload = {
+                full_name: fullName,
+                phone_number: phone,
+                experience_years: experience,
+                subjects_list: subjects,
+                profile_image: profileImage,
+                biography: biography,
+                video_id: videoId
+            };
+
+            try {
+                const response = await fetch('/api/instructors', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast("Success", `Instructor '${fullName}' registered successfully!`);
+                    document.getElementById('teacherForm').reset();
+                    loadFleetMetrics(); // reload metrics in case list is updated
+                } else {
+                    showToast("Error", `Registration failed: ${result.error}`);
+                }
+            } catch (err) {
+                showToast("Error", `Network error: ${err}`);
+            }
+        }
+
+        // Deploy Patch CTA button visual simulation
+        function deployPatch() {
+            showToast("Deploy Patch", "Deploying system updates and curriculum RAG weights...");
+            setTimeout(() => {
+                showToast("Patch Success", "System patch version 1.4.2 deployed successfully to all active terminals.");
+            }, 1500);
+        }
+
+        // Fetch Live SQLite metrics from /api/stats
+        async function loadFleetMetrics() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error("Database error: " + data.error);
+                    return;
+                }
+
+                // Calculate metrics
+                const users = data.users || [];
+                const mastery = data.mastery || [];
+                
+                const totalUsers = users.length;
+                const totalMastery = mastery.length;
+                const masteredCount = mastery.filter(m => m.mastery_achieved).length;
+                const masteryRatio = totalMastery > 0 ? (masteredCount / totalMastery * 100).toFixed(1) : "0.0";
+
+                // Update text metrics
+                document.getElementById('activeTerminalsVal').innerText = totalUsers;
+                document.getElementById('milestonesLoggedVal').innerText = totalMastery;
+                document.getElementById('masteryRatioVal').innerText = masteryRatio + "%";
+
+                // Compile progress rows
+                const progressList = document.getElementById('progressList');
+                progressList.innerHTML = ''; // Clear loader
+
+                if (users.length === 0) {
+                    progressList.innerHTML = `<div style="text-align:center; padding:10px; color:var(--text-secondary)">No users found in SQLite vault.</div>`;
+                    return;
+                }
+
+                users.forEach(user => {
+                    let score = 0;
+                    if (user.user_id === "student_01") {
+                        score = 80;
+                    } else if (user.user_id === "student_02") {
+                        score = 45;
+                    } else {
+                        score = 60;
+                    }
+
+                    const row = document.createElement('div');
+                    row.className = 'progress-row';
+                    row.innerHTML = `
+                        <div class="progress-label" title="${user.background_context}">ID: ${user.user_id}</div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" style="width: ${score}%"></div>
+                        </div>
+                        <div class="progress-value">${score}%</div>
+                    `;
+                    progressList.appendChild(row);
+                });
+
+            } catch (err) {
+                console.error("Failed to load metrics: " + err);
+            }
+        }
+
+        // Live eSIM P2P traffic logging simulation
+        const simulatedLogs = [
+            "P2P Node: Synchronized database state metadata with student_01",
+            "eSIM Mesh: Rerouted network routes to optimize transfer latency",
+            "Heartbeat: Acknowledged health ticks from student_02 AP interface",
+            "P2P Connection: Opened media socket on peer 192.168.10.5",
+            "Vector RAG: Pushed Stoic Epistemology weights to Node_04",
+            "Mesh Router: Path recalculation completed. Active bridges: 1"
+        ];
+        
+        function runLiveLogsSim() {
+            const logsPanel = document.getElementById('meshLogs');
+            setInterval(() => {
+                const now = new Date();
+                const timeStr = "[" + now.toTimeString().split(' ')[0] + "]";
+                const randomMsg = simulatedLogs[Math.floor(Math.random() * simulatedLogs.length)];
+                
+                const entry = document.createElement('div');
+                entry.className = 'mesh-log-entry';
+                entry.innerHTML = `
+                    <span class="time">${timeStr}</span>
+                    <span class="msg">${randomMsg}</span>
+                `;
+                logsPanel.appendChild(entry);
+                logsPanel.scrollTop = logsPanel.scrollHeight;
+
+                // Keep log screen compact (limit to 12 rows)
+                while (logsPanel.childElementCount > 12) {
+                    logsPanel.removeChild(logsPanel.firstChild);
+                }
+            }, 3000);
+        }
+
+        // Generate Parent Link and copy to clipboard
+        async function generateParentLink() {
+            const link = "http://localhost:8000/report";
+            try {
+                await navigator.clipboard.writeText(link);
+                showToast("Link Generated", "Parent progress report link copied to clipboard!");
+            } catch (err) {
+                // Fallback copying method
+                const input = document.createElement("input");
+                input.value = link;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand("copy");
+                document.body.removeChild(input);
+                showToast("Link Generated", "Parent progress report link copied to clipboard!");
+            }
+        }
+
+        // Custom toast notification system
+        function showToast(title, message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                background: rgba(18, 18, 18, 0.95);
+                border: 1px solid var(--primary-neon);
+                border-radius: 8px;
+                padding: 14px 20px;
+                color: #fff;
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), 0 0 15px rgba(168, 85, 247, 0.15);
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                min-width: 280px;
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            `;
+            
+            toast.innerHTML = `
+                <div style="font-family: 'Hanken Grotesk', sans-serif; font-weight: 600; font-size: 0.85rem; color: var(--primary);">${title}</div>
+                <div style="font-size: 0.75rem; color: #d1d5db;">${message}</div>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Force layout reflow
+            toast.offsetHeight;
+            
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateY(0) scale(1)';
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px) scale(0.95)';
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+
+        // Run integrations on load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFleetMetrics();
+            runLiveLogsSim();
+            initCountrySelect();
+        });
+    </script>
+
+    <!-- Elegant Toast Container -->
+    <div id="toastContainer" style="
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    "></div>
+</body>
+</html>

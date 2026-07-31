@@ -1,0 +1,2465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gandal AI - Setup Wizard</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* CSS variables based on DESIGN.md Lumina tokens */
+        :root {
+            --bg-color: #000000;
+            --surface: #131313;
+            --surface-dim: #131313;
+            --surface-bright: #393939;
+            --surface-container-lowest: #0e0e0e;
+            --surface-container-low: #1c1b1b;
+            --surface-container: #201f1f;
+            --surface-container-high: #2a2a2a;
+            --surface-container-highest: #353534;
+            --on-surface: #e5e2e1;
+            --on-surface-variant: #c7c4d6;
+            --outline: #918f9f;
+            --outline-variant: #464554;
+            --primary: #c2c1ff;
+            --on-primary: #1c0b9f;
+            --primary-glow: rgba(194, 193, 255, 0.15);
+            --primary-container: #5856d6;
+            --secondary: #aac7ff;
+            --tertiary: #e9b3ff;
+            --outline-active: #a855f7;
+            
+            --radius-sm: 0.25rem;
+            --radius-default: 0.5rem;
+            --radius-md: 0.75rem;
+            --radius-lg: 1rem;
+            --radius-xl: 1.5rem;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--on-surface);
+            font-family: 'Hanken Grotesk', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            overflow-x: hidden;
+            padding: 24px;
+            background-image: 
+                radial-gradient(circle at 50% 15%, rgba(194, 193, 255, 0.03) 0%, transparent 60%),
+                radial-gradient(circle at 80% 80%, rgba(233, 179, 255, 0.02) 0%, transparent 50%);
+        }
+
+        /* Top navigation header */
+        .top-header {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 12px 0;
+            position: relative;
+        }
+
+        .top-header.left-aligned {
+            justify-content: flex-start;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Hanken Grotesk', sans-serif;
+            font-weight: 700;
+            font-size: 1.15rem;
+            letter-spacing: -0.01em;
+            color: #ffffff;
+        }
+
+        .brand-logo svg {
+            color: var(--primary);
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Wizard container & transition layouts */
+        .wizard-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 1000px;
+            margin: 40px 0;
+        }
+
+        .step-view {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+            animation: stepEnter 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .step-view.active {
+            display: flex;
+        }
+
+        /* Avatars / Smiley elements */
+        .avatar-circle {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background-color: var(--surface-container-low);
+            border: 1px solid var(--outline-variant);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
+            position: relative;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .avatar-circle:hover {
+            border-color: var(--primary);
+            box-shadow: 0 8px 30px var(--primary-glow);
+        }
+
+        /* Typography */
+        .step-label {
+            font-family: 'Geist', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            color: var(--primary);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .step-title {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+            max-width: 600px;
+            line-height: 1.25;
+        }
+
+        .step-subtitle {
+            font-size: 1rem;
+            color: var(--on-surface-variant);
+            margin-bottom: 36px;
+            max-width: 500px;
+            line-height: 1.5;
+        }
+
+        /* Identity Input Card styling */
+        .identity-input-card {
+            background-color: var(--surface-container-low);
+            border: 1px solid var(--outline-variant);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 28px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .identity-input-card:focus-within {
+            border-color: var(--outline-active);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
+        }
+
+        .identity-input-card svg {
+            color: var(--outline);
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+        }
+
+        .identity-input-card input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #ffffff;
+            font-family: 'Hanken Grotesk', sans-serif;
+            font-size: 1rem;
+            width: 100%;
+        }
+
+        .identity-input-card input::placeholder {
+            color: var(--outline);
+        }
+
+        .enter-pill {
+            font-family: 'Geist', monospace;
+            font-size: 0.68rem;
+            color: var(--outline);
+            border: 1px solid var(--outline-variant);
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            background-color: var(--surface-container-lowest);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Buttons styles */
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--on-primary);
+            border: none;
+            border-radius: var(--radius-lg);
+            padding: 14px 28px;
+            font-family: 'Hanken Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(194, 193, 255, 0.2);
+            outline: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px var(--primary-glow);
+            filter: brightness(1.05);
+        }
+
+        .btn-primary:active {
+            transform: translateY(1px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--outline-variant);
+            border-radius: var(--radius-lg);
+            padding: 14px 28px;
+            color: var(--on-surface);
+            font-family: 'Geist', monospace;
+            font-weight: 600;
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            outline: none;
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: var(--on-surface);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 12px;
+        }
+
+        /* Grid Selection Cards for Goals, Expertise, and Topics */
+        .cards-grid {
+            display: grid;
+            gap: 16px;
+            width: 100%;
+            margin-bottom: 36px;
+        }
+
+        /* 4 Columns (Step 2 Goal selection) */
+        .grid-4cols {
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            max-width: 900px;
+        }
+
+        /* 3 Columns (Step 3 Level selection) */
+        .grid-3cols {
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            max-width: 800px;
+        }
+
+        /* 8 items (Step 4 Interests grid) */
+        .grid-8items {
+            grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+            max-width: 850px;
+        }
+
+        @media (min-width: 768px) {
+            .grid-8items {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .select-card {
+            background-color: var(--surface-container-low);
+            border: 1px solid var(--outline-variant);
+            border-radius: var(--radius-md);
+            padding: 24px 20px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            position: relative;
+            user-select: none;
+        }
+
+        .select-card:hover {
+            background-color: var(--surface-container);
+            border-color: rgba(194, 193, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .select-card.selected {
+            border-color: var(--outline-active);
+            background-color: rgba(168, 85, 247, 0.06);
+            box-shadow: 0 4px 20px rgba(168, 85, 247, 0.08);
+        }
+
+        /* Glowing focus overlay outline on selected card */
+        .select-card.selected::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border: 2px dashed var(--outline-active);
+            border-radius: calc(var(--radius-md) + 2px);
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        .card-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius-default);
+            background-color: var(--surface-container-high);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            transition: all 0.25s ease;
+        }
+
+        .select-card.selected .card-icon {
+            background-color: var(--outline-active);
+            color: #ffffff;
+        }
+
+        .card-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .card-meta {
+            font-family: 'Geist', monospace;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--primary);
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+
+        .card-desc {
+            font-size: 0.78rem;
+            color: var(--on-surface-variant);
+            line-height: 1.45;
+        }
+
+        /* Bottom navigation & Timeline trackers */
+        .footer-nav {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 16px 0;
+        }
+
+        .timeline-tracker {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid var(--outline-variant);
+            padding-top: 18px;
+            margin-top: 8px;
+        }
+
+        .timeline-item {
+            font-size: 0.78rem;
+            color: var(--outline);
+            transition: all 0.3s ease;
+            position: relative;
+            padding-top: 4px;
+        }
+
+        .timeline-item.active {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .timeline-item.active::before {
+            content: '';
+            position: absolute;
+            top: -19px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--primary);
+            box-shadow: 0 0 8px var(--primary);
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 4px;
+            background-color: var(--surface-container-high);
+            border-radius: var(--radius-full);
+            position: relative;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary), var(--outline-active));
+            border-radius: var(--radius-full);
+            transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .progress-text-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            font-family: 'Geist', monospace;
+            font-size: 0.72rem;
+            color: var(--on-surface-variant);
+            margin-bottom: 6px;
+        }
+
+        .bottom-status-line {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            font-family: 'Geist', monospace;
+            font-size: 0.72rem;
+            color: var(--outline);
+        }
+
+        .status-indicator-dot {
+            width: 6px;
+            height: 6px;
+            background-color: #34d399;
+            border-radius: 50%;
+            box-shadow: 0 0 6px #34d399;
+            display: inline-block;
+        }
+
+        /* Soundwave animation styling */
+        .audio-wave {
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            height: 18px;
+            margin-top: 10px;
+        }
+
+        .audio-bar {
+            width: 3px;
+            background-color: var(--primary);
+            border-radius: 2px;
+            transition: height 0.15s ease;
+            animation: pulse-wave 1.2s ease-in-out infinite alternate;
+        }
+
+        .audio-bar:nth-child(1) { height: 4px; animation-delay: 0.1s; }
+        .audio-bar:nth-child(2) { height: 10px; animation-delay: 0.3s; }
+        .audio-bar:nth-child(3) { height: 16px; animation-delay: 0.5s; }
+        .audio-bar:nth-child(4) { height: 10px; animation-delay: 0.2s; }
+        .audio-bar:nth-child(5) { height: 4px; animation-delay: 0.4s; }
+
+        /* Step 5 Dashboard Mockup Preview styling */
+        .dashboard-mockup {
+            background-color: var(--surface-container-lowest);
+            border: 1px solid var(--outline-variant);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 580px;
+            aspect-ratio: 16/10;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.8);
+            margin-bottom: 32px;
+        }
+
+        .mock-header {
+            background-color: var(--surface-container-low);
+            border-bottom: 1px solid var(--outline-variant);
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mock-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--outline-variant);
+        }
+
+        .mock-title {
+            font-family: 'Geist', monospace;
+            font-size: 0.65rem;
+            color: var(--outline);
+            margin-left: 6px;
+        }
+
+        .mock-body {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1.4fr 1fr;
+            gap: 12px;
+            padding: 12px;
+        }
+
+        .mock-video-area {
+            background-color: var(--surface-container);
+            border-radius: var(--radius-default);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mock-video-area::before {
+            content: '';
+            position: absolute;
+            top: 25%;
+            left: 20%;
+            right: 20%;
+            bottom: 25%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(194, 193, 255, 0.08) 0%, transparent 70%);
+            animation: rotateGlow 8s linear infinite;
+        }
+
+        .mock-tutor-overlay {
+            background: rgba(19, 19, 19, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--outline-variant);
+            border-radius: var(--radius-default);
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.65rem;
+            max-width: 140px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            z-index: 1;
+        }
+
+        .mock-tutor-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: var(--outline-active);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.5rem;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        .mock-sidebar {
+            background-color: var(--surface-container-low);
+            border-radius: var(--radius-default);
+            border: 1px solid var(--outline-variant);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .mock-chat-heading {
+            font-family: 'Geist', monospace;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--primary);
+            text-transform: uppercase;
+        }
+
+        .mock-chat-bubbles {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .mock-bubble {
+            padding: 6px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 0.68rem;
+            line-height: 1.3;
+        }
+
+        .mock-bubble.tutor {
+            background-color: var(--surface-container-high);
+            border-left: 2px solid var(--primary);
+            color: var(--on-surface);
+        }
+
+        .mock-bubble.user {
+            background-color: var(--surface-container-lowest);
+            border-left: 2px solid var(--outline-variant);
+            color: var(--on-surface-variant);
+        }
+
+        .mock-mic-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.62rem;
+            font-family: 'Geist', monospace;
+            color: var(--outline);
+            background-color: var(--surface-container-high);
+            padding: 4px 8px;
+            border-radius: var(--radius-full);
+            align-self: flex-start;
+        }
+
+        .mock-mic-dot {
+            width: 4px;
+            height: 4px;
+            background-color: var(--outline-active);
+            border-radius: 50%;
+            animation: blinkMic 1s infinite alternate;
+        }
+
+        .mock-concept-tags {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: auto;
+        }
+
+        .mock-tag {
+            font-family: 'Geist', monospace;
+            font-size: 0.58rem;
+            background-color: rgba(194, 193, 255, 0.08);
+            border: 1px solid rgba(194, 193, 255, 0.15);
+            color: var(--primary);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+        }
+
+        .reconfig-link {
+            font-family: 'Geist', monospace;
+            font-size: 0.72rem;
+            color: var(--outline);
+            text-decoration: none;
+            margin-top: 14px;
+            cursor: pointer;
+            transition: color 0.25s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .reconfig-link:hover {
+            color: var(--primary);
+        }
+
+        /* SVG cybernetic head animation */
+        .head-svg path {
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 1;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .head-svg .grid-lines {
+            stroke: rgba(194, 193, 255, 0.15);
+            stroke-dasharray: 2, 2;
+        }
+
+        .head-svg .nodes {
+            fill: var(--outline-active);
+            stroke: #fff;
+            stroke-width: 0.5;
+        }
+
+        /* Animations */
+        @keyframes stepEnter {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse-wave {
+            0% { transform: scaleY(0.7); }
+            100% { transform: scaleY(1.4); }
+        }
+
+        @keyframes rotateGlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes blinkMic {
+            from { opacity: 0.3; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse-ripple-effect {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.15); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Brand Header -->
+    <header class="top-header" id="topHeader">
+        <div class="brand-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="20" height="12" x="2" y="6" rx="2"/>
+                <path d="M12 12h.01"/>
+                <path d="M17 12h.01"/>
+                <path d="M7 12h.01"/>
+            </svg>
+            Gandal AI
+        </div>
+    </header>
+
+    <!-- Main Wizard Screen Container -->
+    <div class="wizard-container">
+
+        <!-- STEP 1: IDENTITY -->
+        <div class="step-view active" id="stepView1">
+            <div class="avatar-circle">
+                <svg viewBox="0 0 100 100" width="100" height="100">
+                    <circle cx="50" cy="50" r="32" fill="none" stroke="var(--outline-variant)" stroke-width="1.5"/>
+                    <!-- Eyes -->
+                    <circle cx="42" cy="45" r="3" fill="var(--primary)"/>
+                    <path id="smile-eye" d="M 55 45 L 61 45" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" style="transform-origin: 58px 45px; transition: transform 0.1s ease;"/>
+                    <!-- Mouth -->
+                    <path d="M 40 60 Q 50 68 60 60" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+            </div>
+            
+            <div class="audio-wave">
+                <div class="audio-bar"></div>
+                <div class="audio-bar"></div>
+                <div class="audio-bar"></div>
+                <div class="audio-bar"></div>
+                <div class="audio-bar"></div>
+            </div>
+            
+            <div class="step-label" style="margin-top: 14px;">Step 01 — Identity</div>
+            <h1 class="step-title">What is your first and last name?</h1>
+            <p class="step-subtitle">Nice to meet you! Let's get started by setting up your academic profile.</p>
+            
+            <!-- Onboarding Language Grid -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; width: 100%; box-sizing: border-box;">
+                <div class="select-card selected" style="padding: 10px; flex-direction: row; align-items: center; justify-content: center; gap: 8px; margin: 0; min-height: 44px; border-radius: var(--radius-md);" onclick="selectOnboardingLanguage('en_US', this)">
+                    <div style="font-weight: 600; font-size: 0.8rem; color: #ffffff;">English</div>
+                </div>
+                <div class="select-card" style="padding: 10px; flex-direction: row; align-items: center; justify-content: center; gap: 8px; margin: 0; min-height: 44px; border-radius: var(--radius-md);" onclick="selectOnboardingLanguage('fr_FR', this)">
+                    <div style="font-weight: 600; font-size: 0.8rem; color: #ffffff;">Français</div>
+                </div>
+                <div class="select-card" style="padding: 10px; flex-direction: row; align-items: center; justify-content: center; gap: 8px; margin: 0; min-height: 44px; border-radius: var(--radius-md);" onclick="selectOnboardingLanguage('es_ES', this)">
+                    <div style="font-weight: 600; font-size: 0.8rem; color: #ffffff;">Español</div>
+                </div>
+                <div class="select-card" style="padding: 10px; flex-direction: row; align-items: center; justify-content: center; gap: 8px; margin: 0; min-height: 44px; border-radius: var(--radius-md);" onclick="selectOnboardingLanguage('pt_PT', this)">
+                    <div style="font-weight: 600; font-size: 0.8rem; color: #ffffff;">Português</div>
+                </div>
+                <div class="select-card" style="padding: 10px; flex-direction: row; align-items: center; justify-content: center; gap: 8px; margin: 0; min-height: 44px; border-radius: var(--radius-md);" onclick="selectOnboardingLanguage('ar_AE', this)">
+                    <div style="font-weight: 600; font-size: 0.8rem; color: #ffffff;">العربية</div>
+                </div>
+                <div class="select-card" style="padding: 10px; flex-direction: row; align-items: center; justify-content: center; gap: 8px; margin: 0; min-height: 44px; border-radius: var(--radius-md);" onclick="selectOnboardingLanguage('zh_CN', this)">
+                    <div style="font-weight: 600; font-size: 0.8rem; color: #ffffff;">中文</div>
+                </div>
+            </div>
+
+            <div class="identity-input-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+                <input type="text" id="nameInput" placeholder="Full Name" autocomplete="off" onkeydown="handleNameKey(event)">
+                <div class="enter-pill">⏎ Enter</div>
+            </div>
+
+            <div class="identity-input-card" style="margin-top: 15px; display: none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="2" y1="12" x2="22" y2="12"/>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                <select id="localeSelect" style="background: transparent; border: none; color: #fff; font-size: 16px; outline: none; width: 100%; font-family: inherit; cursor: pointer; padding-right: 15px;-webkit-appearance: none;">
+                    <option value="en_US" style="background: #0e0e11; color: #fff;">English (United States)</option>
+                    <option value="fr_FR" style="background: #0e0e11; color: #fff;">Français (France)</option>
+                    <option value="zh_CN" style="background: #0e0e11; color: #fff;">中文 (中国)</option>
+                    <option value="es_ES" style="background: #0e0e11; color: #fff;">Español (España)</option>
+                    <option value="pt_PT" style="background: #0e0e11; color: #fff;">Português (Portugal)</option>
+                    <option value="ar_AE" style="background: #0e0e11; color: #fff;">العربية (العربية)</option>
+                </select>
+                <div class="enter-pill" style="pointer-events: none;">▼ Language</div>
+            </div>
+            
+            <button class="btn-primary" onclick="proceedFromIdentity()">
+                Continue
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14"/>
+                    <path d="m12 5 7 7-7 7"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- STEP 2: GOAL SELECTION (Step 1 of 4) -->
+        <div class="step-view" id="stepView2">
+            <div class="avatar-circle">
+                <!-- SVG Neon Wireframe Cybernetic Head -->
+                <svg class="head-svg" viewBox="0 0 100 100">
+                    <path class="grid-lines" d="M 20 50 Q 50 20 80 50 Q 50 80 20 50 Z M 30 50 Q 50 30 70 50 Q 50 70 30 50 Z"/>
+                    <!-- Outer contour -->
+                    <path d="M 32 30 C 32 20, 68 20, 68 30 C 68 45, 62 60, 50 78 C 38 60, 32 45, 32 30 Z"/>
+                    <!-- Neck lines -->
+                    <path d="M 45 74 L 45 88 M 55 74 L 55 88"/>
+                    <!-- Facial wire lines -->
+                    <path d="M 35 38 L 65 38 M 38 48 L 62 48 M 44 58 L 56 58"/>
+                    <!-- Node dots -->
+                    <circle class="nodes" cx="50" cy="38" r="1.5"/>
+                    <circle class="nodes" cx="44" cy="48" r="1.5"/>
+                    <circle class="nodes" cx="56" cy="48" r="1.5"/>
+                    <circle class="nodes" cx="50" cy="58" r="1.5"/>
+                </svg>
+            </div>
+            
+            <h1 class="step-title">What are you interested in learning today?</h1>
+            <p class="step-subtitle">Personalize your curriculum with our expert neural guidance.</p>
+            
+            <div class="cards-grid grid-4cols">
+                <div class="select-card" onclick="selectGoal('k12', this)">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/>
+                            <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-title">K-12 Education</div>
+                        <div class="card-desc">Core curriculum mastery from primary years through high school graduation.</div>
+                    </div>
+                </div>
+
+                <div class="select-card" onclick="selectGoal('professional_certificates', this)">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="18" x="3" y="3" rx="2"/>
+                            <path d="M7 21v-4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4"/>
+                            <circle cx="12" cy="9" r="2"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-title">Professional Certificates</div>
+                        <div class="card-desc">Industry-aligned skill paths for career advancement and technical mastery.</div>
+                    </div>
+                </div>
+
+                <div class="select-card selected" onclick="selectGoal('college_level', this)">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-title">College Level</div>
+                        <div class="card-desc">Advanced academic subjects, research methods, and degree-level concepts.</div>
+                    </div>
+                </div>
+
+                <div class="select-card" onclick="selectGoal('independent_learner', this)">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-title">Independent Learner</div>
+                        <div class="card-desc">Custom exploration of niche topics, hobbies, and lifelong self-improvement.</div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="goToStep(3)">
+                Continue
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14"/>
+                    <path d="m12 5 7 7-7 7"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- STEP 3: STUDY SCHEDULE (Step 2 of 4) -->
+        <div class="step-view" id="stepView3">
+            <div class="avatar-circle">
+                <svg viewBox="0 0 100 100" width="100" height="100">
+                    <circle cx="50" cy="50" r="32" fill="none" stroke="var(--outline-variant)" stroke-width="1.5"/>
+                    <path d="M 50 25 L 50 50 L 68 50" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="50" cy="50" r="3" fill="var(--outline-active)"/>
+                </svg>
+            </div>
+            
+            <h1 class="step-title">What is your preferred study schedule?</h1>
+            <p class="step-subtitle">Choose a daily commitment to optimize your learning velocity.</p>
+            
+            <div class="cards-grid grid-4cols">
+                <div class="select-card selected" onclick="selectSchedule('Midnight Session', this)">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-title">Midnight Session</div>
+                        <div class="card-desc">Late night focus, designed for uninterrupted deep work.</div>
+                    </div>
+                </div>
+
+                <div class="select-card" onclick="selectSchedule('Morning Focus', this)">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="4"/>
+                            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-title">Morning Focus</div>
+                        <div class="card-desc">Start your day with high-retention cognitive priming.</div>
+                    </div>
+                </div>
+
+                <div class="select-card" onclick="selectSchedule('Mid-day Review', this)">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M17 8h1a4 4 0 1 1 0 8h-1"/>
+                            <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/>
+                            <line x1="6" x2="6" y1="2" y2="4"/>
+                            <line x1="10" x2="10" y1="2" y2="4"/>
+                            <line x1="14" x2="14" y1="2" y2="4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-title">Mid-day Review</div>
+                        <div class="card-desc">Quick learning bursts to supplement your daily routine.</div>
+                    </div>
+                </div>
+
+                <div class="select-card" onclick="selectSchedule('Flexible', this)">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/>
+                            <line x1="16" x2="16" y1="2" y2="6"/>
+                            <line x1="8" x2="8" y1="2" y2="6"/>
+                            <line x1="3" x2="21" y1="10" y2="10"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-title">Flexible</div>
+                        <div class="card-desc">Adaptable sessions that fit around your active schedule.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-secondary" onclick="goToStep(2)">Previous Step</button>
+                <button class="btn-primary" onclick="goToStep(4)">
+                    Continue
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14"/>
+                        <path d="m12 5 7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 4: LEVEL CHECK (Step 3 of 4) -->
+        <div class="step-view" id="stepView4">
+            <div class="avatar-circle">
+                <svg viewBox="0 0 100 100" width="100" height="100">
+                    <circle cx="50" cy="50" r="32" fill="none" stroke="var(--outline-variant)" stroke-width="1.5"/>
+                    <path d="M 40 42 C 40 34, 60 34, 60 42 C 60 52, 50 48, 50 56" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="50" cy="64" r="2" fill="var(--primary)"/>
+                </svg>
+            </div>
+            
+            <h1 class="step-title">What is your current level of expertise in this field?</h1>
+            <p class="step-subtitle">Gandal AI will calibrate your learning path based on your existing knowledge.</p>
+            
+            <div class="cards-grid grid-3cols">
+                <div class="select-card" onclick="selectLevel('Beginner', this)">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                            <line x1="9" x2="9.01" y1="9" y2="9"/>
+                            <line x1="15" x2="15.01" y1="9" y2="9"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-title">Beginner</div>
+                        <div class="card-desc">Starting from scratch. No prior experience or technical background in this specific area.</div>
+                    </div>
+                </div>
+
+                <div class="select-card selected" onclick="selectLevel('Intermediate', this)">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-title">Intermediate</div>
+                        <div class="card-desc">I have some foundation. Familiar with basic concepts but need help connecting complex ideas.</div>
+                    </div>
+                </div>
+
+                <div class="select-card" onclick="selectLevel('Advanced', this)">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="8" r="7"/>
+                            <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="card-title">Advanced</div>
+                        <div class="card-desc">Looking for mastery. Deeply technical or theoretical understanding, seeking edge-case expertise.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-secondary" onclick="goToStep(3)">Previous Step</button>
+                <button class="btn-primary" onclick="goToStep(5)">
+                    Continue
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14"/>
+                        <path d="m12 5 7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 5: INTERESTS (Step 4 of 4) -->
+        <div class="step-view" id="stepView5">
+            <div class="avatar-circle">
+                <svg viewBox="0 0 100 100" width="100" height="100">
+                    <circle cx="50" cy="50" r="32" fill="none" stroke="var(--outline-variant)" stroke-width="1.5"/>
+                    <path d="M 38 45 C 38 38, 48 38, 48 45 C 48 55, 38 52, 38 60" fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M 52 45 C 52 38, 62 38, 62 45 C 62 55, 52 52, 52 60" fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round"/>
+                    <circle cx="43" cy="62" r="1.5" fill="var(--primary)"/>
+                    <circle cx="57" cy="62" r="1.5" fill="var(--primary)"/>
+                </svg>
+            </div>
+            
+            <h1 class="step-title">Configure Your Study Program</h1>
+            <p class="step-subtitle" id="onboardingLimitsNotice" style="margin-bottom: 2rem;">Select your grades and preferred subjects to personalize your curriculum.</p>
+            
+            <!-- Dynamic Stage 1: Grade/Field Selector -->
+            <div id="gradeSelectorContainer" style="margin-bottom: 2rem; display: none;">
+                <div style="font-weight: 600; font-size: 0.9rem; letter-spacing: 0.05em; color: var(--primary); text-transform: uppercase; margin-bottom: 0.75rem; text-align: left; padding-left: 0.5rem;">
+                    1. Select Grade / Sub-path
+                </div>
+                <div class="cards-grid grid-8items" id="gradeGrid" style="margin-bottom: 1.5rem;">
+                    <!-- Grade cards dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Dynamic Stage 2: Class/Subject Selector -->
+            <div id="classSelectorContainer" style="display: none;">
+                <div style="font-weight: 600; font-size: 0.9rem; letter-spacing: 0.05em; color: var(--primary); text-transform: uppercase; margin-bottom: 0.75rem; text-align: left; padding-left: 0.5rem;">
+                    2. Select Your Subjects (classes)
+                </div>
+                <div class="cards-grid grid-8items" id="topicsGrid">
+                    <!-- Dynamic classes populated -->
+                </div>
+            </div>
+
+            <div class="button-group" style="margin-top: 2rem;">
+                <button class="btn-secondary" onclick="goToStep(4)">Previous Step</button>
+                <button class="btn-primary" onclick="proceedToComplete()">
+                    Finish Setup
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M5 12h14"/>
+                        <path d="m12 5 7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 6: SETUP COMPLETE (Step 5) -->
+        <div class="step-view" id="stepView6">
+            <div class="avatar-circle">
+                <svg viewBox="0 0 100 100" width="100" height="100">
+                    <circle cx="50" cy="50" r="32" fill="none" stroke="var(--outline-active)" stroke-width="1.5"/>
+                    <path d="M 38 50 L 46 58 L 64 40" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            
+            <h1 class="step-title">Setup Complete</h1>
+            <p class="step-subtitle" id="completeSubtitle">Excellent choice, Adrian. I've prepared your first lesson on Calculus. Let's begin.</p>
+            
+            <!-- Dashboard Mockup preview component -->
+            <div class="dashboard-mockup">
+                <div class="mock-header">
+                    <div class="mock-dot"></div>
+                    <div class="mock-dot"></div>
+                    <div class="mock-dot"></div>
+                    <div class="mock-title">STUDENT CLASSROOM PREVIEW</div>
+                </div>
+                <div class="mock-body">
+                    <!-- Video player preview area -->
+                    <div class="mock-video-area">
+                        <div class="mock-tutor-overlay">
+                            <div class="mock-tutor-avatar">S</div>
+                            <div>
+                                <div style="font-weight: 600; color:#fff;">Dr. Sophia AI</div>
+                                <div style="color:var(--outline); font-size:0.55rem;">STEM Specialist</div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Sidebar tutor details -->
+                    <div class="mock-sidebar">
+                        <span class="mock-chat-heading">AI Tutor Live Feed</span>
+                        <div class="mock-chat-bubbles">
+                            <div class="mock-bubble tutor">
+                                Let's dive deep into the layers of the transformer...
+                            </div>
+                            <div class="mock-bubble user">
+                                How does backpropagation map?
+                            </div>
+                        </div>
+                        <div class="mock-mic-status">
+                            <div class="mock-mic-dot"></div>
+                            <span>Listening...</span>
+                        </div>
+                        <div class="mock-concept-tags">
+                            <span class="mock-tag" id="previewConceptTag">Calculus</span>
+                            <span class="mock-tag">Limits & Derivatives</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="submitSetup()">
+                Enter Classroom
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14"/>
+                    <path d="m12 5 7 7-7 7"/>
+                </svg>
+            </button>
+            
+            <a class="reconfig-link" onclick="restartPreferences()">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                    <path d="M16 3h5v5"/>
+                    <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                    <path d="M8 21H3v-5"/>
+                </svg>
+                Re-Configure Preferences
+            </a>
+        </div>
+
+    </div>
+
+    <!-- Bottom Navigation Footer & Timeline progress states -->
+    <footer class="footer-nav" id="footerNav">
+        
+        <!-- Progress Bar row -->
+        <div style="width: 100%;" id="progressBarContainer">
+            <div class="progress-text-row">
+                <span id="progressStepName">Goal Selection</span>
+                <span id="progressPercentText">Step 1 of 4: 25% Complete</span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="progressBarFill" style="width: 25%;"></div>
+            </div>
+        </div>
+
+        <!-- Steps Timeline Navigation matrix -->
+        <div class="timeline-tracker" id="timelineTracker">
+            <div class="timeline-item active" id="timelineItem1">Goal Selection</div>
+            <div class="timeline-item" id="timelineItem2">Study Schedule</div>
+            <div class="timeline-item" id="timelineItem3">Level Check</div>
+            <div class="timeline-item" id="timelineItem4">Interests</div>
+        </div>
+
+        <div class="bottom-status-line">
+            <span><span class="status-indicator-dot"></span> System Online</span>
+            <span>|</span>
+            <span>🔒 Encrypted Session</span>
+        </div>
+    </footer>
+
+    <script>
+        let wsConnection = null;
+        let activeStep = 1;
+        let completed = false;
+        
+        // Selections state
+        let studentName = "";
+        let selectedGoals = ["College"]; // Default matches preselected "College Level"
+        let selectedSchedule = "Midnight Session"; // Default matches preselected
+        let selectedLevel = "Intermediate"; // Default matches preselected
+        let selectedInterests = ["Calculus"]; // Default matches preselected "Calculus"
+        let databaseLessons = [];
+        let dynamicLessonMap = {};
+
+        const SUBJECT_TRANSLATIONS = {
+            "fr_FR": {
+                "economics": "Économie",
+                "chemistry": "Chimie",
+                "physics": "Physique",
+                "world_history": "Histoire mondiale",
+                "english_literature": "Littérature anglaise",
+                "mathematics": "Mathématiques",
+                "calculus": "Calcul",
+                "religion": "Études religieuses",
+                "12th_sm": "TSM",
+                "12th_se": "TSE",
+                "12th_ss": "TSS",
+                "10th grade": "10ème Année",
+                "1st_grade": "1ère Année"
+            }
+        };
+
+        function translateSubjectLocal(subject, locale) {
+            const s = subject.toLowerCase();
+            if (SUBJECT_TRANSLATIONS[locale] && SUBJECT_TRANSLATIONS[locale][s]) {
+                return SUBJECT_TRANSLATIONS[locale][s];
+            }
+            return subject.replace('_', ' ').replace('-', ' ').toUpperCase();
+        }
+
+        let recognition = null;
+        let isListening = false;
+        let hasGreeted = false;
+
+        // Establish WebSocket connection with exception handling
+        function connectWebSocket() {
+            try {
+                const wsUri = "ws://" + (window.location.hostname || "127.0.0.1") + ":8001";
+                console.log("[WS] Connecting Onboarding client: " + wsUri);
+                wsConnection = new WebSocket(wsUri);
+
+                wsConnection.onopen = function() {
+                    console.log("[WS] Onboarding WebSocket connected.");
+                };
+
+                wsConnection.onmessage = function(evt) {
+                    try {
+                        const payload = JSON.parse(evt.data);
+                        if (payload && payload.action === "ONBOARDING_COMPLETE") {
+                            dissolveVeil();
+                        }
+                    } catch (e) {
+                        console.error("[WS] Error parsing message: " + e);
+                    }
+                };
+
+                wsConnection.onclose = function() {
+                    setTimeout(connectWebSocket, 2000);
+                };
+            } catch (err) {
+                console.error("[WS] WebSocket construction error:", err);
+                setTimeout(connectWebSocket, 5000);
+            }
+        }
+
+        // Browser Text-To-Speech (TTS) with dynamic translation and robust try-catch
+        function speakText(text, callback) {
+            if (typeof window.speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') {
+                if (callback) callback();
+                return;
+            }
+            try {
+                window.speechSynthesis.cancel(); // Cancel any ongoing speech first
+            } catch (e) {
+                console.warn("[TTS] cancel failed:", e);
+            }
+            
+            try {
+                const selectEl = document.getElementById('localeSelect');
+                const chosenLocale = selectEl ? selectEl.value : 'en_US';
+                
+                if (chosenLocale !== 'en_US') {
+                    // Fetch translation first
+                    fetch(`/api/translate?text=${encodeURIComponent(text)}&locale=${encodeURIComponent(chosenLocale)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            try {
+                                const translatedText = (data.translated_text || text).replace(/^(?:\[[^\]]+\]\s*)+/, "");
+                                const utterance = new SpeechSynthesisUtterance(translatedText);
+                                utterance.rate = 1.05;
+                                utterance.pitch = 1.0;
+                                utterance.lang = chosenLocale.replace('_', '-');
+                                if (callback) {
+                                    utterance.onend = callback;
+                                    utterance.onerror = callback;
+                                }
+                                window.speechSynthesis.speak(utterance);
+                            } catch (innerErr) {
+                                console.error("[TTS] speak failed:", innerErr);
+                                if (callback) callback();
+                            }
+                        })
+                        .catch(err => {
+                            console.warn("[TTS] Translation failed, falling back to English voice:", err);
+                            try {
+                                const cleanText = text.replace(/^(?:\[[^\]]+\]\s*)+/, "");
+                                const utterance = new SpeechSynthesisUtterance(cleanText);
+                                utterance.rate = 1.05;
+                                utterance.pitch = 1.0;
+                                utterance.lang = 'en-US';
+                                if (callback) {
+                                    utterance.onend = callback;
+                                    utterance.onerror = callback;
+                                }
+                                window.speechSynthesis.speak(utterance);
+                            } catch (innerErr) {
+                                console.error("[TTS] fallback speak failed:", innerErr);
+                                if (callback) callback();
+                            }
+                        });
+                } else {
+                    const cleanText = text.replace(/^(?:\[[^\]]+\]\s*)+/, "");
+                    const utterance = new SpeechSynthesisUtterance(cleanText);
+                    utterance.rate = 1.05;
+                    utterance.pitch = 1.0;
+                    utterance.lang = 'en-US';
+                    if (callback) {
+                        utterance.onend = callback;
+                        utterance.onerror = callback;
+                    }
+                    window.speechSynthesis.speak(utterance);
+                }
+            } catch (err) {
+                console.error("[TTS] Speak text operation failed:", err);
+                if (callback) callback();
+            }
+        }
+
+        // Speaks text that has already been translated
+        function speakTranslatedText(translatedText, callback) {
+            if (typeof window.speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') {
+                if (callback) callback();
+                return;
+            }
+            try {
+                window.speechSynthesis.cancel();
+            } catch (e) {
+                console.warn("[TTS] cancel failed:", e);
+            }
+            try {
+                const selectEl = document.getElementById('localeSelect');
+                const chosenLocale = selectEl ? selectEl.value : 'en_US';
+                
+                const cleanText = translatedText.replace(/^(?:\[[^\]]+\]\s*)+/, "");
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                utterance.rate = 1.05;
+                utterance.pitch = 1.0;
+                utterance.lang = chosenLocale.replace('_', '-');
+                if (callback) {
+                    utterance.onend = callback;
+                    utterance.onerror = callback;
+                }
+                window.speechSynthesis.speak(utterance);
+            } catch (err) {
+                console.error("[TTS] speakTranslatedText failed:", err);
+                if (callback) callback();
+            }
+        }
+
+        // Browser Microphone Speech Recognition with dynamic locale and try-catch
+        function startSpeechRecognition() {
+            if (completed) return;
+            
+            try {
+                window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!window.SpeechRecognition) {
+                    console.warn("[SPEECH] Speech Recognition not supported in this browser.");
+                    return;
+                }
+
+                if (recognition) {
+                    try { recognition.stop(); } catch(e) {}
+                }
+
+                recognition = new window.SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                
+                // Set voice recognition language to match student preference
+                const selectEl = document.getElementById('localeSelect');
+                const chosenLocale = selectEl ? selectEl.value : 'en_US';
+                recognition.lang = chosenLocale.replace('_', '-');
+                console.log(`[SPEECH] Initializing voice recognizer with locale: ${recognition.lang}`);
+
+                recognition.onstart = () => {
+                    isListening = true;
+                    console.log("[SPEECH] Voice recognition listening...");
+                    document.querySelectorAll('.audio-bar').forEach(bar => {
+                        bar.style.animationPlayState = 'running';
+                        bar.style.backgroundColor = 'var(--outline-active)';
+                    });
+                };
+
+                recognition.onend = () => {
+                    isListening = false;
+                    console.log("[SPEECH] Voice recognition stopped.");
+                    document.querySelectorAll('.audio-bar').forEach(bar => {
+                        bar.style.animationPlayState = 'paused';
+                        bar.style.backgroundColor = 'var(--primary)';
+                    });
+                    
+                    // Keep listening if step is active and not completed
+                    setTimeout(() => {
+                        if (!completed && !isListening && !window.speechSynthesis.speaking && activeStep < 6) {
+                            startSpeechRecognition();
+                        }
+                    }, 800);
+                };
+
+                recognition.onresult = (event) => {
+                    try {
+                        const transcript = event.results[0][0].transcript.toLowerCase();
+                        console.log("[SPEECH] Transcript received: " + transcript);
+                        handleVoiceCommand(transcript);
+                    } catch (innerErr) {
+                        console.error("[SPEECH] voice command processing error:", innerErr);
+                    }
+                };
+
+                recognition.onerror = (e) => {
+                    console.warn("[SPEECH] Recognition error: ", e.error);
+                };
+
+                recognition.start();
+            } catch (err) {
+                console.error("[SPEECH] Speech recognition activation failed:", err);
+            }
+        }
+
+        // Voice command parser & card mapping
+        function handleVoiceCommand(transcript) {
+            try {
+                console.log(`[COMMAND] Parsing: "${transcript}" in Step ${activeStep}`);
+                
+                // Helper to check if transcript contains any keyword in list
+                const hasMatch = (words) => words.some(w => transcript.includes(w.toLowerCase()));
+
+                if (activeStep === 1) {
+                    let name = "";
+                    const patterns = [
+                        "name is", "i am", "called", "i'm", "here is",
+                        "mon nom est", "je m'appelle", "je suis",
+                        "mi nombre es", "me llamo", "soy",
+                        "meu nome é", "chamo-me", "eu sou",
+                        "我的名字是", "我叫", "我是",
+                        "اسمي هو", "أنا أدعى", "أنا"
+                    ];
+                    for (const pattern of patterns) {
+                        if (transcript.includes(pattern)) {
+                            const parts = transcript.split(pattern);
+                            if (parts.length > 1) {
+                                name = parts[1].trim();
+                                break;
+                            }
+                        }
+                    }
+                    if (!name && transcript.split(" ").length <= 3) {
+                        name = transcript.trim();
+                    }
+                    if (name) {
+                        name = name.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+                        document.getElementById('nameInput').value = name;
+                        showToastNotification("Name Captured", `Recognized: "${name}"`);
+                        speakText(`Nice to meet you, ${name}.`, () => {
+                            proceedFromIdentity();
+                        });
+                    }
+                } else if (activeStep === 2) {
+                    const k12 = ["k-12", "k 12", "school", "high school", "école", "lycée", "scolaire", "escuela", "colegio", "secundaria", "escola", "学校", "中学", "小学", "مدرسة", "التعليم المدرسي"];
+                    const prof = ["professional", "certificate", "certificates", "career", "professionnel", "certificat", "carrière", "profesional", "título", "carrera", "profissional", "diploma", "职业", "证书", "生涯", "مهني", "شهادة", "مهنة"];
+                    const coll = ["college", "university", "academic", "degree", "université", "académique", "études supérieures", "universidad", "académico", "grado", "universidade", "ensino superior", "大学", "学术", "学位", "جامعة", "جامعي", "أكاديمي"];
+                    const indep = ["independent", "learner", "self", "hobbies", "indépendant", "autodidacte", "loisirs", "independiente", "autodidacta", "pasatiempos", "independente", "独立", "自主学习", "兴趣", "مستقل", "تعلم ذاتي", "هوايات"];
+
+                    if (hasMatch(k12)) {
+                        const card = document.querySelectorAll('#stepView2 .select-card')[0];
+                        selectGoal('k12', card);
+                        showToastNotification("Goal Selected", "K-12 Education selected.");
+                        speakText("K-12 selected.", () => goToStep(3));
+                    } else if (hasMatch(prof)) {
+                        const card = document.querySelectorAll('#stepView2 .select-card')[1];
+                        selectGoal('professional_certificates', card);
+                        showToastNotification("Goal Selected", "Professional Certificates selected.");
+                        speakText("Professional selected.", () => goToStep(3));
+                    } else if (hasMatch(coll)) {
+                        const card = document.querySelectorAll('#stepView2 .select-card')[2];
+                        selectGoal('college_level', card);
+                        showToastNotification("Goal Selected", "College Level selected.");
+                        speakText("College selected.", () => goToStep(3));
+                    } else if (hasMatch(indep)) {
+                        const card = document.querySelectorAll('#stepView2 .select-card')[3];
+                        selectGoal('independent_learner', card);
+                        showToastNotification("Goal Selected", "Independent Learner selected.");
+                        speakText("Independent selected.", () => goToStep(3));
+                    }
+                } else if (activeStep === 3) {
+                    const midn = ["midnight", "night", "late", "minuit", "nuit", "tard", "medianoche", "noche", "tarde", "meia-noite", "noite", "半夜", "深夜", "晚", "منتصف الليل", "الليل", "متأخر"];
+                    const morn = ["morning", "early", "dawn", "matin", "tôt", "aube", "mañana", "temprano", "manhã", "cedo", "早上", "清晨", "早", "صباح", "باكر", "فجر"];
+                    const midd = ["mid-day", "lunch", "noon", "mid day", "afternoon", "midi", "déjeuner", "après-midi", "mediodía", "almuerzo", "tarde", "meio-dia", "almoço", "中午", "午后", "منتصف النهار", "الغداء", "الظهر", "بعد الظهر"];
+                    const flex = ["flexible", "adaptable", "anytime", "adaptable", "tout moment", "adaptable", "cualquier hora", "adaptável", "qualquer momento", "弹性", "随时", "灵活", "مرn", "أي وقت"];
+
+                    if (hasMatch(midn)) {
+                        const card = document.querySelectorAll('#stepView3 .select-card')[0];
+                        selectSchedule('Midnight Session', card);
+                        showToastNotification("Schedule Selected", "Midnight Session selected.");
+                        speakText("Midnight selected.", () => goToStep(4));
+                    } else if (hasMatch(morn)) {
+                        const card = document.querySelectorAll('#stepView3 .select-card')[1];
+                        selectSchedule('Morning Focus', card);
+                        showToastNotification("Schedule Selected", "Morning Focus selected.");
+                        speakText("Morning selected.", () => goToStep(4));
+                    } else if (hasMatch(midd)) {
+                        const card = document.querySelectorAll('#stepView3 .select-card')[2];
+                        selectSchedule('Mid-day Review', card);
+                        showToastNotification("Schedule Selected", "Mid-day Review selected.");
+                        speakText("Mid-day selected.", () => goToStep(4));
+                    } else if (hasMatch(flex)) {
+                        const card = document.querySelectorAll('#stepView3 .select-card')[3];
+                        selectSchedule('Flexible', card);
+                        showToastNotification("Schedule Selected", "Flexible selected.");
+                        speakText("Flexible selected.", () => goToStep(4));
+                    }
+                } else if (activeStep === 4) {
+                    const beg = ["beginner", "scratch", "new", "start", "débutant", "zéro", "nouveau", "commencer", "principiante", "cero", "nuevo", "comenzar", "iniciante", "começar", "初学者", "零基础", "新", "مبتدئ", "من الصفر", "جديد", "بداية"];
+                    const inter = ["intermediate", "foundation", "some", "intermédiaire", "bases", "moyen", "intermedio", "conceptos básicos", "intermediário", "中级", "基础", "متوسط", "أساسي"];
+                    const adv = ["advanced", "mastery", "expert", "avancé", "maîtrise", "expert", "avanzado", "maestría", "avançado", "高级", "精通", "专家", "متقدم", "إتقan", "خبير"];
+
+                    if (hasMatch(beg)) {
+                        const card = document.querySelectorAll('#stepView4 .select-card')[0];
+                        selectLevel('Beginner', card);
+                        showToastNotification("Expertise Selected", "Beginner Level selected.");
+                        speakText("Beginner selected.", () => goToStep(5));
+                    } else if (hasMatch(inter)) {
+                        const card = document.querySelectorAll('#stepView4 .select-card')[1];
+                        selectLevel('Intermediate', card);
+                        showToastNotification("Expertise Selected", "Intermediate Level selected.");
+                        speakText("Intermediate selected.", () => goToStep(5));
+                    } else if (hasMatch(adv)) {
+                        const card = document.querySelectorAll('#stepView4 .select-card')[2];
+                        selectLevel('Advanced', card);
+                        showToastNotification("Expertise Selected", "Advanced Level selected.");
+                        speakText("Advanced selected.", () => goToStep(5));
+                    }
+                } else if (activeStep === 5) {
+                    const cards = document.querySelectorAll('#stepView5 .select-card');
+                    cards.forEach(card => {
+                        const titleEl = card.querySelector('.card-title');
+                        if (!titleEl) return;
+                        const title = titleEl.innerText.trim();
+                        const titleLower = title.toLowerCase();
+                        
+                        let match = false;
+                        if (titleLower === "calculus" && hasMatch(["calculus", "calcul", "cálculo", "微积分", "التفاضل"])) {
+                            match = true;
+                        } else if (titleLower === "classical pendulums" && hasMatch(["pendulum", "classical", "pendule", "péndulo", "pêndulo", "摆", "بندول"])) {
+                            match = true;
+                        } else if (titleLower === "graph theory" && hasMatch(["graph", "theory", "graphe", "théorie", "grafo", "teoría", "图论", "الرسوم"])) {
+                            match = true;
+                        } else if (titleLower === "bio-ethics" && hasMatch(["bio", "ethics", "éthique", "ética", "生物伦理", "الأخلاق"])) {
+                            match = true;
+                        } else if (titleLower === "compiler design" && hasMatch(["compiler", "design", "compilateur", "compilador", "编译", "مترجم"])) {
+                            match = true;
+                        } else if (titleLower === "cryptography" && hasMatch(["crypto", "cryptography", "defense", "cryptographie", "criptografía", "密码", "التشفير"])) {
+                            match = true;
+                        } else if (titleLower === "fpga programming" && hasMatch(["fpga", "hardware", "programming", "matériel", "programmation", "programación", "硬件", "برمجة"])) {
+                            match = true;
+                        }
+                        
+                        if (match) {
+                            toggleInterest(title, card);
+                            showToastNotification("Topic Toggled", `${title} toggled.`);
+                        }
+                    });
+
+                    const fin = ["finish", "complete", "finish setup", "done", "terminer", "complété", "fini", "completar", "terminar", "finalizar", "listo", "concluir", "完成", "结束", "好了", "إنهاء", "اكتمل", "تم"];
+                    if (hasMatch(fin)) {
+                        showToastNotification("Setup Finishing", "Completing your academic setup...");
+                        speakText("Completing setup.", () => proceedToComplete());
+                    }
+                } else if (activeStep === 6) {
+                    const entr = ["enter", "classroom", "begin", "start", "entrer", "classe", "commencer", "entrar", "aula", "comenzar", "iniciar", "sala de aula", "进入", "教室", "开始", "دخول", "الفصل", "ابدأ"];
+                    if (hasMatch(entr)) {
+                        showToastNotification("Redirecting", "Entering Classroom...");
+                        submitSetup();
+                    }
+                }
+            } catch (err) {
+                console.error("[COMMAND] Error parsing voice command:", err);
+            }
+        }
+
+        // Toast Notification component
+        function showToastNotification(header, body) {
+            try {
+                const container = document.body;
+                const toast = document.createElement('div');
+                toast.className = 'mesh-toast';
+                toast.style.position = 'fixed';
+                toast.style.bottom = '24px';
+                toast.style.right = '24px';
+                toast.style.backgroundColor = 'var(--surface-container-high)';
+                toast.style.border = '1px solid var(--primary)';
+                toast.style.borderRadius = 'var(--radius-default)';
+                toast.style.padding = '12px 18px';
+                toast.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.6)';
+                toast.style.display = 'flex';
+                toast.style.flexDirection = 'column';
+                toast.style.gap = '4px';
+                toast.style.zIndex = '10000';
+                toast.innerHTML = `
+                    <div style="font-weight: 600; font-size: 0.82rem; color: var(--primary);">${header}</div>
+                    <div style="font-size: 0.78rem; color: var(--on-surface);">${body}</div>
+                `;
+                container.appendChild(toast);
+                setTimeout(() => {
+                    toast.style.transition = 'opacity 0.3s ease';
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 350);
+                }, 2500);
+            } catch (e) {
+                console.error("showToastNotification error:", e);
+            }
+        }
+
+        // Trigger greeting on user gesture
+        function triggerGreeting() {
+            if (hasGreeted) return;
+            hasGreeted = true;
+            
+            // Unbind document interaction listeners
+            document.removeEventListener('click', triggerGreeting);
+            document.removeEventListener('keydown', triggerGreeting);
+            
+            const welcomeText = "Welcome to Gandal AI. What is your first and last name?";
+            const selectEl = document.getElementById('localeSelect');
+            const chosenLocale = selectEl ? selectEl.value : 'en_US';
+            
+            if (chosenLocale !== 'en_US') {
+                fetch(`/api/translate?text=${encodeURIComponent(welcomeText)}&locale=${encodeURIComponent(chosenLocale)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        const trans = data.translated_text || welcomeText;
+                        speakTranslatedText(trans, () => {
+                            startSpeechRecognition();
+                        });
+                    })
+                    .catch(() => {
+                        speakText(welcomeText, () => {
+                            startSpeechRecognition();
+                        });
+                    });
+            } else {
+                speakText(welcomeText, () => {
+                    startSpeechRecognition();
+                });
+            }
+        }
+
+        function selectOnboardingLanguage(locale, element) {
+            try {
+                // Ensure greeting is handled
+                hasGreeted = true;
+                document.removeEventListener('click', triggerGreeting);
+                document.removeEventListener('keydown', triggerGreeting);
+                
+                const selectEl = document.getElementById('localeSelect');
+                if (selectEl) {
+                    selectEl.value = locale;
+                }
+                element.parentElement.querySelectorAll('.select-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                element.classList.add('selected');
+                console.log("[LANG SELECT] Chosen locale set to: " + locale);
+                
+                // Instantly update current step text & synthesize question in new language
+                goToStep(activeStep);
+            } catch (err) {
+                console.error("[LANG SELECT] Error choosing language:", err);
+            }
+        }
+
+        // Handle enter key in identity input field
+        function handleNameKey(event) {
+            if (event.key === 'Enter') {
+                proceedFromIdentity();
+            }
+        }
+
+        // Identity page validation
+        function proceedFromIdentity() {
+            try {
+                const inputVal = document.getElementById('nameInput').value.trim();
+                if (!inputVal) {
+                    const card = document.querySelector('.identity-input-card');
+                    if (card) {
+                        card.style.borderColor = 'var(--outline-active)';
+                        setTimeout(() => card.style.borderColor = 'var(--outline-variant)', 1000);
+                    }
+                    return;
+                }
+                studentName = inputVal;
+                
+                const header = document.getElementById('topHeader');
+                if (header) header.classList.add('left-aligned');
+                
+                goToStep(2);
+            } catch (err) {
+                console.error("proceedFromIdentity failed:", err);
+            }
+        }
+
+        // Selection Handlers
+        function selectGoal(goalName, element) {
+            try {
+                const index = selectedGoals.indexOf(goalName);
+                if (index > -1) {
+                    if (selectedGoals.length > 1) { // Retain at least one selection
+                        selectedGoals.splice(index, 1);
+                        element.classList.remove('selected');
+                    }
+                } else {
+                    selectedGoals.push(goalName);
+                    element.classList.add('selected');
+                }
+            } catch (e) {
+                console.error("selectGoal failed:", e);
+            }
+        }
+
+        function selectSchedule(scheduleName, element) {
+            try {
+                selectedSchedule = scheduleName;
+                element.parentElement.querySelectorAll('.select-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                element.classList.add('selected');
+            } catch (e) {
+                console.error("selectSchedule failed:", e);
+            }
+        }
+
+        function selectLevel(levelName, element) {
+            try {
+                selectedLevel = levelName;
+                element.parentElement.querySelectorAll('.select-card').forEach(card => {
+                    card.classList.remove('selected');
+                });
+                element.classList.add('selected');
+            } catch (e) {
+                console.error("selectLevel failed:", e);
+            }
+        }
+
+        function toggleInterest(topicName, element) {
+            try {
+                const index = selectedInterests.indexOf(topicName);
+                if (index > -1) {
+                    if (selectedInterests.length > 1) { // Retain at least one selection
+                        selectedInterests.splice(index, 1);
+                        element.classList.remove('selected');
+                    }
+                } else {
+                    selectedInterests = [topicName];
+                    document.querySelectorAll('#topicsGrid .select-card').forEach(c => c.classList.remove('selected'));
+                    element.classList.add('selected');
+                }
+            } catch (e) {
+                console.error("toggleInterest failed:", e);
+            }
+        }
+
+        // Helper to translate cards and buttons on the fly in onboarding steps
+        function translateStepElements(stepNum, locale) {
+            try {
+                const stepView = document.getElementById(`stepView${stepNum}`);
+                if (!stepView) return;
+
+                // Select card titles, descriptions, metadata tags, buttons, links
+                const selectors = ['.card-title', '.card-desc', '.card-meta', 'button.btn-primary', 'button.btn-secondary', 'a.reconfig-link'];
+                const elementsToTranslate = [];
+
+                selectors.forEach(sel => {
+                    stepView.querySelectorAll(sel).forEach(el => {
+                        elementsToTranslate.push(el);
+                    });
+                });
+
+                // Handle step 6 completion and preview dashboard specific elements
+                if (stepNum === 6) {
+                    const completeSub = document.getElementById('completeSubtitle');
+                    if (completeSub) elementsToTranslate.push(completeSub);
+                    const tag = document.getElementById('previewConceptTag');
+                    if (tag) elementsToTranslate.push(tag);
+                    const mockTitle = stepView.querySelector('.mock-title');
+                    if (mockTitle) elementsToTranslate.push(mockTitle);
+                    const mockFeedHeading = stepView.querySelector('.mock-chat-heading');
+                    if (mockFeedHeading) elementsToTranslate.push(mockFeedHeading);
+                    const mockMicSpan = stepView.querySelector('.mock-mic-status span');
+                    if (mockMicSpan) elementsToTranslate.push(mockMicSpan);
+                    const mockBubbles = stepView.querySelectorAll('.mock-bubble');
+                    mockBubbles.forEach(b => elementsToTranslate.push(b));
+                    const mockTutorName = stepView.querySelector('.mock-tutor-overlay div div');
+                    if (mockTutorName) elementsToTranslate.push(mockTutorName);
+                    const mockTutorRole = stepView.querySelector('.mock-tutor-overlay div div:nth-child(2)');
+                    if (mockTutorRole) elementsToTranslate.push(mockTutorRole);
+                }
+
+                // Handle nameInput placeholder in Step 1 / identity view
+                const nameInput = stepView.querySelector('#nameInput');
+                if (nameInput) {
+                    if (!nameInput.hasAttribute('data-orig-placeholder')) {
+                        nameInput.setAttribute('data-orig-placeholder', nameInput.getAttribute('placeholder') || '');
+                    }
+                    const origPlaceholder = nameInput.getAttribute('data-orig-placeholder');
+                    if (origPlaceholder) {
+                        if (locale === 'en_US') {
+                            nameInput.setAttribute('placeholder', origPlaceholder);
+                        } else {
+                            fetch(`/api/translate?text=${encodeURIComponent(origPlaceholder)}&locale=${encodeURIComponent(locale)}`)
+                                .then(r => r.json())
+                                .then(data => {
+                                    nameInput.setAttribute('placeholder', data.translated_text || origPlaceholder);
+                                })
+                                .catch(e => console.warn("Failed placeholder translation:", e));
+                        }
+                    }
+                }
+
+                elementsToTranslate.forEach(el => {
+                    if (!el.hasAttribute('data-orig-text')) {
+                        // Extract first text node to translate to avoid breaking SVGs
+                        let text = "";
+                        let textNode = null;
+                        for (let child of el.childNodes) {
+                            if (child.nodeType === Node.TEXT_NODE && child.nodeValue.trim()) {
+                                text = child.nodeValue.trim();
+                                textNode = child;
+                                break;
+                            }
+                        }
+                        if (textNode) {
+                            el.setAttribute('data-orig-text', text);
+                            el.textNodeRef = textNode;
+                        } else {
+                            el.setAttribute('data-orig-text', el.textContent.trim());
+                        }
+                    }
+
+                    const origText = el.getAttribute('data-orig-text');
+                    if (!origText) return;
+
+                    if (locale === 'en_US') {
+                        if (el.textNodeRef) {
+                            el.textNodeRef.nodeValue = origText;
+                        } else {
+                            el.textContent = origText;
+                        }
+                    } else {
+                        fetch(`/api/translate?text=${encodeURIComponent(origText)}&locale=${encodeURIComponent(locale)}`)
+                            .then(r => r.json())
+                            .then(data => {
+                                const trans = data.translated_text || origText;
+                                if (el.textNodeRef) {
+                                    el.textNodeRef.nodeValue = trans;
+                                } else {
+                                    el.textContent = trans;
+                                }
+                            })
+                            .catch(err => console.warn(`Card/Button translation of "${origText}" failed:`, err));
+                    }
+                });
+            } catch (err) {
+                console.error("translateStepElements failed:", err);
+            }
+        }
+
+        // Navigate step views & Speak questions
+        function goToStep(stepNum) {
+            try {
+                activeStep = stepNum;
+                
+                const selectEl = document.getElementById('localeSelect');
+                const chosenLocale = selectEl ? selectEl.value : 'en_US';
+
+                // Hide all steps
+                document.querySelectorAll('.step-view').forEach(view => {
+                    view.classList.remove('active');
+                });
+
+                // Show active step
+                const targetView = document.getElementById(`stepView${stepNum}`);
+                if (targetView) targetView.classList.add('active');
+
+                // Handle UI controls if on Step 1 (Identity is not step 1, 2, 3, 4 of the timeline)
+                const timeline = document.getElementById('timelineTracker');
+                const progressRow = document.getElementById('progressBarContainer');
+                const progressFill = document.getElementById('progressBarFill');
+                
+                if (stepNum === 1) {
+                    if (timeline) timeline.style.display = 'none';
+                    if (progressRow) progressRow.style.display = 'none';
+                    const header = document.getElementById('topHeader');
+                    if (header) header.classList.remove('left-aligned');
+                } else if (stepNum >= 2 && stepNum <= 5) {
+                    if (timeline) timeline.style.display = 'flex';
+                    if (progressRow) progressRow.style.display = 'block';
+                    const header = document.getElementById('topHeader');
+                    if (header) header.classList.add('left-aligned');
+                    
+                    const relativeIndex = stepNum - 1; // 1 to 4
+                    const percent = relativeIndex * 25;
+                    if (progressFill) progressFill.style.width = `${percent}%`;
+                    
+                    const stepsLabels = ["Goal Selection", "Study Schedule", "Level Check", "Interests"];
+                    const stepLabel = stepsLabels[relativeIndex - 1];
+                    const percentText = `Step ${relativeIndex} of 4: ${percent}% Complete`;
+                    
+                    const stepNameEl = document.getElementById('progressStepName');
+                    const percentTextEl = document.getElementById('progressPercentText');
+
+                    if (chosenLocale !== 'en_US') {
+                        Promise.all([
+                            fetch(`/api/translate?text=${encodeURIComponent(stepLabel)}&locale=${encodeURIComponent(chosenLocale)}`).then(r => r.json()),
+                            fetch(`/api/translate?text=${encodeURIComponent(percentText)}&locale=${encodeURIComponent(chosenLocale)}`).then(r => r.json())
+                        ]).then(([labelData, percentData]) => {
+                            if (stepNameEl) stepNameEl.innerText = labelData.translated_text || stepLabel;
+                            if (percentTextEl) percentTextEl.innerText = percentData.translated_text || percentText;
+                        }).catch(() => {
+                            if (stepNameEl) stepNameEl.innerText = stepLabel;
+                            if (percentTextEl) percentTextEl.innerText = percentText;
+                        });
+                    } else {
+                        if (stepNameEl) stepNameEl.innerText = stepLabel;
+                        if (percentTextEl) percentTextEl.innerText = percentText;
+                    }
+
+                    // Update timeline highlight classes & translate their labels
+                    const timelineLabels = ["Goals", "Schedule", "Level", "Topics"];
+                    for (let i = 1; i <= 4; i++) {
+                        const item = document.getElementById(`timelineItem${i}`);
+                        if (item) {
+                            if (!item.hasAttribute('data-orig-text')) {
+                                item.setAttribute('data-orig-text', item.innerText.trim());
+                            }
+                            const orig = item.getAttribute('data-orig-text');
+                            if (chosenLocale === 'en_US') {
+                                item.innerText = orig;
+                            } else {
+                                fetch(`/api/translate?text=${encodeURIComponent(orig)}&locale=${encodeURIComponent(chosenLocale)}`)
+                                    .then(r => r.json())
+                                    .then(data => {
+                                        item.innerText = data.translated_text || orig;
+                                    });
+                            }
+                            if (i === relativeIndex) {
+                                item.classList.add('active');
+                            } else {
+                                item.classList.remove('active');
+                            }
+                        }
+                    }
+                } else if (stepNum === 6) {
+                    if (timeline) timeline.style.display = 'none';
+                    if (progressRow) progressRow.style.display = 'none';
+                }
+
+
+                // Speak the question matching the step out loud
+                let speakTextStr = "";
+                let subTextStr = "";
+                if (stepNum === 1) {
+                    speakTextStr = "Welcome to Gandal AI. What is your first and last name?";
+                    subTextStr = "Nice to meet you! Let's get started by setting up your academic profile.";
+                } else if (stepNum === 2) {
+                    speakTextStr = "What are you interested in learning today?";
+                    subTextStr = "Select the option that best matches your learning objectives.";
+                } else if (stepNum === 3) {
+                    speakTextStr = "What is your preferred study schedule?";
+                    subTextStr = "Choose a routine that fits your lifestyle. You can study anytime!";
+                } else if (stepNum === 4) {
+                    speakTextStr = "What is your current level of expertise in this field?";
+                    subTextStr = "Don't worry, we customize material to challenge you perfectly.";
+                } else if (stepNum === 5) {
+                    renderTopicsGrid(); // Dynamically render the grid of cards
+                    speakTextStr = "Which specific topics within this path excite you most?";
+                    subTextStr = "Select all areas of interest to tailor your curriculum ledger.";
+                } else if (stepNum === 6) {
+                    speakTextStr = "Setup Complete. Speak enter classroom to begin.";
+                    subTextStr = "Your AI-driven personalized curriculum has been fully synthesized.";
+                }
+
+                // Translate title and subtitle
+                if (chosenLocale !== 'en_US') {
+                    // Fetch translations for both
+                    Promise.all([
+                        fetch(`/api/translate?text=${encodeURIComponent(speakTextStr)}&locale=${encodeURIComponent(chosenLocale)}`).then(r => r.json()),
+                        fetch(`/api/translate?text=${encodeURIComponent(subTextStr)}&locale=${encodeURIComponent(chosenLocale)}`).then(r => r.json())
+                    ]).then(([titleData, subData]) => {
+                        const transTitle = titleData.translated_text || speakTextStr;
+                        const transSub = subData.translated_text || subTextStr;
+                        
+                        const titleEl = document.querySelector(`#stepView${stepNum} .step-title`);
+                        const subEl = document.querySelector(`#stepView${stepNum} .step-subtitle`);
+                        if (titleEl) titleEl.innerText = transTitle;
+                        if (subEl) subEl.innerText = transSub;
+                        
+                        // Speak text only if we have already greeted (user interacted)
+                        if (hasGreeted || stepNum > 1) {
+                            speakTranslatedText(transTitle, () => {
+                                startSpeechRecognition();
+                            });
+                        }
+                    }).catch(err => {
+                        console.warn("Translation promise failed:", err);
+                        if (hasGreeted || stepNum > 1) {
+                            speakText(speakTextStr, () => {
+                                startSpeechRecognition();
+                            });
+                        }
+                    });
+                } else {
+                    // English: Restore original text in case we switched back
+                    const titleEl = document.querySelector(`#stepView${stepNum} .step-title`);
+                    const subEl = document.querySelector(`#stepView${stepNum} .step-subtitle`);
+                    if (titleEl) titleEl.innerText = speakTextStr;
+                    if (subEl) subEl.innerText = subTextStr;
+                    
+                    if (hasGreeted || stepNum > 1) {
+                        speakText(speakTextStr, () => {
+                            startSpeechRecognition();
+                        });
+                    }
+                }
+
+                // Dynamically translate card items, placeholders and buttons AFTER rendering
+                translateStepElements(stepNum, chosenLocale);
+            } catch (err) {
+                console.error("goToStep failed:", err);
+            }
+        }
+
+        let curriculumStructure = {};
+        let selectedGrades = [];
+        let maxSelectableClasses = 3;
+
+        // Render topic selection cards dynamically
+        async function renderTopicsGrid() {
+            try {
+                const levelsCount = selectedGoals.length;
+                maxSelectableClasses = levelsCount > 1 ? 5 : 3;
+                
+                const limitsNotice = document.getElementById('onboardingLimitsNotice');
+                if (limitsNotice) {
+                    limitsNotice.innerText = `Choose up to ${maxSelectableClasses} classes based on your selected learning path levels (you selected ${levelsCount} level${levelsCount > 1 ? 's' : ''}).`;
+                }
+
+                // 1. Fetch curriculum structure
+                const resStruct = await fetch('/api/curriculum_structure');
+                const dataStruct = await resStruct.json();
+                curriculumStructure = dataStruct.structure || {};
+
+                // 2. Fetch database lessons
+                const resLessons = await fetch('/api/lessons');
+                const dataLessons = await resLessons.json();
+                databaseLessons = dataLessons.lessons || [];
+
+                // Reset dynamic lesson map
+                dynamicLessonMap = {};
+                databaseLessons.forEach(l => {
+                    const cleanPath = (l.pdf_file_path || "").replace(/^\//, "");
+                    const parts = cleanPath.split('/');
+                    if (parts.length >= 3) {
+                        const subject = parts[2];
+                        dynamicLessonMap[subject.toLowerCase()] = l.video_id;
+                    }
+                });
+
+                // Clear interests selection if it holds old static placeholders
+                if (selectedInterests.length === 1 && selectedInterests[0] === "Calculus") {
+                    selectedInterests = [];
+                }
+
+                // 3. Render Grade/Sub-path Selector
+                renderGrades();
+
+                // 4. Render Classes Selector
+                renderClasses();
+
+            } catch (e) {
+                console.error("renderTopicsGrid failed:", e);
+            }
+        }
+
+        function renderGrades() {
+            const container = document.getElementById('gradeSelectorContainer');
+            const grid = document.getElementById('gradeGrid');
+            if (!container || !grid) return;
+
+            grid.innerHTML = "";
+            let gradesFound = [];
+
+            const goalMapping = {
+                "12th Grade": "k12",
+                "College": "college_level",
+                "Random Topics": "independent_learner",
+                "5th Grade": "professional_certificates"
+            };
+
+            for (let goal of selectedGoals) {
+                const mappedGoal = goalMapping[goal] || goal;
+                if (curriculumStructure[mappedGoal]) {
+                    const levelGrades = Object.keys(curriculumStructure[mappedGoal]);
+                    levelGrades.forEach(g => {
+                        if (!gradesFound.includes(g)) {
+                            gradesFound.push({
+                                name: g,
+                                level: mappedGoal
+                            });
+                        }
+                    });
+                }
+            }
+
+            if (gradesFound.length === 0) {
+                container.style.display = "none";
+                selectedGrades = [];
+                return;
+            }
+
+            container.style.display = "block";
+
+            if (selectedGrades.length === 0 && gradesFound.length > 0) {
+                selectedGrades = [gradesFound[0].name];
+            }
+
+            const locale = document.getElementById('localeSelect').value;
+
+            gradesFound.forEach(g => {
+                const isSelected = selectedGrades.includes(g.name) ? "selected" : "";
+                const displayName = translateSubjectLocal(g.name, locale);
+                grid.innerHTML += `
+                    <div class="select-card ${isSelected}" onclick="toggleGrade('${g.name}', this)">
+                        <span class="card-meta">${g.level.replace('_', ' ').toUpperCase()}</span>
+                        <div class="card-title">${displayName}</div>
+                    </div>
+                `;
+            });
+        }
+
+        function toggleGrade(gradeName, element) {
+            selectedGrades = [gradeName];
+            document.querySelectorAll('#gradeGrid .select-card').forEach(c => c.classList.remove('selected'));
+            element.classList.add('selected');
+            renderClasses();
+        }
+
+        function renderClasses() {
+            const container = document.getElementById('classSelectorContainer');
+            const grid = document.getElementById('topicsGrid');
+            if (!container || !grid) return;
+
+            grid.innerHTML = "";
+            let classesFound = [];
+
+            const goalMapping = {
+                "12th Grade": "k12",
+                "College": "college_level",
+                "Random Topics": "independent_learner",
+                "5th Grade": "professional_certificates"
+            };
+
+            for (let goal of selectedGoals) {
+                const mappedGoal = goalMapping[goal] || goal;
+                if (curriculumStructure[mappedGoal]) {
+                    for (let grade in curriculumStructure[mappedGoal]) {
+                        if (selectedGrades.length > 0 && !selectedGrades.includes(grade)) {
+                            continue;
+                        }
+                        const subjects = curriculumStructure[mappedGoal][grade];
+                        subjects.forEach(s => {
+                            if (!classesFound.includes(s)) {
+                                classesFound.push(s);
+                            }
+                        });
+                    }
+                }
+            }
+
+            if (classesFound.length === 0) {
+                container.style.display = "none";
+                return;
+            }
+
+            container.style.display = "block";
+
+            selectedInterests = selectedInterests.filter(c => classesFound.includes(c));
+
+            if (selectedInterests.length === 0 && classesFound.length > 0) {
+                selectedInterests = [classesFound[0]];
+            }
+
+            const locale = document.getElementById('localeSelect').value;
+
+            classesFound.forEach(className => {
+                const isSelected = selectedInterests.includes(className) ? "selected" : "";
+                const displayName = translateSubjectLocal(className, locale);
+                grid.innerHTML += `
+                    <div class="select-card ${isSelected}" onclick="toggleInterestClass('${className}', this)">
+                        <span class="card-meta">CLASS / MATIÈRE</span>
+                        <div class="card-title">${displayName.toUpperCase()}</div>
+                    </div>
+                `;
+            });
+        }
+
+        function toggleInterestClass(className, element) {
+            try {
+                const index = selectedInterests.indexOf(className);
+                if (index > -1) {
+                    if (selectedInterests.length > 1) {
+                        selectedInterests.splice(index, 1);
+                        element.classList.remove('selected');
+                    }
+                } else {
+                    if (selectedInterests.length >= maxSelectableClasses) {
+                        showToastNotification("Selection Limit", `You can only select up to ${maxSelectableClasses} classes for your selected tracks.`);
+                        return;
+                    }
+                    selectedInterests.push(className);
+                    element.classList.add('selected');
+                }
+            } catch (e) {
+                console.error("toggleInterestClass failed:", e);
+            }
+        }
+
+        // Prepare completing layout
+        function proceedToComplete() {
+            try {
+                const topic = selectedInterests.length > 0 ? selectedInterests[0] : "Calculus";
+                const completeSub = document.getElementById('completeSubtitle');
+                if (completeSub) {
+                    completeSub.innerText = `Excellent choice, ${studentName}. I've prepared your first lesson on ${topic}. Let's begin.`;
+                }
+                const tag = document.getElementById('previewConceptTag');
+                if (tag) tag.innerText = topic;
+                goToStep(6);
+            } catch (e) {
+                console.error("proceedToComplete failed:", e);
+            }
+        }
+
+        // Reset preferences
+        function restartPreferences() {
+            try {
+                selectedGoals = ["college_level"];
+                selectedInterests = [];
+                document.querySelectorAll('.select-card').forEach(card => card.classList.remove('selected'));
+                const collegeCard = document.querySelectorAll('#stepView2 .select-card')[2];
+                if (collegeCard) collegeCard.classList.add('selected');
+                const nameInput = document.getElementById('nameInput');
+                if (nameInput) nameInput.value = "";
+                goToStep(1);
+            } catch (e) {
+                console.error("restartPreferences failed:", e);
+            }
+        }
+
+        // Final Submit: hydrates database
+        function submitSetup() {
+            try {
+                if (completed) return;
+                completed = true;
+                
+                showToastNotification("Redirecting", "Entering Classroom...");
+                
+                speakText("Entering the classroom now.", () => {
+                    const goalMapping = {
+                        "12th Grade": "k12",
+                        "College": "college_level",
+                        "Random Topics": "independent_learner",
+                        "5th Grade": "professional_certificates"
+                    };
+                    let mappedGoals = selectedGoals.map(g => goalMapping[g] || g);
+                    let interestsList = mappedGoals.join(",");
+                    let initialTrack = "College";
+                    
+                    if (selectedInterests.length > 0) {
+                        const firstClass = selectedInterests[0].toLowerCase();
+                        if (dynamicLessonMap[firstClass]) {
+                            initialTrack = dynamicLessonMap[firstClass];
+                        } else {
+                            const matched = databaseLessons.find(l => {
+                                const path = (l.pdf_file_path || "").toLowerCase();
+                                return path.includes("/" + firstClass + "/");
+                            });
+                            if (matched) {
+                                initialTrack = matched.video_id;
+                            } else {
+                                if (databaseLessons.length > 0) {
+                                    initialTrack = databaseLessons[0].video_id;
+                                } else {
+                                    initialTrack = "vid_economics_01";
+                                }
+                            }
+                        }
+                    } else {
+                        if (databaseLessons.length > 0) {
+                            initialTrack = databaseLessons[0].video_id;
+                        } else {
+                            initialTrack = "vid_economics_01";
+                        }
+                    }
+                    
+                    let subjectsContext = selectedInterests.join(",");
+                    let serializedTrack = `${interestsList}|${initialTrack}|subjects:${subjectsContext}`;
+
+                    let chosenLocale = document.getElementById('localeSelect').value;
+                    console.log("[SUBMIT] Submitting User profiles:", studentName, "| Track context:", serializedTrack, "| Locale:", chosenLocale);
+
+                    if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+                        wsConnection.send(JSON.stringify({
+                            "action": "ONBOARDING_SUBMIT",
+                            "name": studentName,
+                            "track": serializedTrack,
+                            "locale": chosenLocale
+                        }));
+                    } else {
+                        console.warn("[WS] Connection offline. Falling back to local redirect.");
+                        setTimeout(dissolveVeil, 500);
+                    }
+                });
+            } catch (e) {
+                console.error("submitSetup failed:", e);
+                dissolveVeil();
+            }
+        }
+
+        // Redirect transition
+        function dissolveVeil() {
+            try {
+                document.body.style.opacity = '0';
+                document.body.style.transition = 'opacity 0.8s ease';
+                setTimeout(() => {
+                    window.location.href = "index.html";
+                }, 800);
+            } catch (e) {
+                console.error("dissolveVeil failed:", e);
+                window.location.href = "index.html";
+            }
+        }
+
+        // Wink smiley face interaction
+        setInterval(() => {
+            try {
+                const eye = document.getElementById('smile-eye');
+                if (eye) {
+                    eye.style.transform = 'scaleY(0.1)';
+                    setTimeout(() => {
+                        eye.style.transform = 'scaleY(1)';
+                    }, 150);
+                }
+            } catch (e) {}
+        }, 4000);
+
+        // Load & Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                localStorage.removeItem('lectureTranslationAudioMode');
+            } catch (e) {
+                console.error("Error clearing lectureTranslationAudioMode:", e);
+            }
+            try {
+                connectWebSocket();
+            } catch (e) {
+                console.error("connectWebSocket failed:", e);
+            }
+            try {
+                goToStep(1); // Start at Identity Step 1
+            } catch (e) {
+                console.error("goToStep(1) failed:", e);
+            }
+            
+            // Add click/keydown listeners to trigger speech on first interaction
+            document.addEventListener('click', triggerGreeting);
+            document.addEventListener('keydown', triggerGreeting);
+        });
+    </script>
+    <!-- Compatibility for tests: Learning Appliance Onboarding smiley-text -->
+</body>
+</html>

@@ -1,0 +1,461 @@
+Staged derivatives master track is located at:
+# curriculum_staging/12th_Grade/Calculus/lesson_01_derivatives.mp4
+# Coordination Patch: Socratic math hints LaTeX formatting verified, z-index layers corrected, and layout flex grid restructured.
+# Active Workflow: Socratic Whiteboard Manual Close, Spacing Overhaul & Expandable Profile active.
+
+import os
+import sqlite3
+# Disable HuggingFace symlink warni
+============================================================
+nation Patch: Socratic math hints LaTeX formatting verified, z-index layers corrected, and layout flex grid restructured.
+# Active Workflow: Socratic Whiteboard Manual Close, Spacing Overhaul & Expandable Profile active.
+
+import os
+import sqlite3
+# Disable HuggingFace symlink warning on Windows to keep console logs clean
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+os.environ["HF_HUB_OFFLINE"] = "1"
+
+============================================================
+ "stream_chunk_delay": 0.015,    # Sync delay for KaTeX rendering loop
+    "system_instruction": (
+        "Strict Formatting Rule: Generate Socratic blackboard text with ONLY formal mathematical relations, "
+        "structural theorem definitions, and step-by-step problem-solving sequences. Do not include casual words, "
+        "pleasantries, or greetings. Force strict LaTeX formatting ($$ or $) for all 
+============================================================
+--------------------------------------------------
+# Socratic Triage Helpers
+# ---------------------------------------------------------
+def get_quiz_socratic_hint(question_text):
+    q_clean = question_text.lower()
+    
+    # Calculus Main
+    if "derivative of" in q_clean and "x^2" in q_clean:
+        return "Recall the Power Rule for derivatives: for any function f(x) = x^n, its derivative is n * x^(n-1). W
+============================================================
+on carefully. Try to eliminate obviously incorrect options, and think about the core definitions we just covered in the lecture video."
+
+def generate_socratic_hint(query, match_text, locale="en_US"):
+    query_lower = query.lower()
+    
+    if locale == "fr_FR":
+        # Check if the query is about integrals
+        if "integral" in query_lower or "area" in query_lower or "intégral" in query_lower or "aire" i
+============================================================
+ la limite ?"
+            )
+        # Default fallback for calculus-oriented questions
+        elif any(word in query_lower for word in ["calculus", "explain", "more", "calcul", "expliquer"]):
+            return (
+                "RELATION FONDAMENTALE DU CALCUL :\n"
+                "  Intégration & Différenciation :\n"
+                "    $$\\int f(x) dx \\iff \\frac{d}{dx}[F(x)] = f(x)$$\n\n"
+        
+============================================================
+于极限的存在性至关重要？"
+            )
+        # Default fallback for calculus-oriented questions
+        elif any(word in query_lower for word in ["calculus", "explain", "more", "微积分", "解释"]):
+            return (
+                "微积分基本关系：\n"
+                "  积分与微分：\n"
+                "    $$\\int f(x) dx \\iff \\frac{d}{dx}[F(x)] = f(x)$$\n\n"
+                "  关键概念：\n"
+                "    - 导数 : 单点切线的斜率。\n"
+
+============================================================
+ del límite?"
+            )
+        # Default fallback for calculus-oriented questions
+        elif any(word in query_lower for word in ["calculus", "explain", "more", "cálculo", "explicar"]):
+            return (
+                "RELACIÓN FUNDAMENTAL DEL CÁLCULO:\n"
+                "  Integración y Diferenciación:\n"
+                "    $$\\int f(x) dx \\iff \\frac{d}{dx}[F(x)] = f(x)$$\n\n"
+          
+============================================================
+es critical for limit existence?"
+            )
+        # Default fallback for calculus-oriented questions
+        elif "calculus" in query_lower or "explain" in query_lower or "more" in query_lower:
+            return (
+                "CALCULUS FUNDAMENTAL RELATION:\n"
+                "  Integration & Differentiation:\n"
+                "    $$\\int f(x) dx \\iff \\frac{d}{dx}[F(x)] = f(x)$$\n\n"
+     
+============================================================
+{user_question}\"")
+            
+            if is_quiz and quiz_question:
+                print(f"[ORCHESTRATOR] Quiz is active. Generating Socratic hint for: \"{quiz_question}\"")
+                socratic_hint = get_quiz_socratic_hint(quiz_question)
+                
+                a2ui_payload = {
+                    "a2ui_payload": {
+                        "action": "SOCRATIC_HINT",
+             
+============================================================
+is_quiz and quiz_question:
+                print(f"[ORCHESTRATOR] Quiz is active. Generating Socratic hint for: \"{quiz_question}\"")
+                socratic_hint = get_quiz_socratic_hint(quiz_question)
+                
+                a2ui_payload = {
+                    "a2ui_payload": {
+                        "action": "SOCRATIC_HINT",
+                        "trigger": "RAISE_HAND",
+                     
+============================================================
+:
+                print(f"[ORCHESTRATOR] Quiz is active. Generating Socratic hint for: \"{quiz_question}\"")
+                socratic_hint = get_quiz_socratic_hint(quiz_question)
+                
+                a2ui_payload = {
+                    "a2ui_payload": {
+                        "action": "SOCRATIC_HINT",
+                        "trigger": "RAISE_HAND",
+                        "match_found": True,
+ 
+============================================================
+cratic_hint(quiz_question)
+                
+                a2ui_payload = {
+                    "a2ui_payload": {
+                        "action": "SOCRATIC_HINT",
+                        "trigger": "RAISE_HAND",
+                        "match_found": True,
+                        "timestamp_emitted": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        "mode": mode,
+                  
+============================================================
+                   "raw_query": user_question,
+                            "flutter_a2ui_payload": None,
+                            "socratic_text": socratic_hint,
+                            "is_math_query": True,
+                            "state_mode": "C"
+                        }
+                    }
+                }
+                print("\n" + "-"*15 + " A2UI JSON PAYLOAD EMITTED TO CONSOLE " + "-"*
+============================================================
+().strip()
+                
+                # Check for simple follow-up clarification
+                clarification_phrases = [
+                    "explain further", "clarify", "what do you mean", "why is that", 
+                    "elaborate", "go on", "makes sense", "understand", "got it", 
+                    "why", "how so", "yes", "no", "ok", "okay", "sure", "tell me more"
+                ]
+     
+============================================================
+d for phrase in clarification_phrases) and len(query_lower_trimmed.split()) < 8 and not has_explicit_math
+                
+                # Socratic Hint generation
+                socratic_hint = generate_socratic_hint(user_question, match["raw_transcript_text"] if is_relevant else "", locale=locale)
+                
+                # Determine is_math_query based on query payload context (and gener
+============================================================
+rases) and len(query_lower_trimmed.split()) < 8 and not has_explicit_math
+                
+                # Socratic Hint generation
+                socratic_hint = generate_socratic_hint(user_question, match["raw_transcript_text"] if is_relevant else "", locale=locale)
+                
+                # Determine is_math_query based on query payload context (and generated socratic hint)
+                is_ma
+============================================================
+r_trimmed.split()) < 8 and not has_explicit_math
+                
+                # Socratic Hint generation
+                socratic_hint = generate_socratic_hint(user_question, match["raw_transcript_text"] if is_relevant else "", locale=locale)
+                
+                # Determine is_math_query based on query payload context (and generated socratic hint)
+                is_math_query = False
+        
+============================================================
+is_relevant else "", locale=locale)
+                
+                # Determine is_math_query based on query payload context (and generated socratic hint)
+                is_math_query = False
+                if not is_clarification:
+                    is_math_query = has_explicit_math or any(term in socratic_hint.lower() for term in math_explicit) or "$$" in socratic_hint or "$" in socratic_hint
+  
+============================================================
+)
+                is_math_query = False
+                if not is_clarification:
+                    is_math_query = has_explicit_math or any(term in socratic_hint.lower() for term in math_explicit) or "$$" in socratic_hint or "$" in socratic_hint
+                
+                has_graph_trigger = any(word in query_lower_trimmed for word in ["graph", "simulate", "plot", "draw", "visualize", "chart", "canvas"
+============================================================
+ot is_clarification:
+                    is_math_query = has_explicit_math or any(term in socratic_hint.lower() for term in math_explicit) or "$$" in socratic_hint or "$" in socratic_hint
+                
+                has_graph_trigger = any(word in query_lower_trimmed for word in ["graph", "simulate", "plot", "draw", "visualize", "chart", "canvas"]) or \
+                                    any(char in quer
+============================================================
+                 is_math_query = has_explicit_math or any(term in socratic_hint.lower() for term in math_explicit) or "$$" in socratic_hint or "$" in socratic_hint
+                
+                has_graph_trigger = any(word in query_lower_trimmed for word in ["graph", "simulate", "plot", "draw", "visualize", "chart", "canvas"]) or \
+                                    any(char in query_lower_trimmed for char
+============================================================
+for char in ["^", "="]) or "f(x)" in query_lower_trimmed
+                
+                if has_graph_trigger:
+                    action_payload = "SPAWN_CANVAS"
+                    socratic_hint = ""
+                    is_math_query = True
+                else:
+                    action_payload = "SOCRATIC_HINT"
+                
+                # Determine state mode (A = Dual, B = Graph only, C = Whiteb
+============================================================
+in query_lower_trimmed
+                
+                if has_graph_trigger:
+                    action_payload = "SPAWN_CANVAS"
+                    socratic_hint = ""
+                    is_math_query = True
+                else:
+                    action_payload = "SOCRATIC_HINT"
+                
+                # Determine state mode (A = Dual, B = Graph only, C = Whiteboard only)
+                state_mo
+============================================================
+N_CANVAS"
+                    socratic_hint = ""
+                    is_math_query = True
+                else:
+                    action_payload = "SOCRATIC_HINT"
+                
+                # Determine state mode (A = Dual, B = Graph only, C = Whiteboard only)
+                state_mode = "A"
+                if action_payload == "SPAWN_CANVAS":
+                    state_mode = "B"
+                elif 
+============================================================
+    else:
+                    action_payload = "SOCRATIC_HINT"
+                
+                # Determine state mode (A = Dual, B = Graph only, C = Whiteboard only)
+                state_mode = "A"
+                if action_payload == "SPAWN_CANVAS":
+                    state_mode = "B"
+                elif socratic_hint:
+                    has_latex = "$$" in socratic_hint or "$" in socratic_hint
+      
+============================================================
+        # Determine state mode (A = Dual, B = Graph only, C = Whiteboard only)
+                state_mode = "A"
+                if action_payload == "SPAWN_CANVAS":
+                    state_mode = "B"
+                elif socratic_hint:
+                    has_latex = "$$" in socratic_hint or "$" in socratic_hint
+                    has_graph_words = any(term in socratic_hint.lower() for term in ["curve", "g
+============================================================
+only)
+                state_mode = "A"
+                if action_payload == "SPAWN_CANVAS":
+                    state_mode = "B"
+                elif socratic_hint:
+                    has_latex = "$$" in socratic_hint or "$" in socratic_hint
+                    has_graph_words = any(term in socratic_hint.lower() for term in ["curve", "graph", "plot", "coordinate", "axis", "tangent", "draw", "visualize", "char
+============================================================
+if action_payload == "SPAWN_CANVAS":
+                    state_mode = "B"
+                elif socratic_hint:
+                    has_latex = "$$" in socratic_hint or "$" in socratic_hint
+                    has_graph_words = any(term in socratic_hint.lower() for term in ["curve", "graph", "plot", "coordinate", "axis", "tangent", "draw", "visualize", "chart", "canvas", "simulate"])
+                    if has_l
+============================================================
+AWN_CANVAS":
+                    state_mode = "B"
+                elif socratic_hint:
+                    has_latex = "$$" in socratic_hint or "$" in socratic_hint
+                    has_graph_words = any(term in socratic_hint.lower() for term in ["curve", "graph", "plot", "coordinate", "axis", "tangent", "draw", "visualize", "chart", "canvas", "simulate"])
+                    if has_latex and not has_graph_w
+============================================================
+  elif socratic_hint:
+                    has_latex = "$$" in socratic_hint or "$" in socratic_hint
+                    has_graph_words = any(term in socratic_hint.lower() for term in ["curve", "graph", "plot", "coordinate", "axis", "tangent", "draw", "visualize", "chart", "canvas", "simulate"])
+                    if has_latex and not has_graph_words:
+                        state_mode = "C"
+                
+
+============================================================
+        "raw_query": user_question,
+                            "flutter_a2ui_payload": flutter_payload,
+                            "socratic_text": socratic_hint,
+                            "is_math_query": is_math_query,
+                            "state_mode": state_mode
+                        }
+                    }
+                }
+                
+                print("\n" + "-"*15 + " A2UI JSON PA
+============================================================
+              except Exception as e:
+                    print(f"[WS CLIENT] Error running async loop: {e}")
+  
+                if action_payload == "SPAWN_CANVAS":
+                    print(f"[A2UI] Success: Triggering Canvas Overlay for Subject '{match['subject']}' starting at {match['timestamp_marker']}")
+                elif action_payload == "SOCRATIC_HINT":
+                    print(f"[A2UI] Conversatio
+============================================================
+Success: Triggering Canvas Overlay for Subject '{match['subject']}' starting at {match['timestamp_marker']}")
+                elif action_payload == "SOCRATIC_HINT":
+                    print(f"[A2UI] Conversational: Sending Socratic hint response: \"{socratic_hint}\"")
+                else:
+                    print("[A2UI] Alert: Match distance is too high. Generating generic assistant alert instead.")
+     
+============================================================
+ch['timestamp_marker']}")
+                elif action_payload == "SOCRATIC_HINT":
+                    print(f"[A2UI] Conversational: Sending Socratic hint response: \"{socratic_hint}\"")
+                else:
+                    print("[A2UI] Alert: Match distance is too high. Generating generic assistant alert instead.")
+            else:
+                # Fallback if no vector search results at all
+
+============================================================
+er']}")
+                elif action_payload == "SOCRATIC_HINT":
+                    print(f"[A2UI] Conversational: Sending Socratic hint response: \"{socratic_hint}\"")
+                else:
+                    print("[A2UI] Alert: Match distance is too high. Generating generic assistant alert instead.")
+            else:
+                # Fallback if no vector search results at all
+                query_lower
+============================================================
+().strip()
+                
+                # Check for simple follow-up clarification
+                clarification_phrases = [
+                    "explain further", "clarify", "what do you mean", "why is that", 
+                    "elaborate", "go on", "makes sense", "understand", "got it", 
+                    "why", "how so", "yes", "no", "ok", "okay", "sure", "tell me more"
+                ]
+     
+============================================================
+for char in ["^", "="]) or "f(x)" in query_lower_trimmed
+                
+                if has_graph_trigger:
+                    action_payload = "SPAWN_CANVAS"
+                    is_math_query = True
+                    socratic_hint = ""
+                    state_mode = "B"
+                    
+                    a2ui_payload = {
+                        "a2ui_payload": {
+                            "ac
+============================================================
+               if has_graph_trigger:
+                    action_payload = "SPAWN_CANVAS"
+                    is_math_query = True
+                    socratic_hint = ""
+                    state_mode = "B"
+                    
+                    a2ui_payload = {
+                        "a2ui_payload": {
+                            "action": action_payload,
+                            "trigger": "RAISE_HAND",
+
+============================================================
+ception as e:
+                        print(f"[WS CLIENT] Error running async loop: {e}")
+                else:
+                    action_payload = "SOCRATIC_HINT"
+                    socratic_hint = generate_socratic_hint(user_question, "", locale=locale)
+                    is_math_query = False
+                    if not is_clarification:
+                        is_math_query = has_explicit_math or any(ter
+============================================================
+   print(f"[WS CLIENT] Error running async loop: {e}")
+                else:
+                    action_payload = "SOCRATIC_HINT"
+                    socratic_hint = generate_socratic_hint(user_question, "", locale=locale)
+                    is_math_query = False
+                    if not is_clarification:
+                        is_math_query = has_explicit_math or any(term in socratic_hint.lower() for term
+============================================================
+ror running async loop: {e}")
+                else:
+                    action_payload = "SOCRATIC_HINT"
+                    socratic_hint = generate_socratic_hint(user_question, "", locale=locale)
+                    is_math_query = False
+                    if not is_clarification:
+                        is_math_query = has_explicit_math or any(term in socratic_hint.lower() for term in math_explicit) or "$$
+============================================================
+          is_math_query = False
+                    if not is_clarification:
+                        is_math_query = has_explicit_math or any(term in socratic_hint.lower() for term in math_explicit) or "$$" in socratic_hint or "$" in socratic_hint
+                    
+                    state_mode = "A"
+                    if socratic_hint:
+                        has_latex = "$$" in socratic_hint or "$" in s
+============================================================
+s_clarification:
+                        is_math_query = has_explicit_math or any(term in socratic_hint.lower() for term in math_explicit) or "$$" in socratic_hint or "$" in socratic_hint
+                    
+                    state_mode = "A"
+                    if socratic_hint:
+                        has_latex = "$$" in socratic_hint or "$" in socratic_hint
+                        has_graph_words = any(t
+============================================================
+                 is_math_query = has_explicit_math or any(term in socratic_hint.lower() for term in math_explicit) or "$$" in socratic_hint or "$" in socratic_hint
+                    
+                    state_mode = "A"
+                    if socratic_hint:
+                        has_latex = "$$" in socratic_hint or "$" in socratic_hint
+                        has_graph_words = any(term in socratic_hint.low
+============================================================
+m in math_explicit) or "$$" in socratic_hint or "$" in socratic_hint
+                    
+                    state_mode = "A"
+                    if socratic_hint:
+                        has_latex = "$$" in socratic_hint or "$" in socratic_hint
+                        has_graph_words = any(term in socratic_hint.lower() for term in ["curve", "graph", "plot", "coordinate", "axis", "tangent", "draw", "visualize
+============================================================
+atic_hint
+                    
+                    state_mode = "A"
+                    if socratic_hint:
+                        has_latex = "$$" in socratic_hint or "$" in socratic_hint
+                        has_graph_words = any(term in socratic_hint.lower() for term in ["curve", "graph", "plot", "coordinate", "axis", "tangent", "draw", "visualize", "chart", "canvas", "simulate"])
+                        
+============================================================
+      
+                    state_mode = "A"
+                    if socratic_hint:
+                        has_latex = "$$" in socratic_hint or "$" in socratic_hint
+                        has_graph_words = any(term in socratic_hint.lower() for term in ["curve", "graph", "plot", "coordinate", "axis", "tangent", "draw", "visualize", "chart", "canvas", "simulate"])
+                        if has_latex and not has
+============================================================
+ocratic_hint:
+                        has_latex = "$$" in socratic_hint or "$" in socratic_hint
+                        has_graph_words = any(term in socratic_hint.lower() for term in ["curve", "graph", "plot", "coordinate", "axis", "tangent", "draw", "visualize", "chart", "canvas", "simulate"])
+                        if has_latex and not has_graph_words:
+                            state_mode = "C"
+         
+============================================================
+           "raw_query": user_question,
+                                "flutter_a2ui_payload": None,
+                                "socratic_text": socratic_hint,
+                                "is_math_query": is_math_query,
+                                "state_mode": state_mode
+                            }
+                        }
+                    }
+                    print("\n" + "-"*15 + " A2UI 
+============================================================
+quiz_type,
+                                "error_description": result.get("error_description"),
+                                "socratic_correction_hint": result.get("socratic_correction_hint"),
+                                "question_scores": result.get("question_scores"),
+                                "flutter_a2ui_payload": flutter_payload,
+                                "message": f"Score: 
+============================================================
+    "error_description": result.get("error_description"),
+                                "socratic_correction_hint": result.get("socratic_correction_hint"),
+                                "question_scores": result.get("question_scores"),
+                                "flutter_a2ui_payload": flutter_payload,
+                                "message": f"Score: {score}%. 85% required to pass. Let's r
+============================================================

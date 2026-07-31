@@ -1,0 +1,156 @@
+e" class="tutor-popover-name">Dr. Sophia AI</h4>
+                                    <p id="popoverRole" class="tutor-popover-role">Cognitive Science Specialist</p>
+                                </div>
+                            </div>
+                            <hr class="tutor-popover-divider">
+                            <div class="tutor-popover-body">
+                                <div class="tut
+============================================================
+  <div class="tutor-popover-body">
+                                <div class="tutor-popover-meta">
+                                    <span><strong>Experience:</strong> <span id="popoverExp">8 years</span></span>
+                                    <span><strong>Contact:</strong> <span id="popoverPhone">+1-555-0100</span></span>
+                                </div>
+                                <p id="
+============================================================
+                     <span><strong>Experience:</strong> <span id="popoverExp">8 years</span></span>
+                                    <span><strong>Contact:</strong> <span id="popoverPhone">+1-555-0100</span></span>
+                                </div>
+                                <p id="popoverBio" class="tutor-popover-bio">Dr. Sophia AI is a Cognitive Science Specialist, specializing in AI-driven
+============================================================
+                             </div>
+                                <p id="popoverBio" class="tutor-popover-bio">Dr. Sophia AI is a Cognitive Science Specialist, specializing in AI-driven socratic tutor systems, machine learning, and cognitive neuroscience.</p>
+                            </div>
+                        </div>
+                        <div class="character-carousel">
+                         
+============================================================
+ss="character-name" id="carouselName">Dr. Sophia AI</div>
+                            <div class="character-role" id="carouselRole">Cognitive Science Specialist</div>
+                        </div>
+                    </div>
+
+
+                    <!-- Microphone Voice raised hand card -->
+                    <div class="dock-card" id="micControlCard" onclick="toggleMicRaiseHand(event)" style="cursor: pointe
+============================================================
+dRole" style="font-size: 0.6rem; color: var(--on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Cognitive Science Specialist</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sandbox 2: Philosophy Socratic Dialogue -->
+            <div class="sandbox-panel" id="philosophySandbox">
+                <d
+============================================================
+        // Character lists
+        const CHARACTERS = [
+            {
+                name: "Dr. Sophia AI",
+                role: "Cognitive Science Specialist",
+                avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
+                experience: "8 years",
+                phone: "+1-555-0100",
+                bio: "Dr. Sophia AI is a Cognitive
+============================================================
+ Specialist",
+                avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
+                experience: "8 years",
+                phone: "+1-555-0100",
+                bio: "Dr. Sophia AI is a Cognitive Science Specialist, specializing in AI-driven socratic tutor systems, machine learning, and cognitive neuroscience."
+            },
+            {
+   
+============================================================
+&q=80&w=150",
+                experience: "8 years",
+                phone: "+1-555-0100",
+                bio: "Dr. Sophia AI is a Cognitive Science Specialist, specializing in AI-driven socratic tutor systems, machine learning, and cognitive neuroscience."
+            },
+            {
+                name: "Socrates",
+                role: "Ancient Socratic Mentor",
+                avatar: "https://images
+============================================================
+atic Mentor",
+                avatar: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=150",
+                experience: "25 years",
+                phone: "N/A",
+                bio: "Socrates was a classical Greek philosopher credited as one of the founders of Western philosophy, known for the Socratic method of dialogue."
+            },
+            {
+              
+============================================================
+ics Pioneer",
+                avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
+                experience: "40 years",
+                phone: "N/A",
+                bio: "Albert Einstein was a theoretical physicist who developed the theory of relativity, one of the two pillars of modern physics, with a lifetime of academic exploration."
+            }
+   
+============================================================
+      const cleanName = (name || "").toLowerCase();
+            if (cleanName.includes("harris")) {
+                return "Dr. Harris is an esteemed specialist in Physics with 15 years of experience in quantum mechanics and educational research. Dedicated to helping students grasp complex physical concepts.";
+            } else if (cleanName.includes("marcus")) {
+                return "Professor Marcus is
+============================================================
+p complex physical concepts.";
+            } else if (cleanName.includes("marcus")) {
+                return "Professor Marcus is a senior Philosophy Specialist with 20 years of academic teaching experience. He specializes in Ancient Socratic dialogues and Stoic philosophy.";
+            } else if (cleanName.includes("evans")) {
+                return "Professor Evans is a passionate Calculus Specialist wit
+============================================================
+logues and Stoic philosophy.";
+            } else if (cleanName.includes("evans")) {
+                return "Professor Evans is a passionate Calculus Specialist with 10 years of experience teaching differential and integral calculus, focusing on visual and intuitive graphing approaches.";
+            } else if (cleanName.includes("sophia")) {
+                return "Dr. Sophia AI is a Cognitive Science Spec
+============================================================
+ intuitive graphing approaches.";
+            } else if (cleanName.includes("sophia")) {
+                return "Dr. Sophia AI is a Cognitive Science Specialist, specializing in AI-driven socratic tutor systems, machine learning, and cognitive neuroscience.";
+            } else if (cleanName.includes("einstein")) {
+                return "Albert Einstein was a theoretical physicist who developed the theory 
+============================================================
+osophy, known for the Socratic method of dialogue.";
+            } else {
+                return `${name} is an experienced ${subjects || "Academic"} Specialist, committed to guiding students through their academic journey with socratic clarity.`;
+            }
+        }
+
+        function updatePopoverDetails(char) {
+            const popoverAvatar = document.getElementById('popoverAvatar');
+            if 
+============================================================
+                           roleDiv.style.textOverflow = "ellipsis";
+                            roleDiv.innerText = data.instructor_role || "Academic Specialist";
+                            textContainer.appendChild(roleDiv);
+                        }
+                        const profileAvatar = document.getElementById('profileCardAvatar');
+                        if (profileAvatar) profileAvatar.src = da
+============================================================
+lRole = document.getElementById('carouselRole');
+                        if (carouselRole) carouselRole.innerText = data.instructor_role || "Academic Specialist";
+
+                        // Sync activeCharacterIndex so manual arrow clicks shift from the current active instructor
+                        const charIdx = CHARACTERS.findIndex(c => c.name === data.instructor_name);
+                        if (c
+============================================================
+                 CHARACTERS.push({
+                                name: inst.full_name,
+                                role: inst.subjects_list + " Specialist (" + inst.experience_years + " yrs exp)",
+                                avatar: inst.profile_image,
+                                experience: inst.experience_years + " years",
+                                phone: inst.phone_number || "N/A",
+  
+============================================================
+ + " Specialist (" + inst.experience_years + " yrs exp)",
+                                avatar: inst.profile_image,
+                                experience: inst.experience_years + " years",
+                                phone: inst.phone_number || "N/A",
+                                bio: inst.biography || getInstructorBio(inst.full_name, inst.subjects_list)
+                            });
+        
+============================================================

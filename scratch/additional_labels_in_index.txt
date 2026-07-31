@@ -1,0 +1,342 @@
+LABEL: FUNCTION F(X):
+font-family:'Geist', monospace; font-size:0.62rem; color:var(--outline); text-transform:uppercase;">Function f(x):</label>
+                                    <input type="text" class="graphFunctionInputClass" style="background:#000; color:#00f0ff; border:1px soli
+============================================================
+LABEL: FUNCTION F(X):
+font-family:'Geist', monospace; font-size:0.62rem; color:var(--outline); text-transform:uppercase;">Function f(x):</label>
+                            <input type="text" class="graphFunctionInputClass" style="background:#000; color:#00f0ff; border:1px solid var(--
+============================================================
+LABEL: COORDINATES:
+font-family:'Geist', monospace; font-size:0.62rem; color:var(--outline); text-transform:uppercase;">Coordinates:</label>
+                                    <div style="display: flex; gap: 6px; align-items: center;">
+                                        <div 
+============================================================
+LABEL: COORDINATES:
+font-family:'Geist', monospace; font-size:0.62rem; color:var(--outline); text-transform:uppercase;">Coordinates:</label>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <div style="display: 
+============================================================
+LABEL: Slope
+                         </div>
+                            </div>
+                            <!-- Slope & validation message -->
+                            <div style="display: flex; justify-content: space-between; font-size: 0.65rem; font-family: 'Gei
+============================================================
+LABEL: Slope
+onospace; margin-top: 4px; color: var(--on-surface-variant);">
+                                <div>Slope (dy/dx): <span class="graphSlopeTextClass" style="color: #a855f7; font-weight: bold;">0.00</span></div>
+                                <div class="g
+============================================================
+LABEL: Slope
+ var(--on-surface-variant);">
+                                <div>Slope (dy/dx): <span class="graphSlopeTextClass" style="color: #a855f7; font-weight: bold;">0.00</span></div>
+                                <div class="graphStatusMessageClass" style="co
+============================================================
+LABEL: Slope
+          </div>
+                        </div>
+                    </div>
+                    <!-- Slope & validation message -->
+                    <div style="display: flex; justify-content: space-between; font-size: 0.65rem; font-family: 'Geist', mon
+============================================================
+LABEL: Slope
+eist', monospace; margin-top: 4px; color: var(--on-surface-variant);">
+                        <div>Slope (dy/dx): <span class="graphSlopeTextClass" style="color: #a855f7; font-weight: bold;">0.00</span></div>
+                        <div class="graphStat
+============================================================
+LABEL: Slope
+; color: var(--on-surface-variant);">
+                        <div>Slope (dy/dx): <span class="graphSlopeTextClass" style="color: #a855f7; font-weight: bold;">0.00</span></div>
+                        <div class="graphStatusMessageClass" style="color: var
+============================================================
+LABEL: Slope
+div id="metricPointVal" style="color:#ffffff;">(1.00, -2.00)</div>
+                            <div>Slope (m):</div>
+                            <div id="metricSlopeVal" style="color:#ffffff;">0.00</div>
+                        </div>
+                    
+============================================================
+LABEL: Slope
+</div>
+                            <div>Slope (m):</div>
+                            <div id="metricSlopeVal" style="color:#ffffff;">0.00</div>
+                        </div>
+                    </div>
+                    <!-- Right: Character profile car
+============================================================
+LABEL: Slope
+apter_id: "calculus_derivatives" },
+                { time: "04:30", title: "Calculus: Tangent Line Slopes & Derivatives f(x)", active: false, video_id: "vid_calculus_01", chapter_id: "calculus_derivatives" }
+            ],
+            "College": [
+      
+============================================================
+LABEL: Slope
+alculus_01", chapter_id: "calculus_derivatives" },
+                { time: "04:30", title: "Tangent Slopes", active: false, video_id: "vid_calculus_01", chapter_id: "calculus_derivatives" }
+            ],
+            "Chemistry": [
+                { time:
+============================================================
+LABEL: Slope
+ { time: 270, marker: "04:30", text: "Geometrically, the derivative at a point x corresponds to the slope m of the tangent line to the function graph f(x) = x^3 - 3x." }
+                    ];
+                    
+                    calculusTranscripts.f
+============================================================
+LABEL: Slope
+4, question: "Geometrically, the derivative represents:", options: { A: "Area under the curve", B: "Slope of the tangent line", C: "Y-intercept", D: "Volume of rotation" }, correct: "B" },
+                    { id: 5, question: "What is the derivative of 
+============================================================
+LABEL: Slope
+x^2", C: "1/x", D: "sqrt(x)" }, correct: "B" },
+                    { id: 5, question: "What is the slope of a horizontal line?", options: { A: "1", B: "Undefined", C: "0", D: "-1" }, correct: "C" }
+                ]
+            },
+            "College": 
+============================================================
+LABEL: Slope
+            
+            const fVal = f(tangentVal);
+            const h = 0.001;
+            const slopeVal = (f(tangentVal + h) - f(tangentVal - h)) / (2 * h);
+            
+            const messageRow = document.createElement('div');
+            messag
+============================================================
+LABEL: Slope
+ace; padding-top: 1px; width: 100%;">
+                            <span>dy/dx: <strong id="miniGraphSlope_${chatGraphCounter}" style="color:#fff;">${slopeVal.toFixed(2)}</strong></span>
+                            <div style="display: flex; gap: 2px; alig
+============================================================
+LABEL: Slope
+                 <span>dy/dx: <strong id="miniGraphSlope_${chatGraphCounter}" style="color:#fff;">${slopeVal.toFixed(2)}</strong></span>
+                            <div style="display: flex; gap: 2px; align-items: center;">
+                              
+============================================================
+LABEL: Slope
+           const yPlus = f(x0 + h);
+                const yMinus = f(x0 - h);
+                const slope = (yPlus - yMinus) / (2 * h);
+                
+                ctx.strokeStyle = '#a855f7';
+                ctx.lineWidth = 1.5;
+                ctx.
+============================================================
+LABEL: Slope
+x.beginPath();
+                
+                const xStart = xMin;
+                const yStart = slope * (xStart - x0) + y0;
+                const xEnd = xMax;
+                const yEnd = slope * (xEnd - x0) + y0;
+                
+                ctx.
+============================================================
+LABEL: Slope
+Start = slope * (xStart - x0) + y0;
+                const xEnd = xMax;
+                const yEnd = slope * (xEnd - x0) + y0;
+                
+                ctx.moveTo(toScreenX(xStart), toScreenY(yStart));
+                ctx.lineTo(toScreenX(xEnd), to
+============================================================
+LABEL: Slope
+}`);
+            const yInput = document.getElementById(`miniGraphYInput_${id}`);
+            const slopeReadout = document.getElementById(`miniGraphSlope_${id}`);
+            
+            if (exprInput && slider) {
+                const expr = exprInput.
+============================================================
+LABEL: Slope
+ntById(`miniGraphYInput_${id}`);
+            const slopeReadout = document.getElementById(`miniGraphSlope_${id}`);
+            
+            if (exprInput && slider) {
+                const expr = exprInput.value.trim() || "x*x*x - 3*x";
+                co
+============================================================
+LABEL: Slope
+Fixed(2);
+                }
+                
+                const h = 0.001;
+                const slope = (f(xVal + h) - f(xVal - h)) / (2 * h);
+                if (slopeReadout) slopeReadout.innerText = isNaN(slope) || !isFinite(slope) ? "0.00" : slope
+============================================================
+LABEL: Slope
+h = 0.001;
+                const slope = (f(xVal + h) - f(xVal - h)) / (2 * h);
+                if (slopeReadout) slopeReadout.innerText = isNaN(slope) || !isFinite(slope) ? "0.00" : slope.toFixed(2);
+            }
+        }
+
+        function updateMiniGr
+============================================================
+LABEL: Slope
+             const slope = (f(xVal + h) - f(xVal - h)) / (2 * h);
+                if (slopeReadout) slopeReadout.innerText = isNaN(slope) || !isFinite(slope) ? "0.00" : slope.toFixed(2);
+            }
+        }
+
+        function updateMiniGraphFromXInput(
+============================================================
+LABEL: Slope
+Val + h) - f(xVal - h)) / (2 * h);
+                if (slopeReadout) slopeReadout.innerText = isNaN(slope) || !isFinite(slope) ? "0.00" : slope.toFixed(2);
+            }
+        }
+
+        function updateMiniGraphFromXInput(id) {
+            const xInput 
+============================================================
+LABEL: Slope
+h)) / (2 * h);
+                if (slopeReadout) slopeReadout.innerText = isNaN(slope) || !isFinite(slope) ? "0.00" : slope.toFixed(2);
+            }
+        }
+
+        function updateMiniGraphFromXInput(id) {
+            const xInput = document.getElemen
+============================================================
+LABEL: Slope
+             if (slopeReadout) slopeReadout.innerText = isNaN(slope) || !isFinite(slope) ? "0.00" : slope.toFixed(2);
+            }
+        }
+
+        function updateMiniGraphFromXInput(id) {
+            const xInput = document.getElementById(`miniGraphXI
+============================================================
+LABEL: Slope
+ the query
+            const mathExplicit = [
+                "integral", "derivative", "tangent", "slope", "rate of change", 
+                "calculus", "limit", "area", "equation", "formula", "algebra", 
+                "coefficient", "sum", "math", "p
+============================================================
+LABEL: Slope
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function getSlopeAtPoint(x0, expressionStr = currentGraphFunction) {
+            const h = 0.0001;
+            const yPlus = evaluateGraphFunction(x0 + h, expressionSt
+============================================================
+LABEL: Slope
+            const x0 = tangentPoint;
+                const y0 = f(x0);
+                const m = getSlopeAtPoint(x0);
+                
+                function tangentY(x) {
+                    return m * (x - x0) + y0;
+                }
+                
+
+============================================================
+LABEL: Slope
+         const metricPoint = document.getElementById('metricPointVal');
+                const metricSlope = document.getElementById('metricSlopeVal');
+                if (metricPoint) metricPoint.innerText = `(${x0.toFixed(2)}, ${y0.toFixed(2)})`;
+       
+============================================================
+LABEL: Slope
+etElementById('metricPointVal');
+                const metricSlope = document.getElementById('metricSlopeVal');
+                if (metricPoint) metricPoint.innerText = `(${x0.toFixed(2)}, ${y0.toFixed(2)})`;
+                if (metricSlope) metricSlope.i
+============================================================
+LABEL: Slope
+ricPoint) metricPoint.innerText = `(${x0.toFixed(2)}, ${y0.toFixed(2)})`;
+                if (metricSlope) metricSlope.innerText = m.toFixed(2);
+
+                // Update the new slope label text
+                document.querySelectorAll('.graphSlopeText
+============================================================
+LABEL: Slope
+ricPoint.innerText = `(${x0.toFixed(2)}, ${y0.toFixed(2)})`;
+                if (metricSlope) metricSlope.innerText = m.toFixed(2);
+
+                // Update the new slope label text
+                document.querySelectorAll('.graphSlopeTextClass').forEa
+============================================================
+LABEL: Slope
+          if (metricSlope) metricSlope.innerText = m.toFixed(2);
+
+                // Update the new slope label text
+                document.querySelectorAll('.graphSlopeTextClass').forEach(el => {
+                    el.innerText = m.toFixed(2);
+       
+============================================================
+LABEL: Slope
+                // Update the new slope label text
+                document.querySelectorAll('.graphSlopeTextClass').forEach(el => {
+                    el.innerText = m.toFixed(2);
+                });
+            }
+            
+            drawOnCanvas('
+============================================================
+LABEL: Slope
+s module! Today we are studying the derivatives of continuous functions, geometrically representing slopes of tangent lines. Ask me any question as you follow along!");
+                    
+                    // 3. Append Tutor transcript Card
+          
+============================================================
+LABEL: Slope
+tantaneous rate of change of a function geometrically?",
+                    back: "The derivative (slope of the tangent line)",
+                    hint: "Think about the slope of a line that touches the curve at exactly one point."
+                },
+  
+============================================================
+LABEL: Slope
+     back: "The derivative (slope of the tangent line)",
+                    hint: "Think about the slope of a line that touches the curve at exactly one point."
+                },
+                {
+                    front: "How do we calculate the tang
+============================================================
+LABEL: Slope
+              },
+                {
+                    front: "How do we calculate the tangent line slope of f(x) = x^3 - 3x at a point x₀?",
+                    back: "Using the derivative: f'(x₀) = 3x₀² - 3",
+                    hint: "Take the derivati
+============================================================
+LABEL: Slope
+tantaneous rate of change of a function geometrically?",
+                    back: "The derivative (slope of the tangent line)",
+                    hint: "Think about the slope of a line that touches the curve at exactly one point."
+                },
+  
+============================================================
+LABEL: Slope
+     back: "The derivative (slope of the tangent line)",
+                    hint: "Think about the slope of a line that touches the curve at exactly one point."
+                },
+                {
+                    front: "How do we calculate the tang
+============================================================
+LABEL: Slope
+              },
+                {
+                    front: "How do we calculate the tangent line slope of f(x) = x^3 - 3x at a point x₀?",
+                    back: "Using the derivative: f'(x₀) = 3x₀² - 3",
+                    hint: "Take the derivati
+============================================================
+LABEL: Close Workspace
+plit-pane" id="whiteboardSplitPane" style="position: relative;">
+                    <!-- Prominent Close Workspace Button -->
+                    <button id="closeWorkspaceBtn" onclick="toggleWhiteboard(false)" class="close-workspace-btn" style="position: absolute
+============================================================
+LABEL: Close Workspace
+lose-workspace-btn" style="position: absolute; top: 12px; right: 12px;">
+                        [✖ Close Workspace]
+                    </button>
+
+                    <!-- Panel A (Left side): Calculus Graphing Canvas Container -->
+                    <div id="whi
+============================================================

@@ -1,0 +1,299 @@
+        letter-spacing: 0.08em;
+            color: var(--outline);
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        /* Character carousel selector */
+        .character-carousel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .carousel-btn {
+            background-color: var(--surface-container-high);
+            border: 1px solid var(--outline-variant);
+            border-radius: var(--radius-full);
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #ffffff;
+            transition: all 0.2s ease;
+        }
+
+        .carousel-btn:hover {
+            border-color: var(--primary);
+            background-color: var(--surface-container-highest);
+        }
+
+        .character-avatar-container {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            border: 2px solid var(--outline-variant);
+            overflow: hidden;
+            display: flex;
+            al
+============================================================
+ecializing in AI-driven socratic tutor systems, machine learning, and cognitive neuroscience.</p>
+                            </div>
+                        </div>
+                        <div class="character-carousel">
+                            <button class="carousel-btn" onclick="shiftCharacter(-1)">&larr;</button>
+                            <div class="character-avatar-container active" id="carouselAvatarFrame"
+                                 onmouseenter="showTutorPopover()"
+                                 onmouseleave="hideTutorPopover(false)"
+                                 onclick="toggleTutorPopoverSticky(event)"
+                                 style="cursor: pointer;">
+                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150" alt="Character" id="carouselAvatarImg">
+                            </div>
+                            <button class="carousel-btn" onclick="shiftCharacter(1)">&rarr;</button>
+                        </div>
+                        <div style="text-align: center;">
+                            <div class="character-name" id="carouselName">Dr. Sophia AI</div>
+                           
+============================================================
+l-btn" onclick="shiftCharacter(1)">&rarr;</button>
+                        </div>
+                        <div style="text-align: center;">
+                            <div class="character-name" id="carouselName">Dr. Sophia AI</div>
+                            <div class="character-role" id="carouselRole">Cognitive Science Specialist</div>
+                        </div>
+                    </div>
+
+
+                    <!-- Microphone Voice raised hand card -->
+                    <div class="dock-card" id="micControlCard" onclick="toggleMicRaiseHand(event)" style="cursor: pointer;">
+                        <div class="dock-card-title" id="micStatusLabel">Capacitive Raise Hand Sensor</div>
+                        <div class="mic-listening-widget">
+                            <div class="mic-glow-button" onclick="toggleMicRaiseHand(event)" id="micActivationBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8
+============================================================
+            <div style="text-align: center;">
+                            <div class="character-name" id="carouselName">Dr. Sophia AI</div>
+                            <div class="character-role" id="carouselRole">Cognitive Science Specialist</div>
+                        </div>
+                    </div>
+
+
+                    <!-- Microphone Voice raised hand card -->
+                    <div class="dock-card" id="micControlCard" onclick="toggleMicRaiseHand(event)" style="cursor: pointer;">
+                        <div class="dock-card-title" id="micStatusLabel">Capacitive Raise Hand Sensor</div>
+                        <div class="mic-listening-widget">
+                            <div class="mic-glow-button" onclick="toggleMicRaiseHand(event)" id="micActivationBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
+                                </svg>
+                            </div>
+           
+============================================================
+tiveCharacterIndex];
+            
+            const img = document.getElementById('carouselAvatarImg');
+            if (img) img.src = char.avatar;
+            const nameEl = document.getElementById('carouselName');
+            if (nameEl) nameEl.innerText = char.name;
+            const roleEl = document.getElementById('carouselRole');
+            if (roleEl) roleEl.innerText = char.role;
+            
+            // Update popover content
+            updatePopoverDetails(char);
+            
+            // Sync with sidebar header details too
+            const textContainer = document.getElementById("instructor-text-box");
+            if (textContainer) {
+                textContainer.innerHTML = "";
+                
+                const nameDiv = document.createElement("div");
+                nameDiv.id = "profileCardName";
+                nameDiv.style.fontWeight = "600";
+                nameDiv.style.color = "#ffffff";
+                nameDiv.style.fontSize = "0.7rem";
+                nameDiv.style.whiteSpace = "nowrap";
+                nameDiv.style.overflow = "hidden";
+                nameDiv.style.textOverflow = "ellipsis";
+                nameDiv.innerText = char.name;
+                t
+============================================================
+g) img.src = char.avatar;
+            const nameEl = document.getElementById('carouselName');
+            if (nameEl) nameEl.innerText = char.name;
+            const roleEl = document.getElementById('carouselRole');
+            if (roleEl) roleEl.innerText = char.role;
+            
+            // Update popover content
+            updatePopoverDetails(char);
+            
+            // Sync with sidebar header details too
+            const textContainer = document.getElementById("instructor-text-box");
+            if (textContainer) {
+                textContainer.innerHTML = "";
+                
+                const nameDiv = document.createElement("div");
+                nameDiv.id = "profileCardName";
+                nameDiv.style.fontWeight = "600";
+                nameDiv.style.color = "#ffffff";
+                nameDiv.style.fontSize = "0.7rem";
+                nameDiv.style.whiteSpace = "nowrap";
+                nameDiv.style.overflow = "hidden";
+                nameDiv.style.textOverflow = "ellipsis";
+                nameDiv.innerText = char.name;
+                textContainer.appendChild(nameDiv);
+
+                const roleDiv = document.createElement("div");
+                roleDiv
+============================================================
+ar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
+
+                        // Also update character selector carousel
+                        const carouselName = document.getElementById('carouselName');
+                        if (carouselName) carouselName.innerText = data.instructor_name;
+                        const carouselAvatar = document.getElementById('carouselAvatarImg');
+                        if (carouselAvatar) carouselAvatar.src = data.instructor_avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
+                        const carouselRole = document.getElementById('carouselRole');
+                        if (carouselRole) carouselRole.innerText = data.instructor_role || "Academic Specialist";
+
+                        // Sync activeCharacterIndex so manual arrow clicks shift from the current active instructor
+                        const charIdx = CHARACTERS.findIndex(c => c.name === data.instructor_name);
+                        if (charIdx !== -1) {
+                            activeCharacterIndex = charIdx;
+                        }
+
+                        // Sync floa
+============================================================
+-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
+
+                        // Also update character selector carousel
+                        const carouselName = document.getElementById('carouselName');
+                        if (carouselName) carouselName.innerText = data.instructor_name;
+                        const carouselAvatar = document.getElementById('carouselAvatarImg');
+                        if (carouselAvatar) carouselAvatar.src = data.instructor_avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
+                        const carouselRole = document.getElementById('carouselRole');
+                        if (carouselRole) carouselRole.innerText = data.instructor_role || "Academic Specialist";
+
+                        // Sync activeCharacterIndex so manual arrow clicks shift from the current active instructor
+                        const charIdx = CHARACTERS.findIndex(c => c.name === data.instructor_name);
+                        if (charIdx !== -1) {
+                            activeCharacterIndex = charIdx;
+                        }
+
+                        // Sync floating webcam video src, fallback avatar i
+============================================================
+crop&q=80&w=150";
+
+                        // Also update character selector carousel
+                        const carouselName = document.getElementById('carouselName');
+                        if (carouselName) carouselName.innerText = data.instructor_name;
+                        const carouselAvatar = document.getElementById('carouselAvatarImg');
+                        if (carouselAvatar) carouselAvatar.src = data.instructor_avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
+                        const carouselRole = document.getElementById('carouselRole');
+                        if (carouselRole) carouselRole.innerText = data.instructor_role || "Academic Specialist";
+
+                        // Sync activeCharacterIndex so manual arrow clicks shift from the current active instructor
+                        const charIdx = CHARACTERS.findIndex(c => c.name === data.instructor_name);
+                        if (charIdx !== -1) {
+                            activeCharacterIndex = charIdx;
+                        }
+
+                        // Sync floating webcam video src, fallback avatar image, and label to match this instructor
+   
+============================================================
+0";
+
+                        // Also update character selector carousel
+                        const carouselName = document.getElementById('carouselName');
+                        if (carouselName) carouselName.innerText = data.instructor_name;
+                        const carouselAvatar = document.getElementById('carouselAvatarImg');
+                        if (carouselAvatar) carouselAvatar.src = data.instructor_avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
+                        const carouselRole = document.getElementById('carouselRole');
+                        if (carouselRole) carouselRole.innerText = data.instructor_role || "Academic Specialist";
+
+                        // Sync activeCharacterIndex so manual arrow clicks shift from the current active instructor
+                        const charIdx = CHARACTERS.findIndex(c => c.name === data.instructor_name);
+                        if (charIdx !== -1) {
+                            activeCharacterIndex = charIdx;
+                        }
+
+                        // Sync floating webcam video src, fallback avatar image, and label to match this instructor
+                 
+============================================================
+       if (carouselAvatar) carouselAvatar.src = data.instructor_avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
+                        const carouselRole = document.getElementById('carouselRole');
+                        if (carouselRole) carouselRole.innerText = data.instructor_role || "Academic Specialist";
+
+                        // Sync activeCharacterIndex so manual arrow clicks shift from the current active instructor
+                        const charIdx = CHARACTERS.findIndex(c => c.name === data.instructor_name);
+                        if (charIdx !== -1) {
+                            activeCharacterIndex = charIdx;
+                        }
+
+                        // Sync floating webcam video src, fallback avatar image, and label to match this instructor
+                        const webcamVideo = document.getElementById('tutorWebcamMock');
+                        if (webcamVideo && data.video_file_path) {
+                            const cleanWebcamSrc = (webcamVideo.src || "").replace(/\\/g, '/');
+                            const cleanTarget = data.video_file_path.replace(/\\/g, '/');
+                            if (!
+============================================================
+r.src = data.instructor_avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
+                        const carouselRole = document.getElementById('carouselRole');
+                        if (carouselRole) carouselRole.innerText = data.instructor_role || "Academic Specialist";
+
+                        // Sync activeCharacterIndex so manual arrow clicks shift from the current active instructor
+                        const charIdx = CHARACTERS.findIndex(c => c.name === data.instructor_name);
+                        if (charIdx !== -1) {
+                            activeCharacterIndex = charIdx;
+                        }
+
+                        // Sync floating webcam video src, fallback avatar image, and label to match this instructor
+                        const webcamVideo = document.getElementById('tutorWebcamMock');
+                        if (webcamVideo && data.video_file_path) {
+                            const cleanWebcamSrc = (webcamVideo.src || "").replace(/\\/g, '/');
+                            const cleanTarget = data.video_file_path.replace(/\\/g, '/');
+                            if (!cleanWebcamSrc.endsWith(cleanTarget)) {
+
+============================================================
+mages.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
+                        const carouselRole = document.getElementById('carouselRole');
+                        if (carouselRole) carouselRole.innerText = data.instructor_role || "Academic Specialist";
+
+                        // Sync activeCharacterIndex so manual arrow clicks shift from the current active instructor
+                        const charIdx = CHARACTERS.findIndex(c => c.name === data.instructor_name);
+                        if (charIdx !== -1) {
+                            activeCharacterIndex = charIdx;
+                        }
+
+                        // Sync floating webcam video src, fallback avatar image, and label to match this instructor
+                        const webcamVideo = document.getElementById('tutorWebcamMock');
+                        if (webcamVideo && data.video_file_path) {
+                            const cleanWebcamSrc = (webcamVideo.src || "").replace(/\\/g, '/');
+                            const cleanTarget = data.video_file_path.replace(/\\/g, '/');
+                            if (!cleanWebcamSrc.endsWith(cleanTarget)) {
+                                webcamVideo.
+============================================================
+.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
+                        const carouselRole = document.getElementById('carouselRole');
+                        if (carouselRole) carouselRole.innerText = data.instructor_role || "Academic Specialist";
+
+                        // Sync activeCharacterIndex so manual arrow clicks shift from the current active instructor
+                        const charIdx = CHARACTERS.findIndex(c => c.name === data.instructor_name);
+                        if (charIdx !== -1) {
+                            activeCharacterIndex = charIdx;
+                        }
+
+                        // Sync floating webcam video src, fallback avatar image, and label to match this instructor
+                        const webcamVideo = document.getElementById('tutorWebcamMock');
+                        if (webcamVideo && data.video_file_path) {
+                            const cleanWebcamSrc = (webcamVideo.src || "").replace(/\\/g, '/');
+                            const cleanTarget = data.video_file_path.replace(/\\/g, '/');
+                            if (!cleanWebcamSrc.endsWith(cleanTarget)) {
+                                webcamVideo.src = data.vid
+============================================================

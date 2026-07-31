@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ventuno AI - Parent Progress Report</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Color Palette & Custom Design Tokens */
+        :root {
+            --bg-color: #0a0a0c;
+            --card-bg: rgba(20, 20, 22, 0.75);
+            --border-color: rgba(255, 255, 255, 0.04);
+            --glow-color: rgba(255, 255, 255, 0.015);
+            --accent-purple: #c084fc;
+            --accent-purple-glow: rgba(192, 132, 252, 0.15);
+            --accent-cyan: #22d3ee;
+            --accent-cyan-glow: rgba(34, 211, 238, 0.15);
+            --text-primary: #eaeaea;
+            --text-secondary: #8c8c8e;
+            --success-color: #34d399;
+            --success-glow: rgba(52, 211, 153, 0.15);
+            --warning-color: #fbbf24;
+            --warning-glow: rgba(251, 191, 36, 0.15);
+            --alert-color: #f87171;
+            --alert-glow: rgba(248, 113, 113, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 50% 10%, rgba(192, 132, 252, 0.02) 0%, transparent 50%),
+                radial-gradient(circle at 10% 80%, rgba(34, 211, 238, 0.01) 0%, transparent 40%);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        header {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 30%, var(--accent-cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .report-badge {
+            background: rgba(34, 211, 238, 0.12);
+            border: 1px solid rgba(34, 211, 238, 0.25);
+            color: var(--accent-cyan);
+            font-size: 0.72rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .student-meta {
+            display: flex;
+            gap: 16px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+
+        .student-meta span strong {
+            color: #fff;
+        }
+
+        /* Dashboard grid layout */
+        .report-row-split {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        @media (min-width: 900px) {
+            .report-row-split {
+                grid-template-columns: 1fr 1.6fr;
+            }
+        }
+
+        /* Card styles */
+        .report-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .report-card:hover {
+            border-color: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.55);
+        }
+
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            padding-bottom: 12px;
+        }
+
+        .card-title svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--accent-cyan);
+        }
+
+        /* Progress ring design */
+        .progress-ring-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 0;
+            position: relative;
+        }
+
+        .progress-ring-container {
+            position: relative;
+            width: 160px;
+            height: 160px;
+        }
+
+        .progress-ring-circle {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            transition: stroke-dashoffset 0.8s ease-in-out;
+        }
+
+        .progress-text-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .progress-percentage {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1;
+        }
+
+        .progress-sub {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 4px;
+        }
+
+        .progress-summary-text {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            text-align: center;
+            line-height: 1.5;
+            margin-top: 8px;
+        }
+
+        /* Badges grid */
+        .badges-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        @media (min-width: 500px) {
+            .badges-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .badge-card {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            transition: all 0.3s ease;
+            opacity: 0.4;
+            filter: grayscale(1);
+        }
+
+        .badge-card.active {
+            opacity: 1;
+            filter: grayscale(0);
+            border-color: rgba(192, 132, 252, 0.2);
+            background: radial-gradient(circle at 10% 10%, rgba(192, 132, 252, 0.05) 0%, rgba(255,255,255,0.005) 100%);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        }
+
+        .badge-card.active:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-purple);
+            box-shadow: 0 8px 25px var(--accent-purple-glow);
+        }
+
+        .badge-icon {
+            width: 38px;
+            height: 38px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .badge-card.active .badge-icon {
+            background: rgba(192, 132, 252, 0.1);
+            border-color: rgba(192, 132, 252, 0.3);
+        }
+
+        .badge-icon svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--text-secondary);
+        }
+
+        .badge-card.active .badge-icon svg {
+            fill: var(--accent-purple);
+            filter: drop-shadow(0 0 4px var(--accent-purple-glow));
+        }
+
+        .badge-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .badge-info h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .badge-card.active .badge-info h4 {
+            color: #fff;
+        }
+
+        .badge-info p {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Analytics Breakdown Grid */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        @media (min-width: 800px) {
+            .analytics-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .analytics-col {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .analytics-sub-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .analytics-sub-title.success {
+            color: var(--success-color);
+        }
+
+        .analytics-sub-title.success svg {
+            fill: var(--success-color);
+        }
+
+        .analytics-sub-title.struggle {
+            color: var(--warning-color);
+        }
+
+        .analytics-sub-title.struggle svg {
+            fill: var(--warning-color);
+        }
+
+        .analytics-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .topic-row {
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .topic-row:hover {
+            background: rgba(255, 255, 255, 0.02);
+            border-color: rgba(255, 255, 255, 0.06);
+        }
+
+        .topic-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .topic-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .topic-score {
+            font-family: monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .topic-row.passed-topic {
+            border-left: 3px solid var(--success-color);
+        }
+
+        .topic-row.passed-topic .topic-score {
+            color: var(--success-color);
+        }
+
+        .topic-row.struggle-topic {
+            border-left: 3px solid var(--alert-color);
+        }
+
+        .topic-row.struggle-topic .topic-score {
+            color: var(--alert-color);
+        }
+
+        .topic-meta {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .topic-alert-box {
+            background: rgba(248, 113, 113, 0.05);
+            border: 1px solid rgba(248, 113, 113, 0.12);
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-top: 4px;
+            font-size: 0.7rem;
+            color: #fca5a5;
+            line-height: 1.45;
+        }
+
+        .topic-alert-title {
+            font-weight: 600;
+            color: var(--alert-color);
+            margin-bottom: 2px;
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            letter-spacing: 0.02em;
+        }
+
+        .empty-topic-msg {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-secondary);
+            border: 1px dashed var(--border-color);
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+
+        /* Active Notebook Stream Gallery */
+        .notebook-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+
+        @media (min-width: 900px) {
+            .notebook-layout {
+                grid-template-columns: 1fr 1.7fr;
+            }
+        }
+
+        .notebook-gallery {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            max-height: 480px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        @media (min-width: 500px) and (max-width: 899px) {
+            .notebook-gallery {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .notebook-gallery::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .notebook-gallery::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+
+        .notebook-gallery::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 2px;
+        }
+
+        .notebook-card {
+            background: rgba(255,255,255,0.01);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .notebook-card:hover {
+            border-color: rgba(34, 211, 238, 0.25);
+            background: rgba(255, 255, 255, 0.02);
+            transform: translateY(-1px);
+        }
+
+        .notebook-card.active {
+            border-color: var(--accent-cyan);
+            background: rgba(34, 211, 238, 0.04);
+            box-shadow: 0 4px 15px rgba(34, 211, 238, 0.05);
+        }
+
+        .notebook-thumb {
+            width: 44px;
+            height: 44px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.25s ease;
+        }
+
+        .notebook-card.active .notebook-thumb {
+            background: rgba(34, 211, 238, 0.1);
+            border-color: rgba(34, 211, 238, 0.3);
+        }
+
+        .notebook-thumb svg {
+            width: 22px;
+            height: 22px;
+            fill: var(--text-secondary);
+        }
+
+        .notebook-card.active .notebook-thumb svg {
+            fill: var(--accent-cyan);
+        }
+
+        .notebook-details {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            overflow: hidden;
+        }
+
+        .notebook-details h5 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .notebook-details span {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+        }
+
+        .preview-pane {
+            background: #0d0d0f;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            height: 480px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        .preview-header {
+            background: rgba(255,255,255,0.02);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .preview-title span {
+            color: #fff;
+        }
+
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #fff;
+        }
+
+        .preview-empty {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+        }
+
+        .preview-empty svg {
+            width: 48px;
+            height: 48px;
+            fill: rgba(255,255,255,0.05);
+        }
+
+        footer {
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            padding: 30px 0 10px 0;
+            border-top: 1px solid var(--border-color);
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <header>
+            <div class="header-top">
+                <h1>Student Progress Report</h1>
+                <span class="report-badge">Parent Access</span>
+            </div>
+            <div class="student-meta">
+                <span>Student: <strong id="metaStudentId">student_01</strong></span>
+                <span>Track: <strong id="metaStudentTrack">College Curriculum</strong></span>
+                <span>Generated: <strong id="metaDate">Jun 12, 2026</strong></span>
+            </div>
+        </header>
+
+        <!-- Row 1: Mastery Summary & Badges -->
+        <div class="report-row-split">
+            
+            <!-- Overall Path Mastery Summary -->
+            <div class="report-card">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    <span>Overall Path Progress</span>
+                </div>
+                <div class="progress-ring-wrapper">
+                    <div class="progress-ring-container">
+                        <svg width="160" height="160">
+                            <circle class="progress-ring-circle" stroke="rgba(255,255,255,0.03)" stroke-width="10" fill="transparent" r="70" cx="80" cy="80"/>
+                            <circle id="progressBarRing" class="progress-ring-circle" stroke="var(--accent-cyan)" stroke-width="10" stroke-linecap="round" fill="transparent" r="70" cx="80" cy="80" stroke-dasharray="439.8" stroke-dashoffset="439.8"/>
+                        </svg>
+                        <div class="progress-text-overlay">
+                            <div class="progress-percentage" id="progressBarPercent">0%</div>
+                            <div class="progress-sub">Path Mastered</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="progress-summary-text" id="progressSummaryDesc">
+                    Calculating milestones completed from SQLite ledger...
+                </div>
+            </div>
+
+            <!-- Path Badges Gallery -->
+            <div class="report-card">
+                <div class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                    <span>Earned Mastery Achievements</span>
+                </div>
+                <div class="badges-grid">
+                    
+                    <!-- Badge 1: Harmonic Pendulums -->
+                    <div class="badge-card" id="badgeHarmonics">
+                        <div class="badge-icon">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-3.31 0-6-2.69-6-6 0-2.97 2.16-5.43 5-5.91V11c0 .55.45 1 1 1s1-.45 1-1V8.09c2.84.48 5 2.94 5 5.91 0 3.31-2.69 6-6 6z"/></svg>
+                        </div>
+                        <div class="badge-info">
+                            <h4>Harmonics Master</h4>
+                            <p>Analyzed simple harmonic motion, period formulas, and small angle pendulum physics.</p>
+                        </div>
+                    </div>
+
+                    <!-- Badge 2: Period Calculation -->
+                    <div class="badge-card" id="badgeCalculation">
+                        <div class="badge-icon">
+                            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                        </div>
+                        <div class="badge-info">
+                            <h4>Period Calculator</h4>
+                            <p>Successfully verified formulas, dimensions, and computed period durations.</p>
+                        </div>
+                    </div>
+
+                    <!-- Badge 3: Stoic Logic -->
+                    <div class="badge-card" id="badgeStoicLogic">
+                        <div class="badge-icon">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM11 7h2v6h-2zm0 8h2v2h-2z"/></svg>
+                        </div>
+                        <div class="badge-info">
+                            <h4>Stoic Epistemologist</h4>
+                            <p>Mastered classical stoic epistemology, logic premises, and cognitive impressions.</p>
+                        </div>
+                    </div>
+
+                    <!-- Badge 4: Cognitive Impressions -->
+                    <div class="badge-card" id="badgeImpressions">
+                        <div class="badge-icon">
+                            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                        </div>
+                        <div class="badge-info">
+                            <h4>Epistemic Sentry</h4>
+                            <p>Delineated true cognitive impressions from hallucinations using logical elenchus.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Row 2: Analytics Breakdown Card -->
+        <div class="report-card">
+            <div class="card-title">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+                <span>Analytics Curriculum Breakdown</span>
+            </div>
+            
+            <div class="analytics-grid">
+                
+                <!-- Successful Topics Column -->
+                <div class="analytics-col">
+                    <div class="analytics-sub-title success">
+                        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                        <span>Successful Topics (Passed ≥85%)</span>
+                    </div>
+                    <div class="analytics-list" id="passedTopicsList">
+                        <!-- Hydrated dynamically -->
+                        <div class="empty-topic-msg">Loading parsed curriculum logs...</div>
+                    </div>
+                </div>
+
+                <!-- Targeted Areas of Struggle Column -->
+                <div class="analytics-col">
+                    <div class="analytics-sub-title struggle">
+                        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                        <span>Targeted Areas of Struggle / Socratic Warnings</span>
+                    </div>
+                    <div class="analytics-list" id="struggleTopicsList">
+                        <!-- Hydrated dynamically -->
+                        <div class="empty-topic-msg">Loading parsed curriculum logs...</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Row 3: Active Notebook Stream Gallery -->
+        <div class="report-card">
+            <div class="card-title">
+                <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v2h4v2h-4v2h4v2H9V4h10v7z"/></svg>
+                <span>Active Notebook Stream Gallery</span>
+            </div>
+            
+            <div class="notebook-layout">
+                
+                <!-- Left side: Gallery card selection -->
+                <div class="notebook-gallery" id="notebookGallery">
+                    
+                    <div class="notebook-card" onclick="loadPdfPreview('/saved_notebooks/physics_pendulums_derivation.pdf', this)">
+                        <div class="notebook-thumb">
+                            <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                        </div>
+                        <div class="notebook-details">
+                            <h5>physics_pendulums_derivation.pdf</h5>
+                            <span>Physics Notes | 2.4 MB</span>
+                        </div>
+                    </div>
+
+                    <div class="notebook-card" onclick="loadPdfPreview('/saved_notebooks/philosophy_stoic_impressions.pdf', this)">
+                        <div class="notebook-thumb">
+                            <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                        </div>
+                        <div class="notebook-details">
+                            <h5>philosophy_stoic_impressions.pdf</h5>
+                            <span>Philosophy Notes | 1.1 MB</span>
+                        </div>
+                    </div>
+
+                    <div class="notebook-card" onclick="loadPdfPreview('/saved_notebooks/mechanics_period_derivation.pdf', this)">
+                        <div class="notebook-thumb">
+                            <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                        </div>
+                        <div class="notebook-details">
+                            <h5>mechanics_period_derivation.pdf</h5>
+                            <span>Physics Notes | 1.8 MB</span>
+                        </div>
+                    </div>
+
+                    <div class="notebook-card" onclick="loadPdfPreview('/saved_notebooks/stoic_logic_compound.pdf', this)">
+                        <div class="notebook-thumb">
+                            <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                        </div>
+                        <div class="notebook-details">
+                            <h5>stoic_logic_compound.pdf</h5>
+                            <span>Philosophy Notes | 940 KB</span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Right side: PDF Previewer pane -->
+                <div class="preview-pane">
+                    <div class="preview-header">
+                        <div class="preview-title">
+                            Viewing Document: <span id="activeDocName">None</span>
+                        </div>
+                    </div>
+                    <div id="previewPaneBody" style="flex-grow: 1; display: flex;">
+                        <div class="preview-empty">
+                            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 12h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                            <span>Select a notebook from the gallery to view inline</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <footer>
+            Ventuno AI Learning Platform &bull; Secure Parent Dashboard Portal &bull; 2026
+        </footer>
+
+    </div>
+
+    <script>
+        // Set dynamic date
+        const options = { year: 'numeric', month: 'short', day: 'numeric' };
+        document.getElementById('metaDate').innerText = new Date().toLocaleDateString('en-US', options);
+
+        // Core dynamic Curricula config matching index.html
+        const CURRICULA_CONFIG = {
+            "5th Grade": [
+                { time: "01:15", title: "5th Grade: Basic Physics - Gravity Intro", video_id: "vid_physics_01", chapter_id: "physics_pendulums" },
+                { time: "04:30", title: "5th Grade: Basic Science - Friction Effects", video_id: "vid_physics_02", chapter_id: "physics_pendulums" },
+                { time: "08:45", title: "5th Grade: Basic Science - Simple Machines", video_id: "vid_physics_03", chapter_id: "physics_pendulums" }
+            ],
+            "12th Grade": [
+                { time: "01:15", title: "12th Grade: Physics - Classical Mechanics", video_id: "vid_physics_01", chapter_id: "physics_pendulums" },
+                { time: "04:30", title: "12th Grade: Physics - Thermodynamics", video_id: "vid_physics_02", chapter_id: "physics_pendulums" },
+                { time: "08:45", title: "12th Grade: Physics - Wave Optics", video_id: "vid_physics_03", chapter_id: "physics_pendulums" }
+            ],
+            "College": [
+                { time: "01:15", title: "College: Advanced Physics - Pendulum Harmonics", video_id: "vid_physics_01", chapter_id: "physics_pendulums" },
+                { time: "04:30", title: "College: Advanced Physics - Period Calculation", video_id: "vid_physics_02", chapter_id: "physics_pendulums" },
+                { time: "08:45", title: "College: Advanced Physics - Damping & Decay", video_id: "vid_physics_03", chapter_id: "physics_pendulums" }
+            ],
+            "Random Topics": [
+                { time: "12:10", title: "Random: Stoic Epistemology & Logic", video_id: "vid_philosophy_01", chapter_id: "philosophy_stoicism" },
+                { time: "15:40", title: "Random: Cognitive Impressions", video_id: "vid_philosophy_02", chapter_id: "philosophy_stoicism" }
+            ]
+        };
+
+        // Fallback mock data if not served dynamically
+        const fallbackData = {
+            "student_name": "student_01",
+            "student_track": "College",
+            "mastery": [
+                { "video_id": "vid_physics_01", "chapter_id": "physics_pendulums", "mastery_achieved": true },
+                { "video_id": "vid_physics_02", "chapter_id": "physics_pendulums", "mastery_achieved": false },
+                { "video_id": "vid_philosophy_01", "chapter_id": "philosophy_stoicism", "mastery_achieved": true }
+            ],
+            "evaluations": [
+                { "video_id": "vid_physics_01", "chapter_id": "physics_pendulums", "quiz_type": "video_level", "raw_score": 100.0, "passed": true },
+                { "video_id": "vid_physics_02", "chapter_id": "physics_pendulums", "quiz_type": "video_level", "raw_score": 66.6, "passed": false },
+                { "video_id": "vid_philosophy_01", "chapter_id": "philosophy_stoicism", "quiz_type": "video_level", "raw_score": 100.0, "passed": true }
+            ]
+        };
+
+        // Load PDF preview inline inside the report
+        function loadPdfPreview(pdfUrl, element) {
+            // Update active state in cards
+            document.querySelectorAll('.notebook-card').forEach(card => card.classList.remove('active'));
+            if (element) element.classList.add('active');
+
+            const docName = pdfUrl.split('/').pop();
+            document.getElementById('activeDocName').innerText = docName;
+
+            const previewBody = document.getElementById('previewPaneBody');
+            previewBody.innerHTML = `<iframe class="preview-iframe" src="${pdfUrl}"></iframe>`;
+        }
+
+        // Hydrate metrics and progress rings
+        function hydrateReport() {
+            const data = window.PARENT_REPORT_DATA || fallbackData;
+            console.log("[REPORT HYDRATION] Hydrating layout using records:", data);
+
+            // Set metadata values
+            document.getElementById('metaStudentId').innerText = data.student_name;
+            document.getElementById('metaStudentTrack').innerText = data.student_track + " Curriculum";
+
+            const track = data.student_track || "College";
+            const chapters = CURRICULA_CONFIG[track] || CURRICULA_CONFIG["College"];
+
+            // Calculate progress ring
+            // Progress is calculated as: how many unique chapters in this track have a record with mastery_achieved = true OR evaluation passed = true
+            const completedChapters = new Set();
+            
+            // 1. Scan mastery ledger
+            if (data.mastery) {
+                data.mastery.forEach(m => {
+                    if (m.mastery_achieved) {
+                        // find matching chapter in configuration
+                        const match = chapters.find(c => c.video_id === m.video_id);
+                        if (match) completedChapters.add(match.title);
+                    }
+                });
+            }
+
+            // 2. Scan evaluation ledger
+            if (data.evaluations) {
+                data.evaluations.forEach(e => {
+                    if (e.passed) {
+                        const match = chapters.find(c => c.video_id === e.video_id);
+                        if (match) completedChapters.add(match.title);
+                    }
+                });
+            }
+
+            const totalChapters = chapters.length;
+            const completedCount = completedChapters.size;
+            const progressPercent = totalChapters > 0 ? Math.round((completedCount / totalChapters) * 100) : 0;
+
+            // Animate SVG progress ring
+            const ringCircle = document.getElementById('progressBarRing');
+            const circumference = 439.8; // 2 * PI * 70
+            const offset = circumference - (progressPercent / 100) * circumference;
+            ringCircle.style.strokeDashoffset = offset;
+            
+            // Update percentage texts
+            document.getElementById('progressBarPercent').innerText = progressPercent + "%";
+            document.getElementById('progressSummaryDesc').innerHTML = 
+                `Student has mastered <strong>${completedCount} of ${totalChapters}</strong> chapters in the <strong>${track}</strong> learning path.`;
+
+            // Hydrate completed badges
+            // Badge 1: Harmonics Master (vid_physics_01)
+            const physics01Mastered = (data.mastery && data.mastery.some(m => m.video_id === 'vid_physics_01' && m.mastery_achieved)) ||
+                                     (data.evaluations && data.evaluations.some(e => e.video_id === 'vid_physics_01' && e.passed));
+            if (physics01Mastered) document.getElementById('badgeHarmonics').classList.add('active');
+
+            // Badge 2: Period Calculator (vid_physics_02)
+            const physics02Mastered = (data.mastery && data.mastery.some(m => m.video_id === 'vid_physics_02' && m.mastery_achieved)) ||
+                                     (data.evaluations && data.evaluations.some(e => e.video_id === 'vid_physics_02' && e.passed));
+            if (physics02Mastered) document.getElementById('badgeCalculation').classList.add('active');
+
+            // Badge 3: Stoic Logic (vid_philosophy_01)
+            const philosophy01Mastered = (data.mastery && data.mastery.some(m => m.video_id === 'vid_philosophy_01' && m.mastery_achieved)) ||
+                                        (data.evaluations && data.evaluations.some(e => e.video_id === 'vid_philosophy_01' && e.passed));
+            if (philosophy01Mastered) document.getElementById('badgeStoicLogic').classList.add('active');
+
+            // Badge 4: Cognitive Impressions (vid_philosophy_02)
+            const philosophy02Mastered = (data.mastery && data.mastery.some(m => m.video_id === 'vid_philosophy_02' && m.mastery_achieved)) ||
+                                        (data.evaluations && data.evaluations.some(e => e.video_id === 'vid_philosophy_02' && e.passed));
+            if (philosophy02Mastered) document.getElementById('badgeImpressions').classList.add('active');
+
+
+            // Hydrate Analytics Lists
+            const passedContainer = document.getElementById('passedTopicsList');
+            const struggleContainer = document.getElementById('struggleTopicsList');
+            passedContainer.innerHTML = '';
+            struggleContainer.innerHTML = '';
+
+            let hasPassed = false;
+            let hasStruggle = false;
+
+            // Group evaluations by video_id to get the latest status
+            const latestEvalMap = {};
+            if (data.evaluations) {
+                data.evaluations.forEach(e => {
+                    latestEvalMap[e.video_id] = e;
+                });
+            }
+
+            chapters.forEach(chap => {
+                const evaluation = latestEvalMap[chap.video_id];
+                
+                if (evaluation) {
+                    const row = document.createElement('div');
+                    
+                    if (evaluation.passed) {
+                        hasPassed = true;
+                        row.className = 'topic-row passed-topic';
+                        row.innerHTML = `
+                            <div class="topic-header">
+                                <span class="topic-title">${chap.title}</span>
+                                <span class="topic-score">${evaluation.raw_score.toFixed(1)}%</span>
+                            </div>
+                            <div class="topic-meta">
+                                Concept mastered with direct dimensional validation. Target evaluation threshold achieved.
+                            </div>
+                        `;
+                        passedContainer.appendChild(row);
+                    } else {
+                        hasStruggle = true;
+                        row.className = 'topic-row struggle-topic';
+                        
+                        // Socratic Sentries feedback logic details
+                        let struggleDetail = "Mathematics step calculations fell below the strict 85% mastery requirement.";
+                        let hintDetails = "Socratic warning issued: Dimensions in the formula were inverted (gravity g and length L). Sentry system intervened to lock next timelines.";
+                        
+                        if (chap.video_id === 'vid_philosophy_01' || chap.video_id === 'vid_philosophy_02') {
+                            struggleDetail = "Logical arguments did not satisfy the strict elenchus criteria.";
+                            hintDetails = "Socratic warning: Premises contradiction detected. Guide sentry requested a conceptual definition of core epistemology tags.";
+                        }
+                        
+                        row.innerHTML = `
+                            <div class="topic-header">
+                                <span class="topic-title">${chap.title}</span>
+                                <span class="topic-score">${evaluation.raw_score.toFixed(1)}%</span>
+                            </div>
+                            <div class="topic-meta">
+                                ${struggleDetail}
+                                <div class="topic-alert-box">
+                                    <div class="topic-alert-title">Socratic Sentry Warning Triggered</div>
+                                    ${hintDetails}
+                                </div>
+                            </div>
+                        `;
+                        struggleContainer.appendChild(row);
+                    }
+                } else {
+                    // No evaluations completed yet for this chapter
+                    // We can show it as pending/not started
+                }
+            });
+
+            // If empty, display message
+            if (!hasPassed) {
+                passedContainer.innerHTML = '<div class="empty-topic-msg">No chapters passed yet. Continue studying.</div>';
+            }
+            if (!hasStruggle) {
+                struggleContainer.innerHTML = '<div class="empty-topic-msg">No struggle areas reported. All completed evaluations passed the 85% lock.</div>';
+            }
+
+            // Set default active notebook preview (first one)
+            const firstCard = document.querySelector('.notebook-card');
+            if (firstCard) {
+                firstCard.click();
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            hydrateReport();
+        });
+    </script>
+</body>
+</html>

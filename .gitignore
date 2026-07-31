@@ -1,0 +1,37 @@
+# Large Media Files (Videos & Audio)
+*.mp4
+*.m4v
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# Python & Virtual Environments
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Local Environment Variables & Secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Runtime Session & Temporary Logs
+active_session.json
+*.log
+
+# IDE & OS Cache
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Node dependencies (if any)
+node_modules/

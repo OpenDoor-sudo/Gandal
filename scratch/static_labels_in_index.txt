@@ -1,0 +1,104 @@
+LABEL: Calculus Graphing Engine
+spacing: 0.05em; display: flex; align-items: center; gap: 16px;">
+                            <span>Calculus Graphing Engine</span>
+                            <div style="display: flex; gap: 4px; align-items: center;">
+                                <span style="font-size
+============================================================
+LABEL: Calculus Graphing Engine
+ uppercase; display: flex; align-items: center; gap: 16px; width: 100%;">
+                    <span>Calculus Graphing Engine</span>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <span style="font-size: 0.58rem; color
+============================================================
+LABEL: Tangent Point
+ck;"></canvas>
+                        </div>
+                        
+                        <!-- Tangent Point (xo) slider node directly underneath -->
+                        <div class="slider-group" style="display: flex; flex-direction: column; gap: 6px; wi
+============================================================
+LABEL: Tangent Point
+lay:flex; justify-content:space-between; font-size:0.72rem;">
+                                <span>Tangent Point (x₀):</span>
+                                <span class="tangentValueTextClass" style="font-family:'Geist', monospace; color:var(--primary);">1.00</
+============================================================
+LABEL: Tangent Point
+: 100%; height: 100%; display: block;"></canvas>
+                </div>
+                <!-- Row 2: Tangent Point (xo) slider bar container -->
+                <div class="slider-group" style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+      
+============================================================
+LABEL: Tangent Point
+le="display:flex; justify-content:space-between; font-size:0.72rem;">
+                        <span>Tangent Point (x₀):</span>
+                        <span id="tangentValueText" class="tangentValueTextClass" style="font-family:'Geist', monospace; color:var(--pri
+============================================================
+LABEL: Tangent Point
+creenY);
+                }
+            }
+            ctx.stroke();
+            
+            // Draw tangent point and tangent line
+            const y0 = f(x0);
+            if (!isNaN(y0) && isFinite(y0)) {
+                const h = 0.001;
+                const y
+============================================================
+LABEL: Tangent Point
+ById('dampingNumericVal');
+            if (input) input.value = val;
+        }
+
+        // Calculus Tangent Point and graph module
+        let tangentPoint = 1.00;
+        let currentGraphFunction = "x*x*x - 3*x";
+
+        function evaluateGraphFunction(x, expres
+============================================================
+LABEL: Tangent Point
+her !== e.target) other.value = expr;
+                        });
+                        // Update tangent point to trigger graph update
+                        updateTangentPoint(tangentPoint);
+                    } else {
+                        statusClass.fo
+============================================================
+LABEL: Socratic Blackboard Canvas
+nt: space-between; align-items: center; letter-spacing: 0.05em;">
+                            <span>Socratic Blackboard Canvas</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span id="whiteboardSt
+============================================================
+LABEL: Capacitive Raise Hand Sensor
+ style="cursor: pointer;">
+                        <div class="dock-card-title" id="micStatusLabel">Capacitive Raise Hand Sensor</div>
+                        <div class="mic-listening-widget">
+                            <div class="mic-glow-button" onclick="toggleMicRaiseHand
+============================================================
+LABEL: Listening State
+                  </div>
+                            <div class="mic-state-label" id="micTimerText">Listening State: Idle</div>
+                            
+                            <!-- Sinusoidal canvas waveform -->
+                            <div class="mic-
+============================================================
+LABEL: Listening State
+ if (isListening) {
+                btn.classList.add('active');
+                label.innerText = "Listening State: Active";
+                startMicWaveAnimation();
+                
+                // Immediately pause the video timeline player
+                co
+============================================================
+LABEL: Listening State
+        } else {
+                btn.classList.remove('active');
+                label.innerText = "Listening State: Idle";
+                stopMicWaveAnimation();
+                if (micInterval) {
+                    clearTimeout(micInterval);
+                   
+============================================================

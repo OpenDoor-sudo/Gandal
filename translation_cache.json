@@ -1,0 +1,247 @@
+{
+  "text_L'accès universel aux méthodes de contraception moderne._fr_FR": "L'accès universel aux méthodes de contraception moderne.",
+  "text_Docteur César_fr_FR": "Docteur César",
+  "text_Une augmentation rapide de la population due à un fort taux de natalité et une baisse de la mortalité._fr_FR": "Une augmentation rapide de la population due à un fort taux de natalité et une baisse de la mortalité.",
+  "text_Le mariage précoce, l'analphabétisme et le poids des traditions._fr_FR": "Le mariage précoce, l'analphabétisme et le poids des traditions.",
+  "text_Quel médecin est cité par le professeur pour avoir introduit la méthode de la césarienne afin de limiter la mortalité maternelle ?_fr_FR": "Quel médecin est cité par le professeur pour avoir introduit la méthode de la césarienne afin de limiter la mortalité maternelle ?",
+  "ts_7c1b7861e9f71d1110ad8189e289dd34_fr_FR": [
+    {
+      "timestamp": "00:00",
+      "title": "Bilan des réactions du chlorure d'ammonium",
+      "description": "Rappel des équations de réaction du chlorure d'ammonium et comparaison des concentrations des produits obtenus."
+    },
+    {
+      "timestamp": "01:30",
+      "title": "Généralisation et exemple du chlorure de méthylammonium",
+      "description": "Explication de la formule générale des chlorures d'alkylammonium et étude du cas du chlorure de méthylammonium."
+    },
+    {
+      "timestamp": "03:35",
+      "title": "Définition et astuces de caractérisation des acides faibles",
+      "description": "Résumé de la définition d'un acide faible, illustration avec l'acide éthanoïque et méthodes pour prouver la faiblesse d'un acide."
+    },
+    {
+      "timestamp": "05:36",
+      "title": "Familles d'acides faibles : Carboxyliques et cations d'amines",
+      "description": "Étude systématique des acides carboxyliques, de leur nomenclature et des cations d'amines primaires, secondaires et tertiaires."
+    }
+  ],
+  "fc_6c181d533068db3ec93db04f1e345441_fr_FR": [
+    {
+      "front": "Pourquoi la dissolution d'un chlorure d'alkylammonium dans l'eau produit-elle un comportement d'acide faible ?",
+      "back": "Le sel se dissocie d'abord totalement en ions, libérant le cation alkylammonium (R-NH3+) qui est un acide faible réagissant partiellement avec l'eau.",
+      "hint": "Examinez le rôle du cation dérivé de l'amine une fois le sel dissous."
+    },
+    {
+      "front": "Qu'est-ce qui caractérise la réaction d'un acide faible lorsqu'il est mis en solution aqueuse ?",
+      "back": "Un acide faible se dissocie de façon partielle ou limitée avec l'eau pour libérer des ions hydronium (H3O+), contrairement à une dissociation totale.",
+      "hint": "Pensez au caractère incomplet ou équilibré de cette transformation chimique."
+    },
+    {
+      "front": "Quelle règle générale s'applique à la force de tous les acides carboxyliques en solution aqueuse ?",
+      "back": "Tous les acides carboxyliques (de formule R-COOH) sont sans exception des acides faibles, car leur réaction dans l'eau est toujours partielle.",
+      "hint": "Réfléchissez au comportement du groupe fonctionnel -COOH dans l'eau."
+    }
+  ],
+  "text_ζ = 1_fr_FR": "zêta égale un",
+  "text_Tous les acides carboxyliques (de formule R-COOH) sont sans exception des acides faibles, car leur réaction dans l'eau est toujours partielle._fr_FR": "Tous les acides carboxyliques (de formule R-COOH) sont sans exception des acides faibles, car leur réaction dans l'eau est toujours partielle.",
+  "text_La théorie malthusienne soutient que les populations des pays sous-développés sont pauvres parce qu'elles sont trop nombreuses, préconisant ainsi la limitation des naissances pour lutter contre le sous-développement._fr_FR": "La théorie malthusienne soutient que les populations des pays sous-développés sont pauvres parce qu'elles sont trop nombreuses, préconisant ainsi la limitation des naissances pour lutter contre le sous-développement.",
+  "text_Les principales causes incluent l'analphabétisme, le poids des traditions religieuses interdisant la limitation des naissances, les mariages précoces, la pauvreté et la pratique de la polygamie._fr_FR": "Les principales causes incluent l'analphabétisme, le poids des traditions religieuses interdisant la limitation des naissances, les mariages précoces, la pauvreté et la pratique de la polygamie.",
+  "text_Une hausse soudaine et inexpliquée du taux de mortalité infantile._fr_FR": "Une hausse soudaine et inexpliquée du taux de mortalité infantile.",
+  "text_Docteur Malthus_fr_FR": "Docteur Malthus",
+  "text_Dans un pays développé, l'augmentation démographique peut être favorable en apportant de la main-d'œuvre et en soutenant la croissance. Dans un pays sous-développé, l'économie ne peut pas l'absorber, ce qui aggrave le chômage, la pauvreté et la dépendance financière._fr_FR": "Dans un pays développé, l'augmentation démographique peut être favorable en apportant de la main-d'œuvre et en soutenant la croissance. Dans un pays sous-développé, l'économie ne peut pas l'absorber, ce qui aggrave le chômage, la pauvreté et la dépendance financière.",
+  "text_Un déclin progressif et continu de la population active._fr_FR": "Un déclin progressif et continu de la population active.",
+  "text_Docteur Fleming_fr_FR": "Docteur Fleming",
+  "text_En quoi l'explosion démographique a-t-elle un impact différent selon qu'un pays est développé ou sous-développé ?_fr_FR": "En quoi l'explosion démographique a-t-elle un impact différent selon qu'un pays est développé ou sous-développé ?",
+  "ts_ea818cfc1fb056b730d3ecd7576324f0_fr_FR": [
+    {
+      "timestamp": "00:00",
+      "title": "Introduction aux Problèmes Démographiques",
+      "description": "Aperçu de la croissance de la population mondiale et des enjeux sociodémographiques."
+    },
+    {
+      "timestamp": "02:30",
+      "title": "Causes de l'Explosion Démographique",
+      "description": "Analyse de la baisse de la mortalité infantile, du poids des traditions et des mariages précoces."
+    },
+    {
+      "timestamp": "06:15",
+      "title": "Conséquences Économiques et Sociales",
+      "description": "Impact sur le chômage, l'analphabétisme, le sous-développement et la dépendance financière."
+    },
+    {
+      "timestamp": "10:00",
+      "title": "Théorie Malthusienne et Perspectives",
+      "description": "Lien entre surpopulation et pauvreté selon la perspective malthusienne."
+    }
+  ],
+  "fc_6f492fa03e9e25c309349b9c43408231_fr_FR": [
+    {
+      "front": "Comment la théorie malthusienne explique-t-elle le lien entre la démographie et la pauvreté ?",
+      "back": "La théorie malthusienne soutient que les populations des pays sous-développés sont pauvres parce qu'elles sont trop nombreuses, préconisant ainsi la limitation des naissances pour lutter contre le sous-développement.",
+      "hint": "Considérez la formule attribuée à Malthus : 'ils sont pauvres parce qu'ils sont nombreux'."
+    },
+    {
+      "front": "En quoi l'explosion démographique a-t-elle un impact différent selon qu'un pays est développé ou sous-développé ?",
+      "back": "Dans un pays développé, l'augmentation démographique peut être favorable en apportant de la main-d'œuvre et en soutenant la croissance. Dans un pays sous-développé, l'économie ne peut pas l'absorber, ce qui aggrave le chômage, la pauvreté et la dépendance financière.",
+      "hint": "Réfléchissez à la capacité d'absorption de l'économie et au niveau d'industrialisation."
+    },
+    {
+      "front": "Quelles sont les principales causes sociales et culturelles de l'explosion démographique évoquées dans ce cours ?",
+      "back": "Les principales causes incluent l'analphabétisme, le poids des traditions religieuses interdisant la limitation des naissances, les mariages précoces, la pauvreté et la pratique de la polygamie.",
+      "hint": "Pensez aux facteurs d'éducation, de religion, d'âge au mariage et de structure familiale."
+    }
+  ],
+  "text_Comment la théorie malthusienne explique-t-elle le lien entre la démographie et la pauvreté ?_fr_FR": "Comment la théorie malthusienne explique-t-elle le lien entre la démographie et la pauvreté ?",
+  "text_Quelles sont les principales causes sociales et culturelles de l'explosion démographique évoquées dans ce cours ?_fr_FR": "Quelles sont les principales causes sociales et culturelles de l'explosion démographique évoquées dans ce cours ?",
+  "text_Une migration massive des populations urbaines vers les zones rurales._fr_FR": "Une migration massive des populations urbaines vers les zones rurales.",
+  "text_Parmi les facteurs suivants, lequel contribue directement à la hausse de la natalité dans ces pays ?_fr_FR": "Parmi les facteurs suivants, lequel contribue directement à la hausse de la natalité dans ces pays ?",
+  "text_Selon la leçon, qu'est-ce que l'explosion démographique dans les pays en développement ?_fr_FR": "Selon la leçon, qu'est-ce que l'explosion démographique dans les pays en développement ?",
+  "text_Docteur Pasteur_fr_FR": "Docteur Pasteur",
+  "text_Physics Specialist (15 yrs exp)_fr_FR": "Spécialiste en physique (15 ans d'expérience)",
+  "text_L'industrialisation poussée et l'élévation du niveau de vie._fr_FR": "L'industrialisation poussée et l'élévation du niveau de vie.",
+  "text_La disparition de la polygamie dans les zones rurales._fr_FR": "La disparition de la polygamie dans les zones rurales.",
+  "text_What is the damping ratio for a critical damping case?_fr_FR": "Quel est le rapport d'amortissement pour un cas d'amortissement critique ?",
+  "text_Un acide faible se dissocie de façon partielle ou limitée avec l'eau pour libérer des ions hydronium (H3O+), contrairement à une dissociation totale._fr_FR": "Un acide faible se dissocie de façon partielle ou limitée avec l'eau pour libérer des ions hydronium (H3O+), contrairement à une dissociation totale.",
+  "text_R-NH2_fr_FR": "R-NH2",
+  "text_[H3O+] est toujours nulle à l'équilibre._fr_FR": "[H3O+] est toujours nulle à l'équilibre.",
+  "text_R-COOH_fr_FR": "R-COOH",
+  "text_L'amine perd un électron par oxydation directe._fr_FR": "L'amine perd un électron par oxydation directe.",
+  "text_Dans l'équilibre R-NH3+ + H2O <-> R-NH2 + H3O+, quelle est la relation entre les concentrations des produits ?_fr_FR": "Dans l'équilibre R-NH3+ + H2O <-> R-NH2 + H3O+, quelle est la relation entre les concentrations des produits ?",
+  "text_Les concentrations varient sans aucun rapport._fr_FR": "Les concentrations varient sans aucun rapport.",
+  "text_R-NH3+_fr_FR": "R-NH3+",
+  "text_L'amine capte un proton H+ cédé par l'eau pour former l'ion alkylammonium R-NH3+._fr_FR": "L'amine capte un proton H+ cédé par l'eau, formant ainsi l'ion alkylammonium R-NH3+.",
+  "text_Quelle est la formule générale d'un cation d'alkylammonium en chimie organique ?_fr_FR": "Quelle est la formule générale d'un cation d'alkylammonium en chimie organique ?",
+  "text_[R-NH2] est le double de [H3O+]._fr_FR": "[R-NH2] est le double de [H3O+].",
+  "text_L'amine précipite sous forme d'un produit neutre._fr_FR": "L'amine précipite sous forme d'un produit neutre.",
+  "text_L'amine se transforme spontanément en ester._fr_FR": "L'amine se transforme spontanément en ester.",
+  "text_Quelle règle générale s'applique à la force de tous les acides carboxyliques en solution aqueuse ?_fr_FR": "Quelle règle générale s'applique à la force de tous les acides carboxyliques en solution aqueuse ?",
+  "text_[R-NH2] est rigoureusement égale à [H3O+]._fr_FR": "[R-NH2] est rigoureusement égale à [H3O+].",
+  "text_R-OH_fr_FR": "R-OH",
+  "text_Comment réagit une amine primaire en milieu acide aqueux pour former son cation d'alkylammonium ?_fr_FR": "Comment réagit une amine primaire en milieu acide aqueux pour former son cation d'alkylammonium ?",
+  "text_F ≈ -mgθ_fr_FR": "F est approximativement égal à moins mg thêta",
+  "text_Qu'est-ce qui caractérise la réaction d'un acide faible lorsqu'il est mis en solution aqueuse ?_fr_FR": "Qu'est-ce qui caractérise la réaction d'un acide faible lorsqu'il est mis en solution aqueuse ?",
+  "text_What represents the restoring force of a pendulum for small angles?_fr_FR": "Que représente la force de rappel d'un pendule pour les petits angles ?",
+  "text_Le sel se dissocie d'abord totalement en ions, libérant le cation alkylammonium (R-NH3+) qui est un acide faible réagissant partiellement avec l'eau._fr_FR": "Le sel se dissocie d'abord totalement en ions, libérant le cation alkylammonium (R-NH3+) qui est un acide faible réagissant partiellement avec l'eau.",
+  "text_Pourquoi la dissolution d'un chlorure d'alkylammonium dans l'eau produit-elle un comportement d'acide faible ?_fr_FR": "Pourquoi la dissolution d'un chlorure d'alkylammonium dans l'eau produit-elle un comportement d'acide faible ?",
+  "text_GANDHO is an Economics Specialist with 10 years of experience teaching global growth indicators and international development at the United Nations._fr_FR": "GANDHO est un spécialiste en économie fort de 10 ans d'expérience dans l'enseignement des indicateurs de croissance mondiale et du développement international aux Nations Unies.",
+  "text_GANDHO est un spécialiste de l'économie, doté de 10 ans d'expérience dans l'enseignement de la macroéconomie._fr_FR": "GANDHO est un spécialiste de l'économie, doté de 10 ans d'expérience dans l'enseignement de la macroéconomie.",
+  "text_Economics Specialist (10 yrs exp)_fr_FR": "Spécialiste en économie (10 ans d'exp.)",
+  "text_La hausse des mariages tardifs_fr_FR": "La hausse des mariages tardifs",
+  "text_La généralisation des césariennes par le Docteur César_fr_FR": "La généralisation des césariennes par le Docteur César",
+  "text_Quel est l'un des principaux facteurs médicaux de la baisse de la mortalité maternelle après la Seconde Guerre mondiale ?_fr_FR": "Quel est l'un des principaux facteurs médicaux de la baisse de la mortalité maternelle après la Seconde Guerre mondiale ?",
+  "text_L'invention du vaccin contre la grippe_fr_FR": "L'invention du vaccin contre la grippe",
+  "text_La réduction de l'agriculture de subsistance_fr_FR": "La réduction de l'agriculture de subsistance",
+  "text_Gracian_fr_FR": "Gracian",
+  "ts_29ab435c63098f400bd2336607795cdf_fr_FR": [
+    {
+      "timestamp": "00:10",
+      "title": "Économie globale",
+      "description": "Introduction aux moteurs de la croissance mondiale et au PIB."
+    },
+    {
+      "timestamp": "02:15",
+      "title": "Le rôle de l'ONU",
+      "description": "Comment les organisations onusiennes coordonnent les politiques de développement."
+    },
+    {
+      "timestamp": "05:40",
+      "title": "Mesure du développement",
+      "description": "L'importance de l'Indice de développement humain (IDH)."
+    }
+  ],
+  "fc_4c1fdcc2c89a7475b73b52c5eaf3b742_fr_FR": [
+    {
+      "front": "Qu'appelle-t-on les « maladies de masse » dans les pays du Sud et quels en sont les exemples majeurs cités dans la leçon ?",
+      "back": "Ce sont des maladies gravement épidémiques ou endémiques qui touchent une grande partie de la population. Les exemples majeurs sont le paludisme, le choléra, la tuberculose, Ebola, la COVID-19 et les MST dont le VIH/SIDA.",
+      "hint": "Pensez aux grandes épidémies et infections transmissibles mentionnées par l'enseignant."
+    },
+    {
+      "front": "Quelles sont les causes fondamentales de la persistance des problèmes sanitaires dans les pays en développement ?",
+      "back": "Elles comprennent le manque d'hygiène, la malnutrition et la sous-alimentation, l'insuffisance d'infrastructures sanitaires modernes, la pénurie de personnel qualifié, l'analphabétisme et la faible intervention de l'État.",
+      "hint": "Considérez les facteurs liés à l'hygiène, aux infrastructures hospitalières et aux ressources humaines."
+    },
+    {
+      "front": "Quelles sont les conséquences économiques des problèmes sanitaires et quelles solutions peuvent être envisagées ?",
+      "back": "Les conséquences sont la sortie massive de capitaux (soins à l'étranger, importation de médicaments), la hausse de la mortalité et la baisse de productivité. Les solutions incluent la sensibilisation, la formation du personnel, la construction d'hôpitaux et la promotion de l'hygiène.",
+      "hint": "Réfléchissez aux coûts des soins à l'extérieur, à la perte de main-d'œuvre et aux investissements nécessaires."
+    }
+  ],
+  "text_Ce sont des maladies gravement épidémiques ou endémiques qui touchent une grande partie de la population. Les exemples majeurs sont le paludisme, le choléra, la tuberculose, Ebola, la COVID-19 et les MST dont le VIH/SIDA._fr_FR": "Ce sont des maladies gravement épidémiques ou endémiques qui touchent une grande partie de la population. Les exemples majeurs sont le paludisme, le choléra, la tuberculose, Ebola, la COVID-19 et les MST dont le VIH/SIDA.",
+  "text_Qu'appelle-t-on les « maladies de masse » dans les pays du Sud et quels en sont les exemples majeurs cités dans la leçon ?_fr_FR": "Qu'appelle-t-on les « maladies de masse » dans les pays du Sud et quels en sont les exemples majeurs cités dans la leçon ?",
+  "text_Les conséquences sont la sortie massive de capitaux (soins à l'étranger, importation de médicaments), la hausse de la mortalité et la baisse de productivité. Les solutions incluent la sensibilisation, la formation du personnel, la construction d'hôpitaux et la promotion de l'hygiène._fr_FR": "Les conséquences sont la fuite massive de capitaux (soins à l'étranger, importation de médicaments), la hausse de la mortalité et la baisse de productivité. Les solutions incluent la sensibilisation, la formation du personnel, la construction d'hôpitaux et la promotion de l'hygiène.",
+  "text_Quelles sont les principales maladies de masse qui pèsent sur la santé publique dans les pays du sud ?_fr_FR": "Quelles sont les principales maladies de masse qui pèsent sur la santé publique dans les pays du sud ?",
+  "text_L'arrêt complet de la croissance démographique rurale._fr_FR": "L'arrêt complet de la croissance démographique rurale.",
+  "text_La privatisation exclusive des hôpitaux publics._fr_FR": "La privatisation exclusive des hôpitaux publics.",
+  "text_L'asthme allergique et les migraines chroniques._fr_FR": "L'asthme allergique et les migraines chroniques.",
+  "text_La réduction du taux de chômage des jeunes diplômés._fr_FR": "La réduction du taux de chômage des jeunes diplômés.",
+  "text_L'accès à l'eau potable, la vaccination et le recrutement de personnel médical qualifié._fr_FR": "THOUGHT: The user wants a French translation of \"L'accès à l'eau potable, la vaccination et le recrutement de personnel médical qualifié.\" This is already in French. I need to output the exact input text as the translation, following the instruction to \"Respond ONLY with the translation.\"L'accès à l'eau potable, la vaccination et le recrutement de personnel médical qualifié.",
+  "text_Le paludisme, le choléra, la fièvre jaune et le VIH/SIDA._fr_FR": "Le paludisme, le choléra, la fièvre jaune et le VIH/SIDA.",
+  "text_L'augmentation spontanée du pouvoir d'achat des agriculteurs._fr_FR": "L'augmentation spontanée du pouvoir d'achat des agriculteurs.",
+  "text_La baisse de la productivité du travail et l'alourdissement des dépenses de santé pour les ménages._fr_FR": "THOUGHT: The user wants a French translation of \"La baisse de la productivité du travail et l'alourdissement des dépenses de santé pour les ménages.\" This sentence is already in French. I should output the exact same text, as that is the fluent and natural French translation of itself.La baisse de la productivité du travail et l'alourdissement des dépenses de santé pour les ménages.",
+  "text_Quelle mesure est indispensable pour améliorer la situation sanitaire dans les zones rurales en développement ?_fr_FR": "Quelle mesure est indispensable pour améliorer la situation sanitaire dans les zones rurales en développement ?",
+  "text_La grippe aviaire et la myopie infantile._fr_FR": "La grippe aviaire et la myopie infantile.",
+  "text_L'interdiction de toute construction de centres de santé régionaux._fr_FR": "L'interdiction de toute construction de centres de santé régionaux.",
+  "text_La suppression complète de l'aide internationale._fr_FR": "La suppression complète de l'aide internationale.",
+  "text_Les maladies cardiovasculaires avancées uniquement._fr_FR": "Les maladies cardiovasculaires avancées uniquement.",
+  "text_Quelles sont les conséquences économiques des problèmes sanitaires et quelles solutions peuvent être envisagées ?_fr_FR": "Quelles sont les conséquences économiques des problèmes sanitaires et quelles solutions peuvent être envisagées ?",
+  "text_Quel est l'impact majeur du manque d'infrastructures sanitaires sur le développement économique ?_fr_FR": "Quel est l'impact majeur du manque d'infrastructures sanitaires sur le développement économique ?",
+  "text_Quelles sont les causes fondamentales de la persistance des problèmes sanitaires dans les pays en développement ?_fr_FR": "Quelles sont les causes fondamentales de la persistance des problèmes sanitaires dans les pays en développement ?",
+  "text_Elles comprennent le manque d'hygiène, la malnutrition et la sous-alimentation, l'insuffisance d'infrastructures sanitaires modernes, la pénurie de personnel qualifié, l'analphabétisme et la faible intervention de l'État._fr_FR": "Elles comprennent le manque d'hygiène, la malnutrition et la sous-alimentation, l'insuffisance d'infrastructures sanitaires modernes, la pénurie de personnel qualifié, l'analphabétisme et la faible intervention de l'État.",
+  "ts_88a7a66db82cc4c8e8c2323da32a4c78_fr_FR": [
+    {
+      "timestamp": "00:00",
+      "title": "Introduction aux Problèmes Démographiques",
+      "description": "Aperçu de la croissance de la population mondiale et des enjeux sociodémographiques."
+    },
+    {
+      "timestamp": "00:10",
+      "title": "Les Problèmes Démographiques",
+      "description": "Analyse de la croissance démographique et de la natalité."
+    },
+    {
+      "timestamp": "02:15",
+      "title": "Théorie Malthusienne",
+      "description": "Décalage entre l'accroissement géométrique de la population et l'accroissement arithmétique des subsistances."
+    },
+    {
+      "timestamp": "02:30",
+      "title": "Causes de l'Explosion Démographique",
+      "description": "Analyse de la baisse de la mortalité infantile, du poids des traditions et des mariages précoces."
+    },
+    {
+      "timestamp": "05:40",
+      "title": "Pression Démographique",
+      "description": "Conséquences du surpeuplement sur le niveau de vie et le revenu national."
+    },
+    {
+      "timestamp": "06:15",
+      "title": "Conséquences Économiques et Sociales",
+      "description": "Impact sur le chômage, l'analphabétisme, le sous-développement et la dépendance financière."
+    },
+    {
+      "timestamp": "10:00",
+      "title": "Théorie Malthusienne et Perspectives",
+      "description": "Lien entre surpopulation et pauvreté selon la perspective malthusienne."
+    }
+  ],
+  "ts_e30a5755b1cc076a458a331b3cfb95a9_fr_FR": [
+    {
+      "timestamp": "00:10",
+      "title": "Les Problèmes Sanitaires",
+      "description": "Analyse de l'espérance de vie, de la santé publique et du développement."
+    },
+    {
+      "timestamp": "02:15",
+      "title": "Prévalence des Maladies Endémiques",
+      "description": "Impact du paludisme, du choléra et du VIH sur la productivité du travail."
+    },
+    {
+      "timestamp": "05:40",
+      "title": "Infrastructures de Santé",
+      "description": "Rôle de l'accès à l'eau potable et de la vaccination dans la croissance."
+    }
+  ],
+  "text_Philosophy Specialist (20 yrs exp)_fr_FR": "Spécialiste en philosophie (20 ans d'expérience)",
+  "text_02 Les Problèmes Sanitaires_fr_FR": "02 Les Problèmes Sanitaires"
+}

@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # 1. The Local LiveKit WebRTC Server
+  livekit-server:
+    image: livekit/livekit-server:latest
+    command: --config /livekit.yaml
+    network_mode: "host"
+    volumes:
+      - ./livekit.yaml:/livekit.yaml
+    restart: unless-stopped
+
+  # 2. Local Qwen Inference Engine (Ollama)
+  local-qwen-engine:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_models:/root/.ollama
+    # Enable GPU support (NVIDIA CUDA / directml passthrough in WSL2)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+
+  # 3. Socratic Tutor Agent Application
+  tutor-agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    network_mode: "host" # Allows agent to easily hook into the local LiveKit WebRTC server on localhost
+    environment:
+      - LIVEKIT_URL=ws://localhost:7880
+      - LIVEKIT_API_KEY=devkey
+      - LIVEKIT_API_SECRET=secretsecretsecretsecretsecretsecretsecret
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+    volumes:
+      - ../vault.db:/app/vault.db
+      - ../.lancedb:/app/.lancedb
+    depends_on:
+      - livekit-server
+      - local-qwen-engine
+    restart: unless-stopped

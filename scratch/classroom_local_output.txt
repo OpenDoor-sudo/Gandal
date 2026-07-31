@@ -1,0 +1,302 @@
+activeLectureAudio = null;
+                    }
+                    console.log("[LOCALIZATION] Unmuted video for original audio playback.");
+                }
+            }
+        }
+
+        const UI_LOCALIZATIONS = {
+            "en_US": {
+                "tab_tutor": "Tutor",
+                "tab_chat": "Chat",
+                "tab_flashcards": "Flashcards",
+                "tab_timestamps": "Timestamps",
+                "tab_profile": "Profile",
+                "tab_evaluation": "Evaluation",
+                "welcome_msg": "Welcome to the lecture series! Please select your track or press the mic button below to start the conversation and explore topics together. Let's get learning!",
+                "mic_hint": '"Explain the relationship between these three vectors..."',
+                "active_lang": "Active System Language",
+                "audio_mode": "Lecture Translation Audio",
+                "mesh_network": "eSIM Mesh Networking",
+                "mode_translated": "Translated Native Audio (Gemma + Piper)",
+                "mode_original": "Original Audio (Teacher's Voice)"
+            },
+            "fr_FR": {
+                "tab_tutor": "Tuteur",
+                "tab_chat": "Chat",
+                "tab_flashcards": "Cartes",
+                "tab_timestamps": "Horodatages",
+                "tab_profile": "Profil",
+                "tab_evaluation": "Évaluation",
+               
+============================================================
+"شبكة eSIM المعقدة",
+                "mode_translated": "الصوت الأصلي المترجم (Gemma + Piper)",
+                "mode_original": "الصوت الأصلي (صوت المعلم)"
+            }
+        };
+
+        function translateClassroomUI(locale) {
+            const strings = UI_LOCALIZATIONS[locale] || UI_LOCALIZATIONS["en_US"];
+            
+            // Translate sidebar tab buttons
+            const tabs = document.querySelectorAll('.sidebar-tabs button');
+            if (tabs.length >= 6) {
+                tabs[0].innerText = strings["tab_tutor"];
+                tabs[1].innerText = strings["tab_chat"];
+                tabs[2].innerText = strings["tab_flashcards"];
+                tabs[3].innerText = strings["tab_timestamps"];
+                tabs[4].innerText = strings["tab_profile"];
+                tabs[5].innerText = strings["tab_evaluation"];
+            }
+            
+            // Translate default welcome message if still matches any welcome
+            const welcomeTextEl = document.querySelector('.tutor-card-body');
+            if (welcomeTextEl) {
+                const currentText = welcomeTextEl.innerText;
+                const allWelcomes = Object.values(UI_LOCALIZATIONS).map(l => l.welcome_msg);
+                if (allWelcomes.includes(currentText) || currentText.includes("Welcome to the lecture")) {
+                    welcomeTextEl.innerText = strings["welcome_msg"];
+                }
+       
+============================================================
+صوت الأصلي المترجم (Gemma + Piper)",
+                "mode_original": "الصوت الأصلي (صوت المعلم)"
+            }
+        };
+
+        function translateClassroomUI(locale) {
+            const strings = UI_LOCALIZATIONS[locale] || UI_LOCALIZATIONS["en_US"];
+            
+            // Translate sidebar tab buttons
+            const tabs = document.querySelectorAll('.sidebar-tabs button');
+            if (tabs.length >= 6) {
+                tabs[0].innerText = strings["tab_tutor"];
+                tabs[1].innerText = strings["tab_chat"];
+                tabs[2].innerText = strings["tab_flashcards"];
+                tabs[3].innerText = strings["tab_timestamps"];
+                tabs[4].innerText = strings["tab_profile"];
+                tabs[5].innerText = strings["tab_evaluation"];
+            }
+            
+            // Translate default welcome message if still matches any welcome
+            const welcomeTextEl = document.querySelector('.tutor-card-body');
+            if (welcomeTextEl) {
+                const currentText = welcomeTextEl.innerText;
+                const allWelcomes = Object.values(UI_LOCALIZATIONS).map(l => l.welcome_msg);
+                if (allWelcomes.includes(currentText) || currentText.includes("Welcome to the lecture")) {
+                    welcomeTextEl.innerText = strings["welcome_msg"];
+                }
+            }
+            
+            // Translate mic subtex
+============================================================
+Piper)",
+                "mode_original": "الصوت الأصلي (صوت المعلم)"
+            }
+        };
+
+        function translateClassroomUI(locale) {
+            const strings = UI_LOCALIZATIONS[locale] || UI_LOCALIZATIONS["en_US"];
+            
+            // Translate sidebar tab buttons
+            const tabs = document.querySelectorAll('.sidebar-tabs button');
+            if (tabs.length >= 6) {
+                tabs[0].innerText = strings["tab_tutor"];
+                tabs[1].innerText = strings["tab_chat"];
+                tabs[2].innerText = strings["tab_flashcards"];
+                tabs[3].innerText = strings["tab_timestamps"];
+                tabs[4].innerText = strings["tab_profile"];
+                tabs[5].innerText = strings["tab_evaluation"];
+            }
+            
+            // Translate default welcome message if still matches any welcome
+            const welcomeTextEl = document.querySelector('.tutor-card-body');
+            if (welcomeTextEl) {
+                const currentText = welcomeTextEl.innerText;
+                const allWelcomes = Object.values(UI_LOCALIZATIONS).map(l => l.welcome_msg);
+                if (allWelcomes.includes(currentText) || currentText.includes("Welcome to the lecture")) {
+                    welcomeTextEl.innerText = strings["welcome_msg"];
+                }
+            }
+            
+            // Translate mic subtext hint
+            const mic
+============================================================
+omeTextEl = document.querySelector('.tutor-card-body');
+            if (welcomeTextEl) {
+                const currentText = welcomeTextEl.innerText;
+                const allWelcomes = Object.values(UI_LOCALIZATIONS).map(l => l.welcome_msg);
+                if (allWelcomes.includes(currentText) || currentText.includes("Welcome to the lecture")) {
+                    welcomeTextEl.innerText = strings["welcome_msg"];
+                }
+            }
+            
+            // Translate mic subtext hint
+            const micHintEl = document.querySelector('.mic-subtext-hint');
+            if (micHintEl) {
+                micHintEl.innerText = strings["mic_hint"];
+            }
+            
+            // Translate profile tab labels
+            const activeLangLabel = document.getElementById('activeSystemLanguageLabel');
+            if (activeLangLabel) activeLangLabel.innerText = strings["active_lang"];
+            
+            const audioModeLabel = document.getElementById('lectureTranslationAudioLabel');
+            if (audioModeLabel) audioModeLabel.innerText = strings["audio_mode"];
+            
+            const esimMeshLabel = document.getElementById('esimMeshNetworkingLabel');
+            if (esimMeshLabel) esimMeshLabel.innerText = strings["mesh_network"];
+            
+            // Translate selector options
+            const audioModeSelect = document.getElementById('lectureTranslati
+============================================================
+sole.log(`[SPEECH] Classroom speech recognition language switched to: ${recognition.lang}`);
+            }
+            
+            // Translate the static dashboard UI elements instantly
+            translateClassroomUI(locale);
+
+            if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+                wsConnection.send(JSON.stringify({
+                    "action": "UPDATE_LOCALE",
+                    "name": window.ACTIVE_DATABASE_USER || getActiveStudentName() || "student_01",
+                    "locale": locale
+                }));
+            }
+            showToastNotification("Language Changed", `System language preference set to ${locale}.`);
+            
+            // Re-apply audio volume & mute state based on current locale and translation audio mode
+            updateTranslationAudioMode(translationAudioMode);
+        }
+
+        function handleLectureTranscriptAudio(text) {
+            const currentLocale = window.ACTIVE_DATABASE_LOCALE || "en_US";
+            if (currentLocale !== "en_US" && translationAudioMode === "translated") {
+                if (activeLectureAudio) {
+                    activeLectureAudio.pause();
+                    activeLectureAudio = null;
+                }
+                
+                console.log("[GEMMA 4 E4B] Requesting translation for: ", text);
+                fetch(`/api/translate?text=${encodeURIComponent(text)}&locale=${enc
+============================================================
+mentById('classroomLocaleSelect');
+                        if (localeSel) {
+                            localeSel.value = lastUser.locale;
+                        }
+                        if (typeof translateClassroomUI === 'function') {
+                            translateClassroomUI(lastUser.locale);
+                        }
+                        if (typeof updateTranslationAudioMode === 'function') {
+                            updateTranslationAudioMode(translationAudioMode);
+                        }
+                    }
+
+                    document.querySelectorAll('.user-header-label').forEach(el => {
+                        el.innerText = activeStudentName;
+                    });
+                    
+                    let bgContext = lastUser.background_context || window.ACTIVE_DATABASE_TRACK || "College";
+                    let rawInterests = "";
+                    if (bgContext.includes("|")) {
+                        let parts = bgContext.split("|");
+                        rawInterests = parts[0];
+                        selectedGoalTrack = parts[1];
+                    } else {
+                        rawInterests = bgContext;
+                        selectedGoalTrack = bgContext;
+                    }
+                    window.ACTIVE_DATABASE_INTERESTS = rawInterests.split(",").map(t => mapTrackToGoal(t.trim())).join(",");
+
+                    if (selectedGoalTrack === "
+============================================================
+leSel) {
+                            localeSel.value = lastUser.locale;
+                        }
+                        if (typeof translateClassroomUI === 'function') {
+                            translateClassroomUI(lastUser.locale);
+                        }
+                        if (typeof updateTranslationAudioMode === 'function') {
+                            updateTranslationAudioMode(translationAudioMode);
+                        }
+                    }
+
+                    document.querySelectorAll('.user-header-label').forEach(el => {
+                        el.innerText = activeStudentName;
+                    });
+                    
+                    let bgContext = lastUser.background_context || window.ACTIVE_DATABASE_TRACK || "College";
+                    let rawInterests = "";
+                    if (bgContext.includes("|")) {
+                        let parts = bgContext.split("|");
+                        rawInterests = parts[0];
+                        selectedGoalTrack = parts[1];
+                    } else {
+                        rawInterests = bgContext;
+                        selectedGoalTrack = bgContext;
+                    }
+                    window.ACTIVE_DATABASE_INTERESTS = rawInterests.split(",").map(t => mapTrackToGoal(t.trim())).join(",");
+
+                    if (selectedGoalTrack === "k12/12th_grade/mathematics/calculus") {
+                        sel
+============================================================
+ = document.getElementById('classroomLocaleSelect');
+                if (localeSel) {
+                    localeSel.value = window.ACTIVE_DATABASE_LOCALE;
+                }
+                if (typeof translateClassroomUI === 'function') {
+                    translateClassroomUI(window.ACTIVE_DATABASE_LOCALE);
+                }
+            }
+
+            // Apply initial audio mode and mute configuration
+            if (typeof updateTranslationAudioMode === 'function') {
+                updateTranslationAudioMode(translationAudioMode);
+            }
+
+            // Fetch registered instructors to populate CHARACTERS array
+            fetch('/api/instructors')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.instructors && data.instructors.length > 0) {
+                        // Clear static characters
+                        CHARACTERS.length = 0;
+                        data.instructors.forEach(inst => {
+                            CHARACTERS.push({
+                                name: inst.full_name,
+                                role: inst.subjects_list + " Specialist (" + inst.experience_years + " yrs exp)",
+                                avatar: inst.profile_image,
+                                experience: inst.experience_years + " years",
+                                phone: inst.phone_number || "N/A",
+                    
+============================================================
+          if (localeSel) {
+                    localeSel.value = window.ACTIVE_DATABASE_LOCALE;
+                }
+                if (typeof translateClassroomUI === 'function') {
+                    translateClassroomUI(window.ACTIVE_DATABASE_LOCALE);
+                }
+            }
+
+            // Apply initial audio mode and mute configuration
+            if (typeof updateTranslationAudioMode === 'function') {
+                updateTranslationAudioMode(translationAudioMode);
+            }
+
+            // Fetch registered instructors to populate CHARACTERS array
+            fetch('/api/instructors')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.instructors && data.instructors.length > 0) {
+                        // Clear static characters
+                        CHARACTERS.length = 0;
+                        data.instructors.forEach(inst => {
+                            CHARACTERS.push({
+                                name: inst.full_name,
+                                role: inst.subjects_list + " Specialist (" + inst.experience_years + " yrs exp)",
+                                avatar: inst.profile_image,
+                                experience: inst.experience_years + " years",
+                                phone: inst.phone_number || "N/A",
+                                bio: inst.biography || getInstructorBio(inst.fu
+============================================================

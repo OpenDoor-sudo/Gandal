@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ventuno AI - Admin Command Console</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* Lumina Intelligence Design Tokens & Admin Command Styling */
+        :root {
+            --bg-color: #000000;
+            --surface: #0a0a0a;
+            --surface-container-low: #111111;
+            --surface-container: #161616;
+            --surface-container-high: #222222;
+            --border-color: #222222;
+            
+            --on-surface: #e5e2e1;
+            --on-surface-variant: #a1a1aa;
+            --outline: #52525b;
+            --outline-variant: #27272a;
+            
+            --primary: #c084fc; /* Neon purple light */
+            --primary-neon: #a855f7; /* Pure neon purple */
+            --primary-glow: rgba(168, 85, 247, 0.2);
+            --secondary: #aac7ff;
+            --tertiary: #e9b3ff;
+            
+            --text-primary: #f4f4f5;
+            --text-secondary: #a1a1aa;
+            
+            --success-color: #34d399;
+            --success-glow: rgba(52, 211, 153, 0.2);
+            --warning-color: #fbbf24;
+            --alert-color: #f87171;
+            --alert-glow: rgba(248, 113, 113, 0.2);
+            
+            /* Border Radii shapes */
+            --radius-sm: 4px;
+            --radius-default: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-full: 9999px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Hanken Grotesk', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+        }
+
+        /* 1. Layout & Theme Matrix */
+        .admin-layout {
+            display: flex;
+            width: 100vw;
+            min-height: 100vh;
+        }
+
+        /* 2. Left Sidebar */
+        .sidebar {
+            width: 260px;
+            background: #09090b;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-family: 'Geist', monospace;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar-header h2 svg {
+            width: 16px;
+            height: 16px;
+            fill: var(--primary-neon);
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 14px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-family: 'Geist', monospace;
+            font-size: 0.85rem;
+            border-radius: var(--radius-default);
+            transition: all 0.2s ease;
+            position: relative;
+            border: 1px solid transparent;
+        }
+
+        .nav-item:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .nav-item.active {
+            color: #fff;
+            background: rgba(168, 85, 247, 0.08);
+            border: 1px solid rgba(168, 85, 247, 0.20);
+        }
+
+        .nav-indicator {
+            width: 4px;
+            height: 16px;
+            background: transparent;
+            border-radius: var(--radius-full);
+            margin-right: 12px;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        .nav-item.active .nav-indicator {
+            background: var(--primary-neon);
+            box-shadow: 0 0 8px var(--primary-neon);
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Deploy patch CTA button with subtle neon purple styling */
+        .deploy-patch-btn {
+            width: 100%;
+            background: transparent;
+            border: 1px solid var(--primary-neon);
+            color: var(--primary);
+            padding: 12px;
+            font-family: 'Geist', monospace;
+            font-weight: 600;
+            font-size: 0.8rem;
+            border-radius: var(--radius-default);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .deploy-patch-btn:hover {
+            background: var(--primary-neon);
+            color: #fff;
+            box-shadow: 0 0 15px var(--primary-neon);
+        }
+
+        /* Main Dashboard Area */
+        .main-content {
+            flex-grow: 1;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            max-width: calc(100% - 260px);
+        }
+
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        .title-section h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .title-section h1 .badge {
+            font-size: 0.7rem;
+            font-family: 'Geist', monospace;
+            background: rgba(168, 85, 247, 0.15);
+            color: var(--primary);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .sys-clock {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            padding: 5px 12px;
+            border-radius: var(--radius-full);
+            font-family: 'Geist', monospace;
+        }
+
+        .parent-link-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-family: 'Geist', monospace;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 6px 14px;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .parent-link-btn:hover {
+            border-color: var(--primary-neon);
+            color: #fff;
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .parent-link-btn svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+        }
+
+        /* 3-Column / Split Layout Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (min-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1.15fr 1fr;
+            }
+        }
+
+        /* Dashboard panels */
+        .dashboard-card {
+            background: var(--surface-container-low);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+        }
+
+        .card-header h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .status-indicator {
+            font-size: 0.65rem;
+            font-family: 'Geist', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+        }
+
+        /* 3. Main Analytics Grid */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .metric-box {
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px 12px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .metric-label {
+            font-size: 0.62rem;
+            font-family: 'Geist', monospace;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .metric-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .progress-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .progress-section h4 {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-family: 'Geist', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .progress-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .progress-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.8rem;
+        }
+
+        .progress-label {
+            width: 100px;
+            font-family: 'Geist', monospace;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .progress-bar-bg {
+            flex-grow: 1;
+            height: 6px;
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-full);
+            margin: 0 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--primary-neon);
+            border-radius: var(--radius-full);
+            box-shadow: 0 0 8px var(--primary-neon);
+        }
+
+        .progress-value {
+            font-family: 'Geist', monospace;
+            font-weight: 600;
+            color: var(--primary);
+            width: 45px;
+            text-align: right;
+        }
+
+        /* 4. Notebook Vault Grid */
+        .vault-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .pdf-card {
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .pdf-card:hover {
+            border-color: var(--primary-neon);
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .pdf-icon-wrap {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pdf-icon-wrap svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--text-secondary);
+            transition: fill 0.2s ease;
+        }
+
+        .pdf-card:hover .pdf-icon-wrap svg {
+            fill: var(--primary);
+        }
+
+        .badge-verified {
+            font-size: 0.6rem;
+            font-family: 'Geist', monospace;
+            background: rgba(52, 211, 153, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(52, 211, 153, 0.25);
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            text-transform: uppercase;
+        }
+
+        .badge-flagged {
+            font-size: 0.6rem;
+            font-family: 'Geist', monospace;
+            background: rgba(248, 113, 113, 0.1);
+            color: var(--alert-color);
+            border: 1px solid rgba(248, 113, 113, 0.25);
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            text-transform: uppercase;
+        }
+
+        .pdf-details {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .pdf-filename {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pdf-meta {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+        }
+
+        /* eSIM Mesh Control widget */
+        .mesh-widget {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 24px;
+            margin-top: 8px;
+        }
+
+        .mesh-widget .border-top {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .mesh-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .mesh-stat {
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            text-align: center;
+        }
+
+        .mesh-stat .label {
+            display: block;
+            font-size: 0.6rem;
+            font-family: 'Geist', monospace;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .mesh-stat strong {
+            font-size: 1rem;
+            color: var(--primary);
+            font-family: 'Geist', monospace;
+        }
+
+        .mesh-log-panel {
+            background: #000;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            height: 150px;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: 'Geist', monospace;
+            font-size: 0.72rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        .mesh-log-entry {
+            line-height: 1.4;
+            display: flex;
+            gap: 6px;
+        }
+
+        .mesh-log-entry .time {
+            color: var(--text-secondary);
+            flex-shrink: 0;
+        }
+
+        .mesh-log-entry .msg {
+            color: var(--success-color);
+        }
+
+        /* Tutor Expandable Cards Styling */
+        .tutor-card {
+            background: #09090b;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            position: relative;
+            align-self: flex-start !important;
+            height: auto !important;
+            min-height: 0 !important;
+            margin-bottom: auto !important;
+        }
+        .tutor-card:hover {
+            border-color: var(--primary-neon);
+            box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
+            transform: translateY(-2px);
+        }
+        .tutor-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            cursor: pointer;
+        }
+        .tutor-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-full);
+            object-fit: cover;
+            border: 1px solid var(--outline-variant);
+            background: #111;
+        }
+        .tutor-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .tutor-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .tutor-subjects {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        .tutor-chevron {
+            margin-left: auto;
+            width: 16px;
+            height: 16px;
+            fill: var(--text-secondary);
+            transition: transform 0.25s ease;
+        }
+        .tutor-card.expanded .tutor-chevron {
+            transform: rotate(180deg);
+            fill: var(--primary-neon);
+        }
+        .tutor-details-panel {
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 0;
+            border-top: 1px solid transparent;
+            padding: 0 16px;
+        }
+        .tutor-card.expanded .tutor-details-panel {
+            max-height: 650px;
+            opacity: 1;
+            padding: 16px;
+            border-top: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.01);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="admin-layout">
+        
+        <!-- Left Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                    <span>Admin Command</span>
+                </h2>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" onclick="selectNavItem('Analytics', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Analytics</span>
+                </a>
+                <a href="#" class="nav-item" onclick="selectNavItem('Traffic Control', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Traffic Control</span>
+                </a>
+                <a href="#" class="nav-item" onclick="selectNavItem('Handwriting Vault', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Handwriting Vault</span>
+                </a>
+                <a href="#" class="nav-item" onclick="selectNavItem('Student Fleet', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Student Fleet</span>
+                </a>
+                <a href="#" class="nav-item" onclick="selectNavItem('Network Logs', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Network Logs</span>
+                </a>
+                <a href="#" class="nav-item" onclick="selectNavItem('Teacher Management', this)">
+                    <span class="nav-indicator"></span>
+                    <span class="nav-text">Teacher Management</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <button class="deploy-patch-btn" onclick="deployPatch()">Deploy Patch</button>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard Area -->
+        <main class="main-content">
+            
+            <!-- Main Header -->
+            <header class="main-header">
+                <div class="title-section">
+                    <h1>Fleet Control Console <span class="badge">Active</span></h1>
+                </div>
+                <div class="header-actions">
+                    <button class="parent-link-btn" onclick="generateParentLink()" title="Generate Parent Progress Report Link">
+                        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                        <span>Generate Parent Link</span>
+                    </button>
+                    <div class="sys-clock" id="sysTime">SYS_CLOCK: 00:00:00</div>
+                </div>
+            </header>
+
+            <!-- Grid Layout -->
+            <div class="dashboard-grid" id="analyticsView">
+                
+                <!-- Left Column: Student Analytics -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Student Fleet Analytics</h3>
+                        <span class="status-indicator">SQLite Live Sync</span>
+                    </div>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-box">
+                            <span class="metric-label">Active Terminals</span>
+                            <strong class="metric-value" id="activeTerminalsVal">3</strong>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">Milestones Logged</span>
+                            <strong class="metric-value" id="milestonesLoggedVal">3</strong>
+                        </div>
+                        <div class="metric-box">
+                            <span class="metric-label">Mastery Ratio</span>
+                            <strong class="metric-value" id="masteryRatioVal">66.7%</strong>
+                        </div>
+                    </div>
+
+                    <div class="progress-section">
+                        <h4>Student Curriculum Progress</h4>
+                        <div class="progress-list" id="progressList">
+                            <div style="text-align:center; padding: 10px; color: var(--text-secondary); font-size:0.8rem;">
+                                Querying SQLite database profiles...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Vault Gallery & eSIM Controls -->
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <h3>Authentic Handwriting Vault</h3>
+                        <span class="status-indicator">Note Scans</span>
+                    </div>
+
+                    <div class="vault-grid">
+                        <div class="pdf-card" onclick="window.open('/saved_notebooks/physics_pendulums_derivation.pdf', '_blank')">
+                            <div class="pdf-icon-wrap">
+                                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 6h-4v2h4v2h-4v2h4v2H9V7h6v2z"/></svg>
+                                <span class="badge-verified">Verified</span>
+                            </div>
+                            <div class="pdf-details">
+                                <span class="pdf-filename">physics_pendulums_derivation.pdf</span>
+                                <span class="pdf-meta">Physics | 2.4 MB</span>
+                            </div>
+                        </div>
+
+                        <div class="pdf-card" onclick="window.open('/saved_notebooks/philosophy_stoic_impressions.pdf', '_blank')">
+                            <div class="pdf-icon-wrap">
+                                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 6h-4v2h4v2h-4v2h4v2H9V7h6v2z"/></svg>
+                                <span class="badge-flagged">Flagged</span>
+                            </div>
+                            <div class="pdf-details">
+                                <span class="pdf-filename">philosophy_stoic_impressions.pdf</span>
+                                <span class="pdf-meta">Philosophy | 1.1 MB</span>
+                            </div>
+                        </div>
+
+                        <div class="pdf-card" onclick="window.open('/saved_notebooks/mechanics_period_derivation.pdf', '_blank')">
+                            <div class="pdf-icon-wrap">
+                                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 6h-4v2h4v2h-4v2h4v2H9V7h6v2z"/></svg>
+                                <span class="badge-verified">Verified</span>
+                            </div>
+                            <div class="pdf-details">
+                                <span class="pdf-filename">mechanics_period_derivation.pdf</span>
+                                <span class="pdf-meta">Physics | 1.8 MB</span>
+                            </div>
+                        </div>
+
+                        <div class="pdf-card" onclick="window.open('/saved_notebooks/stoic_logic_compound.pdf', '_blank')">
+                            <div class="pdf-icon-wrap">
+                                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 6h-4v2h4v2h-4v2h4v2H9V7h6v2z"/></svg>
+                                <span class="badge-verified">Verified</span>
+                            </div>
+                            <div class="pdf-details">
+                                <span class="pdf-filename">stoic_logic_compound.pdf</span>
+                                <span class="pdf-meta">Philosophy | 940 KB</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- eSIM Mesh Traffic Control Widget -->
+                    <div class="mesh-widget">
+                        <div class="card-header border-top">
+                            <h3>eSIM Mesh Traffic Control</h3>
+                            <span class="status-indicator" style="border-color: rgba(52, 211, 153, 0.3); color: var(--success-color);">Wi-Fi 6 P2P Active</span>
+                        </div>
+                        
+                        <div class="mesh-stats-grid">
+                            <div class="mesh-stat">
+                                <span class="label">Total Data</span>
+                                <strong id="meshTotalBytes">12.82 GB</strong>
+                            </div>
+                            <div class="mesh-stat">
+                                <span class="label">Active Nodes</span>
+                                <strong id="meshActiveNodes">4 Nodes</strong>
+                            </div>
+                            <div class="mesh-stat">
+                                <span class="label">Signal Quality</span>
+                                <strong id="meshSignalQuality">98 dBm</strong>
+                            </div>
+                        </div>
+
+                        <div class="mesh-log-panel" id="meshLogs">
+                            <div class="mesh-log-entry">
+                                <span class="time">[06:45:01]</span>
+                                <span class="msg">Wi-Fi 6 AP: Broadcast initialized SSID 'Ventuno_AP_6'</span>
+                            </div>
+                            <div class="mesh-log-entry">
+                                <span class="time">[06:45:03]</span>
+                                <span class="msg">Mesh Network: Registered node 'Node_01' (192.168.10.2)</span>
+                            </div>
+                            <div class="mesh-log-entry">
+                                <span class="time">[06:45:05]</span>
+                                <span class="msg">Vector Sync: Table 'curriculum_rag' weights synced to 'Node_01'</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Teacher Management View -->
+            <div id="teacherView" style="display: none; width: 100%;">
+                <div style="display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; justify-content: center; width: 100%;">
+                    
+                    <!-- Left: Register New Instructor Form -->
+                    <div class="dashboard-card" style="flex: 1; min-width: 320px; max-width: 450px; background: #000000; border: 1px solid var(--border-color); padding: 24px; border-radius: var(--radius-md);">
+                        <div class="card-header" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                            <h3>Register New Instructor</h3>
+                            <span class="status-indicator">Intake Panel</span>
+                        </div>
+                        <form id="teacherForm" onsubmit="submitTeacherForm(event)">
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <div>
+                                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Full Name</label>
+                                    <input type="text" id="teacherFullName" required style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Phone Number</label>
+                                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                                        <div style="display: flex; gap: 8px;">
+                                            <div style="position: relative; flex: 1;">
+                                                <input type="text" id="countrySearchInput" placeholder="Search country (e.g. Portugal)..." oninput="filterCountries(this.value)" onfocus="showCountrySelect()" style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                            </div>
+                                            <input type="text" id="teacherPhone" placeholder="e.g. 912345678" required style="flex: 1.2; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                        </div>
+                                        <select id="countrySelect" size="4" onchange="selectCountry(this.value)" style="display: none; width: 100%; padding: 6px; background: #0a0a0a; border: 1px solid var(--border-color); color: #aaa; border-radius: var(--radius-default); outline: none; cursor: pointer; height: 90px; font-size: 0.78rem;">
+                                            <!-- Countries populated by JS -->
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Experience (Years)</label>
+                                    <input type="number" id="teacherExperience" required style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Subjects</label>
+                                    <input type="text" id="teacherSubjects" placeholder="e.g. Calculus, Physics" required style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Profile Image Destination Path</label>
+                                    <input type="text" id="teacherProfileImage" placeholder="static/images/teachers/prof_evans.jpg" required style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Biography / Comment</label>
+                                    <textarea id="teacherBiography" placeholder="Brief comment/biography about the instructor..." style="width: 100%; height: 80px; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none; resize: vertical; font-family: inherit; font-size: 0.85rem;"></textarea>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Language / Locale</label>
+                                    <select id="teacherLocale" style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none; cursor: pointer;">
+                                        <option value="en_US">English (en_US)</option>
+                                        <option value="fr_FR">French (fr_FR)</option>
+                                        <option value="es_ES">Spanish (es_ES)</option>
+                                        <option value="zh_CN">Chinese (zh_CN)</option>
+                                        <option value="pt_PT">Portuguese (pt_PT)</option>
+                                        <option value="ar_AE">Arabic (ar_AE)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; font-family: 'Geist', monospace;">Assign to Lesson Video</label>
+                                    <select id="teacherLinkedVideo" style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none; cursor: pointer;">
+                                        <option value="">None</option>
+                                        <option value="vid_physics_01">vid_physics_01 (Physics Pendulums Intro)</option>
+                                        <option value="vid_physics_02">vid_physics_02 (Physics Period Derivation)</option>
+                                        <option value="vid_philosophy_01">vid_philosophy_01 (Philosophy Stoic Impressions)</option>
+                                        <option value="vid_philosophy_02">vid_philosophy_02 (Philosophy Stoic Logic)</option>
+                                        <option value="vid_calculus_01">vid_calculus_01 (Calculus Derivatives)</option>
+                                    </select>
+                                </div>
+                                <button type="submit" style="margin-top: 10px; padding: 12px; background: var(--primary-neon); border: none; color: #fff; font-family: 'Geist', monospace; font-weight: 600; border-radius: var(--radius-default); cursor: pointer; transition: background 0.2s; box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);">Register & Link Instructor</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Right: Registered Instructors Card Grid -->
+                    <div style="flex: 1.5; min-width: 360px; display: flex; flex-direction: column; gap: 16px;">
+                        <div class="dashboard-card" style="background: #000000; border: 1px solid var(--border-color); padding: 24px; border-radius: var(--radius-md); min-height: 400px; width: 100%;">
+                            <div class="card-header" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                                <h3>Active Instructor Fleet</h3>
+                                <span class="status-indicator" style="border-color: rgba(168, 85, 247, 0.3); color: var(--primary);">System Registry</span>
+                            </div>
+                            
+                            <div id="instructorsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; width: 100%; align-items: flex-start;">
+                                <!-- Loaded dynamically via fetchInstructors() -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+        </main>
+        
+    </div>
+
+    <script>
+        // Set dynamic clock
+        setInterval(() => {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            document.getElementById('sysTime').innerText = "SYS_CLOCK: " + timeStr;
+        }, 1000);
+
+        // Sidebar Navigation click visual feedback
+        function selectNavItem(name, element) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            element.classList.add('active');
+            showToast("Navigation", `Switched tab context to '${name}'`);
+            
+            const analyticsView = document.getElementById('analyticsView');
+            const teacherView = document.getElementById('teacherView');
+            
+            if (name === 'Teacher Management') {
+                if (analyticsView) analyticsView.style.display = 'none';
+                if (teacherView) teacherView.style.display = 'block';
+            } else {
+                if (analyticsView) analyticsView.style.display = 'grid';
+                if (teacherView) teacherView.style.display = 'none';
+            }
+        }
+
+        // Searchable Country Code dropdown configuration
+        const COUNTRIES = [
+            { name: "Afghanistan", code: "+93" },
+            { name: "Albania", code: "+355" },
+            { name: "Algeria", code: "+213" },
+            { name: "Andorra", code: "+376" },
+            { name: "Angola", code: "+244" },
+            { name: "Antigua and Barbuda", code: "+1" },
+            { name: "Argentina", code: "+54" },
+            { name: "Armenia", code: "+374" },
+            { name: "Australia", code: "+61" },
+            { name: "Austria", code: "+43" },
+            { name: "Azerbaijan", code: "+994" },
+            { name: "Bahamas", code: "+1" },
+            { name: "Bahrain", code: "+973" },
+            { name: "Bangladesh", code: "+880" },
+            { name: "Barbados", code: "+1" },
+            { name: "Belarus", code: "+375" },
+            { name: "Belgium", code: "+32" },
+            { name: "Belize", code: "+501" },
+            { name: "Benin", code: "+229" },
+            { name: "Bhutan", code: "+975" },
+            { name: "Bolivia", code: "+591" },
+            { name: "Bosnia and Herzegovina", code: "+387" },
+            { name: "Botswana", code: "+267" },
+            { name: "Brazil", code: "+55" },
+            { name: "Brunei", code: "+673" },
+            { name: "Bulgaria", code: "+359" },
+            { name: "Burkina Faso", code: "+226" },
+            { name: "Burundi", code: "+257" },
+            { name: "Cabo Verde", code: "+238" },
+            { name: "Cambodia", code: "+855" },
+            { name: "Cameroon", code: "+237" },
+            { name: "Canada", code: "+1" },
+            { name: "Central African Republic", code: "+236" },
+            { name: "Chad", code: "+235" },
+            { name: "Chile", code: "+56" },
+            { name: "China", code: "+86" },
+            { name: "Colombia", code: "+57" },
+            { name: "Comoros", code: "+269" },
+            { name: "Congo (Congo-Brazzaville)", code: "+242" },
+            { name: "Costa Rica", code: "+506" },
+            { name: "Croatia", code: "+385" },
+            { name: "Cuba", code: "+53" },
+            { name: "Cyprus", code: "+357" },
+            { name: "Czechia (Czech Republic)", code: "+420" },
+            { name: "Democratic Republic of the Congo", code: "+243" },
+            { name: "Denmark", code: "+45" },
+            { name: "Djibouti", code: "+253" },
+            { name: "Dominica", code: "+1" },
+            { name: "Dominican Republic", code: "+1" },
+            { name: "Ecuador", code: "+593" },
+            { name: "Egypt", code: "+20" },
+            { name: "El Salvador", code: "+503" },
+            { name: "Equatorial Guinea", code: "+240" },
+            { name: "Eritrea", code: "+291" },
+            { name: "Estonia", code: "+372" },
+            { name: "Eswatini", code: "+268" },
+            { name: "Ethiopia", code: "+251" },
+            { name: "Fiji", code: "+679" },
+            { name: "Finland", code: "+358" },
+            { name: "France", code: "+33" },
+            { name: "Gabon", code: "+241" },
+            { name: "Gambia", code: "+220" },
+            { name: "Georgia", code: "+995" },
+            { name: "Germany", code: "+49" },
+            { name: "Ghana", code: "+233" },
+            { name: "Greece", code: "+30" },
+            { name: "Grenada", code: "+1" },
+            { name: "Guatemala", code: "+502" },
+            { name: "Guinea", code: "+224" },
+            { name: "Guinea-Bissau", code: "+245" },
+            { name: "Guyana", code: "+592" },
+            { name: "Haiti", code: "+509" },
+            { name: "Holy See", code: "+39" },
+            { name: "Honduras", code: "+504" },
+            { name: "Hungary", code: "+36" },
+            { name: "Iceland", code: "+354" },
+            { name: "India", code: "+91" },
+            { name: "Indonesia", code: "+62" },
+            { name: "Iran", code: "+98" },
+            { name: "Iraq", code: "+964" },
+            { name: "Ireland", code: "+353" },
+            { name: "Israel", code: "+972" },
+            { name: "Italy", code: "+39" },
+            { name: "Jamaica", code: "+1" },
+            { name: "Japan", code: "+81" },
+            { name: "Jordan", code: "+962" },
+            { name: "Kazakhstan", code: "+7" },
+            { name: "Kenya", code: "+254" },
+            { name: "Kiribati", code: "+686" },
+            { name: "Kuwait", code: "+965" },
+            { name: "Kyrgyzstan", code: "+996" },
+            { name: "Laos", code: "+856" },
+            { name: "Latvia", code: "+371" },
+            { name: "Lebanon", code: "+961" },
+            { name: "Lesotho", code: "+266" },
+            { name: "Liberia", code: "+231" },
+            { name: "Libya", code: "+218" },
+            { name: "Liechtenstein", code: "+423" },
+            { name: "Lithuania", code: "+370" },
+            { name: "Luxembourg", code: "+352" },
+            { name: "Madagascar", code: "+261" },
+            { name: "Malawi", code: "+265" },
+            { name: "Malaysia", code: "+60" },
+            { name: "Maldives", code: "+960" },
+            { name: "Mali", code: "+223" },
+            { name: "Malta", code: "+356" },
+            { name: "Marshall Islands", code: "+692" },
+            { name: "Mauritania", code: "+222" },
+            { name: "Mauritius", code: "+230" },
+            { name: "Mexico", code: "+52" },
+            { name: "Micronesia", code: "+691" },
+            { name: "Moldova", code: "+373" },
+            { name: "Monaco", code: "+377" },
+            { name: "Mongolia", code: "+976" },
+            { name: "Montenegro", code: "+382" },
+            { name: "Morocco", code: "+212" },
+            { name: "Mozambique", code: "+258" },
+            { name: "Myanmar (formerly Burma)", code: "+95" },
+            { name: "Namibia", code: "+264" },
+            { name: "Nauru", code: "+674" },
+            { name: "Nepal", code: "+977" },
+            { name: "Netherlands", code: "+31" },
+            { name: "New Zealand", code: "+64" },
+            { name: "Nicaragua", code: "+505" },
+            { name: "Niger", code: "+227" },
+            { name: "Nigeria", code: "+234" },
+            { name: "North Korea", code: "+850" },
+            { name: "North Macedonia", code: "+389" },
+            { name: "Norway", code: "+47" },
+            { name: "Oman", code: "+968" },
+            { name: "Pakistan", code: "+92" },
+            { name: "Palau", code: "+680" },
+            { name: "Palestine State", code: "+970" },
+            { name: "Panama", code: "+507" },
+            { name: "Papua New Guinea", code: "+675" },
+            { name: "Paraguay", code: "+595" },
+            { name: "Peru", code: "+51" },
+            { name: "Philippines", code: "+63" },
+            { name: "Poland", code: "+48" },
+            { name: "Portugal", code: "+351" },
+            { name: "Qatar", code: "+974" },
+            { name: "Romania", code: "+40" },
+            { name: "Russia", code: "+7" },
+            { name: "Rwanda", code: "+250" },
+            { name: "Saint Kitts and Nevis", code: "+1" },
+            { name: "Saint Lucia", code: "+1" },
+            { name: "Saint Vincent and the Grenadines", code: "+1" },
+            { name: "Samoa", code: "+685" },
+            { name: "San Marino", code: "+378" },
+            { name: "Sao Tome and Principe", code: "+239" },
+            { name: "Saudi Arabia", code: "+966" },
+            { name: "Senegal", code: "+221" },
+            { name: "Serbia", code: "+381" },
+            { name: "Seychelles", code: "+248" },
+            { name: "Sierra Leone", code: "+232" },
+            { name: "Singapore", code: "+65" },
+            { name: "Slovakia", code: "+421" },
+            { name: "Slovenia", code: "+386" },
+            { name: "Solomon Islands", code: "+677" },
+            { name: "Somalia", code: "+252" },
+            { name: "South Africa", code: "+27" },
+            { name: "South Korea", code: "+82" },
+            { name: "South Sudan", code: "+211" },
+            { name: "Spain", code: "+34" },
+            { name: "Sri Lanka", code: "+94" },
+            { name: "Sudan", code: "+249" },
+            { name: "Suriname", code: "+597" },
+            { name: "Sweden", code: "+46" },
+            { name: "Switzerland", code: "+41" },
+            { name: "Syria", code: "+963" },
+            { name: "Tajikistan", code: "+992" },
+            { name: "Tanzania", code: "+255" },
+            { name: "Thailand", code: "+66" },
+            { name: "Timor-Leste", code: "+670" },
+            { name: "Togo", code: "+228" },
+            { name: "Tonga", code: "+676" },
+            { name: "Trinidad and Tobago", code: "+1" },
+            { name: "Tunisia", code: "+216" },
+            { name: "Turkey", code: "+90" },
+            { name: "Turkmenistan", code: "+993" },
+            { name: "Tuvalu", code: "+688" },
+            { name: "Uganda", code: "+256" },
+            { name: "Ukraine", code: "+380" },
+            { name: "United Arab Emirates", code: "+971" },
+            { name: "United Kingdom", code: "+44" },
+            { name: "United States", code: "+1" },
+            { name: "Uruguay", code: "+598" },
+            { name: "Uzbekistan", code: "+998" },
+            { name: "Vanuatu", code: "+678" },
+            { name: "Venezuela", code: "+58" },
+            { name: "Vietnam", code: "+84" },
+            { name: "Yemen", code: "+967" },
+            { name: "Zambia", code: "+260" },
+            { name: "Zimbabwe", code: "+263" }
+        ];
+
+        function initCountrySelect() {
+            const select = document.getElementById('countrySelect');
+            if (!select) return;
+            select.innerHTML = "";
+            COUNTRIES.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.code;
+                opt.innerText = `${c.name} (${c.code})`;
+                select.appendChild(opt);
+            });
+        }
+
+        function showCountrySelect() {
+            const select = document.getElementById('countrySelect');
+            if (select) {
+                select.style.display = 'block';
+            }
+        }
+
+        function filterCountries(query) {
+            const select = document.getElementById('countrySelect');
+            if (!select) return;
+            select.style.display = 'block';
+            select.innerHTML = "";
+            const filtered = COUNTRIES.filter(c => c.name.toLowerCase().includes(query.toLowerCase()));
+            filtered.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.code;
+                opt.innerText = `${c.name} (${c.code})`;
+                select.appendChild(opt);
+            });
+        }
+
+        function selectCountry(code) {
+            const select = document.getElementById('countrySelect');
+            const selectedOpt = select.options[select.selectedIndex];
+            if (selectedOpt) {
+                document.getElementById('countrySearchInput').value = selectedOpt.innerText;
+                document.getElementById('teacherPhone').focus();
+                select.style.display = 'none'; // Hide on select
+            }
+        }
+
+        // Hide countrySelect if clicked outside
+        document.addEventListener('click', (e) => {
+            const searchInput = document.getElementById('countrySearchInput');
+            const select = document.getElementById('countrySelect');
+            if (searchInput && select) {
+                if (!searchInput.contains(e.target) && !select.contains(e.target)) {
+                    select.style.display = 'none';
+                }
+            }
+        });
+
+        // Handle teacher registration form submission
+        async function submitTeacherForm(event) {
+            event.preventDefault();
+            const fullName = document.getElementById('teacherFullName').value.trim();
+            const phoneCode = document.getElementById('countrySelect').value || "";
+            const rawPhone = document.getElementById('teacherPhone').value.trim();
+            const phone = (phoneCode + " " + rawPhone).trim();
+            const experience = document.getElementById('teacherExperience').value.trim();
+            const subjects = document.getElementById('teacherSubjects').value.trim();
+            const profileImage = document.getElementById('teacherProfileImage').value.trim();
+            const biography = document.getElementById('teacherBiography').value.trim();
+            const videoId = document.getElementById('teacherLinkedVideo').value;
+            const locale = document.getElementById('teacherLocale').value;
+
+            const payload = {
+                full_name: fullName,
+                phone_number: phone,
+                experience_years: experience,
+                subjects_list: subjects,
+                profile_image: profileImage,
+                biography: biography,
+                video_id: videoId,
+                locale: locale
+            };
+
+            try {
+                const response = await fetch('/api/instructors', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast("Success", `Instructor '${fullName}' registered successfully!`);
+                    document.getElementById('teacherForm').reset();
+                    loadFleetMetrics(); // reload metrics in case list is updated
+                    fetchInstructors(); // reload active instructors grid
+                } else {
+                    showToast("Error", `Registration failed: ${result.error}`);
+                }
+            } catch (err) {
+                showToast("Error", `Network error: ${err}`);
+            }
+        }
+
+        // Global list of lessons
+        let allLessons = [];
+
+        // Fetch all active lessons/videos
+        async function fetchLessons() {
+            try {
+                const response = await fetch('/api/lessons');
+                const data = await response.json();
+                allLessons = data.lessons || [];
+                
+                // Populate main registration dropdown
+                const selectEl = document.getElementById('teacherLinkedVideo');
+                if (selectEl) {
+                    selectEl.innerHTML = `
+                        <option value="">None</option>
+                        ${allLessons.map(l => `<option value="${l.video_id}">${l.video_id} (${escapeHtml(l.chapter_id)})</option>`).join('')}
+                    `;
+                }
+            } catch (err) {
+                console.error("Failed to load lessons: " + err);
+            }
+        }
+
+        // Fetch and render active instructors
+        async function fetchInstructors() {
+            try {
+                const response = await fetch('/api/instructors');
+                const data = await response.json();
+                const grid = document.getElementById('instructorsGrid');
+                if (!grid) return;
+                
+                if (!data.instructors || data.instructors.length === 0) {
+                    grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); font-size: 0.85rem; padding: 20px; font-family: 'Geist', monospace;">No instructors registered in SQLite.</div>`;
+                    return;
+                }
+                
+                grid.innerHTML = data.instructors.map(t => {
+                    const avatar = t.profile_image || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150';
+                    const videoId = t.video_id || "";
+                    
+                    // Generate options list dynamically from allLessons
+                    const videoOptionsHtml = `
+                        <option value="">None</option>
+                        ${allLessons.map(l => `
+                            <option value="${l.video_id}" ${videoId === l.video_id ? 'selected' : ''}>
+                                ${l.video_id} (${escapeHtml(l.chapter_id)})
+                            </option>
+                        `).join('')}
+                    `;
+                    
+                    return `
+                        <div>
+                            <div class="tutor-card" id="card-${t.instructor_id}">
+                                <div class="tutor-card-header" onclick="toggleTutorCard('${t.instructor_id}')">
+                                    <img src="${avatar}" alt="${t.full_name}" class="tutor-avatar" onerror="this.src='https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150'">
+                                    <div class="tutor-info">
+                                        <span class="tutor-name">${escapeHtml(t.full_name)}</span>
+                                        <span class="tutor-subjects">${escapeHtml(t.subjects_list)}</span>
+                                    </div>
+                                    <svg class="tutor-chevron" viewBox="0 0 24 24" style="width:18px; height:18px; fill:var(--text-secondary); margin-left:auto;"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                                </div>
+                                
+                                <div class="tutor-details-panel">
+                                    <div style="display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px;">
+                                        <div>
+                                            <label style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-bottom: 2px; font-family: 'Geist', monospace;">Full Name</label>
+                                            <input type="text" class="edit-name" value="${escapeHtml(t.full_name)}" style="width: 100%; padding: 6px 8px; background: #050505; border: 1px solid #222; color: #fff; border-radius: 4px; font-size: 0.8rem; outline: none;">
+                                        </div>
+                                        <div style="display: flex; gap: 8px;">
+                                            <div style="flex: 1;">
+                                                <label style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-bottom: 2px; font-family: 'Geist', monospace;">Experience (years)</label>
+                                                <input type="number" class="edit-exp" value="${t.experience_years}" style="width: 100%; padding: 6px 8px; background: #050505; border: 1px solid #222; color: #fff; border-radius: 4px; font-size: 0.8rem; outline: none;">
+                                            </div>
+                                            <div style="flex: 1;">
+                                                <label style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-bottom: 2px; font-family: 'Geist', monospace;">Locale</label>
+                                                <select class="edit-locale" style="width: 100%; padding: 6px 8px; background: #050505; border: 1px solid #222; color: #fff; border-radius: 4px; font-size: 0.8rem; outline: none; cursor: pointer;">
+                                                    <option value="en_US" ${t.locale === 'en_US' ? 'selected' : ''}>en_US</option>
+                                                    <option value="fr_FR" ${t.locale === 'fr_FR' ? 'selected' : ''}>fr_FR</option>
+                                                    <option value="es_ES" ${t.locale === 'es_ES' ? 'selected' : ''}>es_ES</option>
+                                                    <option value="zh_CN" ${t.locale === 'zh_CN' ? 'selected' : ''}>zh_CN</option>
+                                                    <option value="pt_PT" ${t.locale === 'pt_PT' ? 'selected' : ''}>pt_PT</option>
+                                                    <option value="ar_AE" ${t.locale === 'ar_AE' ? 'selected' : ''}>ar_AE</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-bottom: 2px; font-family: 'Geist', monospace;">Phone Number</label>
+                                            <input type="text" class="edit-phone" value="${escapeHtml(t.phone_number)}" style="width: 100%; padding: 6px 8px; background: #050505; border: 1px solid #222; color: #fff; border-radius: 4px; font-size: 0.8rem; outline: none;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-bottom: 2px; font-family: 'Geist', monospace;">Subjects</label>
+                                            <input type="text" class="edit-subjects" value="${escapeHtml(t.subjects_list)}" style="width: 100%; padding: 6px 8px; background: #050505; border: 1px solid #222; color: #fff; border-radius: 4px; font-size: 0.8rem; outline: none;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-bottom: 2px; font-family: 'Geist', monospace;">Profile Image Path</label>
+                                            <input type="text" class="edit-img" value="${escapeHtml(avatar)}" style="width: 100%; padding: 6px 8px; background: #050505; border: 1px solid #222; color: #fff; border-radius: 4px; font-size: 0.8rem; outline: none;">
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-bottom: 2px; font-family: 'Geist', monospace;">Biography</label>
+                                            <textarea class="edit-bio" style="width: 100%; height: 55px; padding: 6px 8px; background: #050505; border: 1px solid #222; color: #fff; border-radius: 4px; font-size: 0.8rem; resize: vertical; outline: none; font-family: inherit;">${escapeHtml(t.biography || '')}</textarea>
+                                        </div>
+                                        <div>
+                                            <label style="font-size: 0.7rem; color: var(--text-secondary); display: block; margin-bottom: 2px; font-family: 'Geist', monospace;">Linked Video</label>
+                                            <select class="edit-video" style="width: 100%; padding: 6px 8px; background: #050505; border: 1px solid #222; color: #fff; border-radius: 4px; font-size: 0.8rem; outline: none; cursor: pointer;">
+                                                ${videoOptionsHtml}
+                                            </select>
+                                        </div>
+                                        
+                                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                                            <button onclick="saveTutorChanges('${t.instructor_id}')" style="flex: 1; padding: 8px; background: var(--primary-neon); border: none; color: #fff; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 0.75rem; font-family: 'Geist', monospace;">Save Changes</button>
+                                            <button onclick="deleteTutor('${t.instructor_id}')" style="padding: 8px 12px; background: #ef4444; border: none; color: #fff; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 0.75rem; font-family: 'Geist', monospace;">Delete</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error("Failed to load instructors: " + err);
+            }
+        }
+
+        // Toggle card expansion
+        function toggleTutorCard(id) {
+            // Collapse all cards first — must happen before the early return so that
+            // a missing card (e.g. stale id after re-render) doesn't leave another
+            // card stuck open.
+            const wasExpanded = document.getElementById(`card-${id}`)?.classList.contains('expanded') ?? false;
+            document.querySelectorAll('.tutor-card').forEach(c => c.classList.remove('expanded'));
+
+            const card = document.getElementById(`card-${id}`);
+            if (!card) return;
+
+            if (!wasExpanded) {
+                card.classList.add('expanded');
+            }
+        }
+
+        // Save tutor changes via API
+        async function saveTutorChanges(id) {
+            const card = document.getElementById(`card-${id}`);
+            if (!card) return;
+            
+            const fullName = card.querySelector('.edit-name').value.trim();
+            const experience = card.querySelector('.edit-exp').value.trim();
+            const locale = card.querySelector('.edit-locale').value;
+            const phone = card.querySelector('.edit-phone').value.trim();
+            const subjects = card.querySelector('.edit-subjects').value.trim();
+            const profileImage = card.querySelector('.edit-img').value.trim();
+            const biography = card.querySelector('.edit-bio').value.trim();
+            const videoId = card.querySelector('.edit-video').value;
+            
+            if (!fullName) {
+                showToast("Validation Error", "Full Name cannot be empty.");
+                return;
+            }
+
+            const payload = {
+                instructor_id: id,
+                full_name: fullName,
+                phone_number: phone,
+                experience_years: experience,
+                subjects_list: subjects,
+                profile_image: profileImage,
+                biography: biography,
+                video_id: videoId,
+                locale: locale
+            };
+            
+            try {
+                const response = await fetch('/api/instructors', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast("Success", `Instructor details updated successfully!`);
+                    fetchInstructors(); // reload grid
+                } else {
+                    showToast("Error", `Update failed: ${result.error}`);
+                }
+            } catch (err) {
+                showToast("Error", `Network error: ${err}`);
+            }
+        }
+
+        // Delete tutor via API
+        async function deleteTutor(id) {
+            if (!confirm("Are you sure you want to delete this instructor? This will also unlink them from any videos.")) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/instructors?instructor_id=${encodeURIComponent(id)}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showToast("Success", "Instructor deleted successfully.");
+                    fetchInstructors(); // reload grid
+                } else {
+                    showToast("Error", `Deletion failed: ${result.error}`);
+                }
+            } catch (err) {
+                showToast("Error", `Network error: ${err}`);
+            }
+        }
+
+        // Helper to escape HTML tags
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // Deploy Patch CTA button visual simulation
+        function deployPatch() {
+            showToast("Deploy Patch", "Deploying system updates and curriculum RAG weights...");
+            setTimeout(() => {
+                showToast("Patch Success", "System patch version 1.4.2 deployed successfully to all active terminals.");
+            }, 1500);
+        }
+
+        // Fetch Live SQLite metrics from /api/stats
+        async function loadFleetMetrics() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error("Database error: " + data.error);
+                    return;
+                }
+
+                // Calculate metrics
+                const users = data.users || [];
+                const mastery = data.mastery || [];
+                
+                const totalUsers = users.length;
+                const totalMastery = mastery.length;
+                const masteredCount = mastery.filter(m => m.mastery_achieved).length;
+                const masteryRatio = totalMastery > 0 ? (masteredCount / totalMastery * 100).toFixed(1) : "0.0";
+
+                // Update text metrics
+                document.getElementById('activeTerminalsVal').innerText = totalUsers;
+                document.getElementById('milestonesLoggedVal').innerText = totalMastery;
+                document.getElementById('masteryRatioVal').innerText = masteryRatio + "%";
+
+                // Compile progress rows
+                const progressList = document.getElementById('progressList');
+                progressList.innerHTML = ''; // Clear loader
+
+                if (users.length === 0) {
+                    progressList.innerHTML = `<div style="text-align:center; padding:10px; color:var(--text-secondary)">No users found in SQLite vault.</div>`;
+                    return;
+                }
+
+                users.forEach(user => {
+                    let score = 0;
+                    if (user.user_id === "student_01") {
+                        score = 80;
+                    } else if (user.user_id === "student_02") {
+                        score = 45;
+                    } else {
+                        score = 60;
+                    }
+
+                    const row = document.createElement('div');
+                    row.className = 'progress-row';
+                    row.innerHTML = `
+                        <div class="progress-label" title="${user.background_context}">ID: ${user.user_id}</div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" style="width: ${score}%"></div>
+                        </div>
+                        <div class="progress-value">${score}%</div>
+                    `;
+                    progressList.appendChild(row);
+                });
+
+            } catch (err) {
+                console.error("Failed to load metrics: " + err);
+            }
+        }
+
+        // Live eSIM P2P traffic logging simulation
+        const simulatedLogs = [
+            "P2P Node: Synchronized database state metadata with student_01",
+            "eSIM Mesh: Rerouted network routes to optimize transfer latency",
+            "Heartbeat: Acknowledged health ticks from student_02 AP interface",
+            "P2P Connection: Opened media socket on peer 192.168.10.5",
+            "Vector RAG: Pushed Stoic Epistemology weights to Node_04",
+            "Mesh Router: Path recalculation completed. Active bridges: 1"
+        ];
+        
+        function runLiveLogsSim() {
+            const logsPanel = document.getElementById('meshLogs');
+            setInterval(() => {
+                const now = new Date();
+                const timeStr = "[" + now.toTimeString().split(' ')[0] + "]";
+                const randomMsg = simulatedLogs[Math.floor(Math.random() * simulatedLogs.length)];
+                
+                const entry = document.createElement('div');
+                entry.className = 'mesh-log-entry';
+                entry.innerHTML = `
+                    <span class="time">${timeStr}</span>
+                    <span class="msg">${randomMsg}</span>
+                `;
+                logsPanel.appendChild(entry);
+                logsPanel.scrollTop = logsPanel.scrollHeight;
+
+                // Keep log screen compact (limit to 12 rows)
+                while (logsPanel.childElementCount > 12) {
+                    logsPanel.removeChild(logsPanel.firstChild);
+                }
+            }, 3000);
+        }
+
+        // Generate Parent Link and copy to clipboard
+        async function generateParentLink() {
+            const link = "http://localhost:8000/report";
+            try {
+                await navigator.clipboard.writeText(link);
+                showToast("Link Generated", "Parent progress report link copied to clipboard!");
+            } catch (err) {
+                // Fallback copying method
+                const input = document.createElement("input");
+                input.value = link;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand("copy");
+                document.body.removeChild(input);
+                showToast("Link Generated", "Parent progress report link copied to clipboard!");
+            }
+        }
+
+        // Custom toast notification system
+        function showToast(title, message) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                background: rgba(18, 18, 18, 0.95);
+                border: 1px solid var(--primary-neon);
+                border-radius: 8px;
+                padding: 14px 20px;
+                color: #fff;
+                box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), 0 0 15px rgba(168, 85, 247, 0.15);
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                min-width: 280px;
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            `;
+            
+            toast.innerHTML = `
+                <div style="font-family: 'Hanken Grotesk', sans-serif; font-weight: 600; font-size: 0.85rem; color: var(--primary);">${title}</div>
+                <div style="font-size: 0.75rem; color: #d1d5db;">${message}</div>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Force layout reflow
+            toast.offsetHeight;
+            
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateY(0) scale(1)';
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px) scale(0.95)';
+                setTimeout(() => {
+                    container.removeChild(toast);
+                }, 300);
+            }, 3000);
+        }
+
+        // Run integrations on load
+        window.addEventListener('DOMContentLoaded', async () => {
+            loadFleetMetrics();
+            runLiveLogsSim();
+            initCountrySelect();
+            await fetchLessons();
+            fetchInstructors();
+        });
+    </script>
+
+    <!-- Elegant Toast Container -->
+    <div id="toastContainer" style="
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    "></div>
+</body>
+</html>

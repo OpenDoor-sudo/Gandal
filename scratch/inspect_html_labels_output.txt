@@ -1,0 +1,106 @@
+Pattern: Calculus Graphing Engine
+weight: 600; letter-spacing: 0.05em; display: flex; align-items: center; gap: 16px;">
+                            <span>Calculus Graphing Engine</span>
+                            <div style="display: flex; gap: 4px; align-items: center;">
+                        
+--------------------------------------------------
+Pattern: Calculus Graphing Engine
+ry); text-transform: uppercase; display: flex; align-items: center; gap: 16px; width: 100%;">
+                    <span>Calculus Graphing Engine</span>
+                    <div style="display: flex; gap: 4px; align-items: center;">
+                        <span st
+--------------------------------------------------
+Pattern: Tangent Point
+ortant; display: block;"></canvas>
+                        </div>
+                        
+                        <!-- Tangent Point (xo) slider node directly underneath -->
+                        <div class="slider-group" style="display: flex; flex-d
+--------------------------------------------------
+Pattern: Tangent Point
+    <div style="display:flex; justify-content:space-between; font-size:0.72rem;">
+                                <span>Tangent Point (x₀):</span>
+                                <span class="tangentValueTextClass" style="font-family:'Geist', monospace;
+--------------------------------------------------
+Pattern: Tangent Point
+m="1.0" style="width: 100%; height: 100%; display: block;"></canvas>
+                </div>
+                <!-- Row 2: Tangent Point (xo) slider bar container -->
+                <div class="slider-group" style="display: flex; flex-direction: column; g
+--------------------------------------------------
+Pattern: Tangent Point
+            <div style="display:flex; justify-content:space-between; font-size:0.72rem;">
+                        <span>Tangent Point (x₀):</span>
+                        <span id="tangentValueText" class="tangentValueTextClass" style="font-family:'Geis
+--------------------------------------------------
+Pattern: Tangent Point
+ document.getElementById('dampingNumericVal');
+            if (input) input.value = val;
+        }
+
+        // Calculus Tangent Point and graph module
+        let tangentPoint = 1.00;
+        let currentGraphFunction = "x*x*x - 3*x";
+
+        function e
+--------------------------------------------------
+Pattern: Function f\(x\):
+      <label style="font-family:'Geist', monospace; font-size:0.62rem; color:var(--outline); text-transform:uppercase;">Function f(x):</label>
+                                    <input type="text" class="graphFunctionInputClass" style="background:#000; 
+--------------------------------------------------
+Pattern: Function f\(x\):
+      <label style="font-family:'Geist', monospace; font-size:0.62rem; color:var(--outline); text-transform:uppercase;">Function f(x):</label>
+                            <input type="text" class="graphFunctionInputClass" style="background:#000; color:#0
+--------------------------------------------------
+Pattern: Coordinates:
+      <label style="font-family:'Geist', monospace; font-size:0.62rem; color:var(--outline); text-transform:uppercase;">Coordinates:</label>
+                                    <div style="display: flex; gap: 6px; align-items: center;">
+               
+--------------------------------------------------
+Pattern: Coordinates:
+      <label style="font-family:'Geist', monospace; font-size:0.62rem; color:var(--outline); text-transform:uppercase;">Coordinates:</label>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                       
+--------------------------------------------------
+Pattern: Socratic Blackboard Canvas
+ flex; justify-content: space-between; align-items: center; letter-spacing: 0.05em;">
+                            <span>Socratic Blackboard Canvas</span>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                        
+--------------------------------------------------
+Pattern: Close Workspace
+ class="whiteboard-split-pane" id="whiteboardSplitPane" style="position: relative;">
+                    <!-- Prominent Close Workspace Button -->
+                    <button id="closeWorkspaceBtn" onclick="toggleWhiteboard(false)" class="close-workspace-
+--------------------------------------------------
+Pattern: Close Workspace
+ard(false)" class="close-workspace-btn" style="position: absolute; top: 12px; right: 12px;">
+                        [✖ Close Workspace]
+                    </button>
+
+                    <!-- Panel A (Left side): Calculus Graphing Canvas Container -->
+  
+--------------------------------------------------
+Pattern: Capacitive Raise Hand Sensor
+MicRaiseHand(event)" style="cursor: pointer;">
+                        <div class="dock-card-title" id="micStatusLabel">Capacitive Raise Hand Sensor</div>
+                        <div class="mic-listening-widget">
+                            <div class="mic-glow-butto
+--------------------------------------------------
+Pattern: Listening State: Idle
+   </svg>
+                            </div>
+                            <div class="mic-state-label" id="micTimerText">Listening State: Idle</div>
+                            
+                            <!-- Sinusoidal canvas waveform -->
+                    
+--------------------------------------------------
+Pattern: Listening State: Idle
+              }
+            } else {
+                btn.classList.remove('active');
+                label.innerText = "Listening State: Idle";
+                stopMicWaveAnimation();
+                if (micInterval) {
+                    clearTimeout(micInterv
+--------------------------------------------------

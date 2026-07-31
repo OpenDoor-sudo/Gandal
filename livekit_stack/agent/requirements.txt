@@ -1,0 +1,12 @@
+livekit-agents>=0.8.0
+livekit-plugins-openai>=0.1.0
+livekit-plugins-silero>=0.1.0
+livekit-plugins-google>=0.1.0
+lancedb>=0.6.0
+pyarrow>=15.0.0
+requests>=2.31.0
+sentence-transformers>=2.2.2
+faster-whisper>=0.10.0
+python-dotenv>=1.0.0
+pywin32>=306
+
