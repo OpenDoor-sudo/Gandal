@@ -38,12 +38,19 @@ def get_fireworks_model():
     return os.environ.get("FIREWORKS_MODEL", "accounts/fireworks/models/qwen3-omni-30b-a3b-instruct").strip()
 
 def is_local_llm_server_running():
+    target_url = os.environ.get("LOCAL_LLM_URL", "http://localhost:8080/v1")
+    models_url = f"{target_url.rstrip('/')}/models"
     try:
-        # Quick handshake with llama.cpp or Ollama on port 8080
-        with urllib.request.urlopen("http://localhost:8080/v1/models", timeout=0.3) as response:
-            return response.status == 200
+        req = urllib.request.Request(models_url, headers={"User-Agent": "Ventuno-AI"})
+        with urllib.request.urlopen(req, timeout=0.5) as response:
+            return response.status in (200, 204)
     except Exception:
-        return False
+        # Fallback check on port 8080
+        try:
+            with urllib.request.urlopen("http://localhost:8080/v1/models", timeout=0.3) as response:
+                return response.status == 200
+        except Exception:
+            return False
 
 # Check if ffmpeg is available
 def is_ffmpeg_available():

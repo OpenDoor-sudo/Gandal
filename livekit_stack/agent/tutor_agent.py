@@ -241,8 +241,10 @@ async def entrypoint(ctx: JobContext):
                 f"{lang_instruction}\n"
                 f"The student's name is {student_name}.\n"
                 f"IMPORTANT: The student is currently sharing their screen with you.{location_info}\n"
-                f"Your task is to look carefully at what the student is showing on their screen, explain the key points, and discuss or debate it with them.\n"
-                f"DO NOT try to relate or connect the conversation back to the playing video lesson or course timeline unless the student explicitly asks about the video. Focus entirely on the shared screen content.\n"
+                f"Your task is to look carefully at the live video stream of what the student is showing on their screen (e.g. book title, author, chapter, text, diagram, or slides).\n"
+                f"Read the exact title and text on their screen. Explain the key points and discuss or debate it with them.\n"
+                f"CRITICAL: DO NOT guess or assume the shared material is about 'Economics' or any default topic unless the text on the shared screen explicitly says so! Read and discuss ONLY what is visually visible on the shared screen.\n"
+                f"DO NOT try to relate or connect the conversation back to the playing video lesson unless the student explicitly asks about it.\n"
                 f"{chatty_socratic_guidelines}"
             )
         elif view_state == "split_workspace" and pdf_path:
@@ -631,10 +633,15 @@ async def entrypoint(ctx: JobContext):
             
             async def forward_video():
                 video_stream = rtc.VideoStream(track)
+                last_frame_time = 0.0
                 try:
                     async for event in video_stream:
-                        if hasattr(session, "_activity") and session._activity:
-                            session._activity.push_video(event.frame)
+                        now = asyncio.get_event_loop().time()
+                        # Forward at most 1 frame per second to prevent Realtime API vision buffer overflow
+                        if now - last_frame_time >= 1.0:
+                            last_frame_time = now
+                            if hasattr(session, "_activity") and session._activity:
+                                session._activity.push_video(event.frame)
                 except Exception as e:
                     logger.warning(f"Error in forward_video stream: {e}")
                 finally:
@@ -760,7 +767,7 @@ async def entrypoint(ctx: JobContext):
                         if view_state_changed:
                             if locale == "fr_FR":
                                 if view_state == "screen_share":
-                                    transition_prompt = "Dis à l'étudiant en français : 'Je vois votre écran maintenant. Examinons ce contenu ensemble ! Qu'aimeriez-vous aborder ?'"
+                                    transition_prompt = "Dis à l'étudiant en français : 'J'ai activé la vision de votre écran. Je regarde ce que vous partagez — quel document ou livre souhaitez-vous que nous examinions ensemble ?'"
                                 elif view_state == "split_workspace":
                                     transition_prompt = f"Dis à l'étudiant en français : 'Nous sommes dans l'espace de travail partagé pour le manuel \"{pdf_name}\". Discutons de cette section !'"
                                 elif view_state == "evaluation":
@@ -769,7 +776,7 @@ async def entrypoint(ctx: JobContext):
                                     transition_prompt = "Dis à l'étudiant en français : 'De retour sur le tableau de bord ! Comment puis-je vous aider maintenant ?'"
                             else:
                                 if view_state == "screen_share":
-                                    transition_prompt = "Tell the student: 'I see your screen now. Let me know what content or problem you'd like us to discuss!'"
+                                    transition_prompt = "Tell the student: 'I see your screen stream now! What document, book, or problem would you like us to review together?'"
                                 elif view_state == "split_workspace":
                                     transition_prompt = f"Tell the student: 'We are in the split-screen workspace reviewing the textbook \"{pdf_name}\". What section or concept would you like to explore?'"
                                 elif view_state == "evaluation":

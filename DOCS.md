@@ -2,7 +2,7 @@
 
 > **System Name**: Ventuno AI Socratic Tutor (Codename: **GANDHO**)  
 > **Target Platform**: Arduino Ventuno Q Edge Hardware & Web Ecosystem  
-> **Core Architecture**: Offline-First Hybrid RAG (Retrieval-Augmented Generation) + LiveKit Realtime Multimodal AI Voice & Vision Engine  
+> **Core Architecture**: Dual-Engine (Online Gemini 3.1 Live WebRTC + 100% Offline Local Gemma 4 NPU / Hugging Face S2S Framework) + Hybrid RAG (Retrieval-Augmented Generation)  
 > **Pedagogical Philosophy**: Socratic Guidance (Guiding students through critical questioning rather than direct answer dumps)
 
 ---
@@ -15,15 +15,16 @@
 4. [System Architecture & Flow Diagrams](#4-system-architecture--flow-diagrams)
 5. [Database Schemas & Data Storage](#5-database-schemas--data-storage)
 6. [Detailed Feature & Subsystem Breakdown](#6-detailed-feature--subsystem-breakdown)
-   - [6.1 Socratic Voice Agent (GANDHO)](#61-socratic-voice-agent-gandho)
-   - [6.2 Video Player & Synced Textbook Drawer](#62-video-player--synced-textbook-drawer)
-   - [6.3 Split Study Workspace & Spatius 3D Avatar Engine](#63-split-study-workspace--spatius-3d-avatar-engine)
-   - [6.4 Document Picture-in-Picture (PiP) & Docking](#64-document-picture-in-picture-pip--docking)
-   - [6.5 Sentry Vision & Presence Detection](#65-sentry-vision--presence-detection)
-   - [6.6 Live Screen Sharing & Desktop Multimodal Vision](#66-live-screen-sharing--desktop-multimodal-vision)
-   - [6.7 Evaluation & Mastery Quiz Engine](#67-evaluation--mastery-quiz-engine)
-   - [6.8 Revision & Course Library with Batch Pagination](#68-revision--course-library-with-batch-pagination)
-   - [6.9 Subject Switching & Progression Persistence](#69-subject-switching--progression-persistence)
+   - [6.1 Dual-Mode Socratic Voice Agent (GANDHO: Online & Offline)](#61-dual-mode-socratic-voice-agent-gandho-online--offline)
+   - [6.2 Hugging Face Speech-to-Speech (S2S) Offline Framework & Gemma 4 NPU Acceleration](#62-hugging-face-speech-to-speech-s2s-offline-framework--gemma-4-npu-acceleration)
+   - [6.3 Video Player & Hardened Synced Textbook Drawer](#63-video-player--hardened-synced-textbook-drawer)
+   - [6.4 Split Study Workspace & Spatius 3D Avatar Engine](#64-split-study-workspace--spatius-3d-avatar-engine)
+   - [6.5 Document Picture-in-Picture (PiP) & Docking](#65-document-picture-in-picture-pip--docking)
+   - [6.6 Sentry Vision & Presence Detection](#66-sentry-vision--presence-detection)
+   - [6.7 Live Screen Sharing, 1 FPS Vision Rate-Limiting & Desktop Multimodal Vision](#67-live-screen-sharing-1-fps-vision-rate-limiting--desktop-multimodal-vision)
+   - [6.8 Evaluation & Mastery Quiz Engine](#68-evaluation--mastery-quiz-engine)
+   - [6.9 Revision & Course Library with Batch Pagination](#69-revision--course-library-with-batch-pagination)
+   - [6.10 Universal Subject Switching & Progression Persistence](#610-universal-subject-switching--progression-persistence)
 7. [Offline Pre-Processing & Device Ingestion Pipeline](#7-offline-pre-processing--device-ingestion-pipeline)
 8. [Setup, Execution & Maintenance Commands](#8-setup-execution--maintenance-commands)
 
@@ -34,8 +35,10 @@
 The **Ventuno AI Socratic Tutor System** is a state-of-the-art educational platform designed to empower K-12 and higher-education students through personalized, interactive Socratic learning. Named **GANDHO** (the Socratic Tutor), the AI system acts as a personal mentor, asking probing questions, offering step-by-step hints, evaluating mastery through 85%+ gated assessments, and observing the student's work via camera and screen sharing.
 
 ### Key Innovations:
-- **Offline-First Design**: The entire curriculum (videos, textbooks, transcripts, vector embeddings, and quiz matrices) is pre-processed using Gemini/Qwen LLMs and stored locally on the device, eliminating internet lag and network dependency.
-- **Multimodal Socratic Voice Agent**: Live voice conversation utilizing `gemini-3.1-flash-live-preview` via LiveKit WebRTC.
+- **Dual-Engine Voice Agent**:
+  - **Online Mode**: High-fidelity multimodal streaming using `gemini-3.1-flash-live-preview` via LiveKit WebRTC.
+  - **Offline Mode**: 100% local, low-latency, full-duplex voice agent using Hugging Face S2S principles, Silero VAD micro-chunking, local Gemma 4 E4B on the Qualcomm Hexagon NPU, and local Kokoro-82M TTS.
+- **OKF Student Memory Graph (`student_memory.py`)**: Persistent, model-agnostic student personalization reading/writing Markdown profile graphs (`subject_*.md`, `session_state.md`) in `student_profiles/`.
 - **Interactive 3D WebGL Avatar**: Lip-synced 3D character powered by the Spatius WebGL engine.
 - **Gated Progression**: Students must pass 85%+ evaluation assessments before unlocking subsequent lessons in a subject track.
 
@@ -47,12 +50,12 @@ The production system targets the **Arduino Ventuno Q** edge AI compute board wi
 
 | Component | Hardware Specification & Integration Details |
 | :--- | :--- |
-| **Compute Processor** | High-performance SoC with onboard Neural Processing Unit (NPU) for local AI inference. |
+| **Compute Processor** | Snapdragon SoC with onboard Qualcomm Hexagon NPU (40 TOPS) for local Gemma 4 E4B inference via LiteRT / QNN. |
+| **Memory Headroom** | 16GB LPDDR5 RAM (~5GB allocated for Gemma 4 + Kokoro TTS + Silero VAD + LanceDB, leaving 10+ GB free). |
 | **Storage** | 128GB / 256GB NVMe or Ultra-Fast MicroSD containing pre-baked `vault.db`, LanceDB vectors, and media files. |
 | **Hand-Raise Sensor** | Capacitive Hand-Raise Touch Sensor (`hardware_bridge.py` monitoring `CAPACITIVE_HAND_RAISE_GPIO_PIN`). |
 | **Vision Camera** | Sentry Vision Desk Camera (`sentry_vision_desk_01`) for observing paper scratchpads and student presence. |
-| **Audio I/O** | High-sensitivity MEMS microphone array and stereo speakers for LiveKit WebRTC voice interaction. |
-| **Display Output** | Dual-display / high-resolution touch display for the main UI dashboard and split workspace. |
+| **Audio I/O** | High-sensitivity MEMS microphone array and stereo speakers for WebRTC voice interaction. |
 
 ---
 
@@ -67,15 +70,15 @@ The production system targets the **Arduino Ventuno Q** edge AI compute board wi
 - **Real-Time Communication**: LiveKit WebRTC Client SDK (`livekit-client`).
 
 ### **Backend Server (`display_client.py`)**:
-- **Framework**: Python 3.14+ FastAPI & Uvicorn web server running on `http://127.0.0.1:8000`.
+- **Framework**: Python 3.14+ web server running on `http://127.0.0.1:8000`.
 - **Session Synchronization**: Writes and syncs active lesson state to absolute path `c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json`.
 - **Telemetry Bridge**: UDP Socket Receiver on port `9999` for hardware hand-raise signals.
-- **AI Orchestration**: `orchestrator.py` & `qwen_omni_client.py` for fallback Socratic hint generation.
+- **AI Orchestration**: `orchestrator.py` & `qwen_omni_client.py` for local LLM health checks and fallback hint generation.
 
-### **LiveKit Voice Agent (`livekit_stack/agent/`)**:
-- **Model**: `gemini-3.1-flash-live-preview` via `livekit.plugins.google.realtime`.
-- **LiveKit Hotpatch**: `mutable = True` hotpatch applied at line 296 of `realtime_api.py` in site-packages.
-- **Track Subscription**: Configured with `AutoSubscribe.SUBSCRIBE_ALL` to receive both audio and screen share video tracks.
+### **LiveKit Voice Agent Stack (`livekit_stack/agent/`)**:
+- **Online Agent (`tutor_agent.py`)**: `gemini-3.1-flash-live-preview` via `livekit.plugins.google.realtime` (`mutable = True` hotpatch applied).
+- **Offline Agent (`tutor_agent_offline.py`)**: `FasterWhisperSTT` (local INT8 Whisper) + `SileroVAD` + OpenAI-compatible local LLM endpoint (`http://localhost:8080/v1` for Gemma 4) + `Kokoro-82M` local TTS.
+- **Watcher (`run_agent.py`)**: Auto-restart wrapper supporting `--offline` flag to toggle agent modes.
 
 ---
 
@@ -87,56 +90,58 @@ The production system targets the **Arduino Ventuno Q** edge AI compute board wi
 flowchart TB
     subgraph Hardware ["Arduino Ventuno Q Edge Hardware"]
         Sensor["Capacitive Hand-Raise Sensor (GPIO)"]
-        Cam["Sentry Vision Desk Cam"]
+        NPU["Qualcomm Hexagon NPU (40 TOPS)"]
     end
 
     subgraph Client ["Frontend Web UI (index.html)"]
         Dash["Interactive Video Dashboard"]
         Split["Split Study Workspace"]
         Avatar["Spatius 3D WebGL Avatar"]
-        FaceDetect["BlazeFace Face Sentry"]
+        FaceDetect["BlazeFace / Sentry Vision"]
         LKClient["LiveKit WebRTC Client"]
     end
 
     subgraph Server ["Python Backend Server (display_client.py)"]
-        FastAPI["FastAPI App (Port 8000)"]
+        FastAPI["HTTP Server (Port 8000)"]
         UDP["UDP Listener (Port 9999)"]
         SessionManager["Session Sync (active_session.json)"]
     end
 
-    subgraph DB ["Local Pre-Baked Storage"]
+    subgraph DB ["Local Pre-Baked Storage & OKF Memory"]
         SQLite[("vault.db (SQLite)\n- curriculum_tree\n- video_transcripts\n- video_timestamps\n- user_mastery_ledger")]
         Lance[("LanceDB Vector DB\n(768-dim Embeddings)")]
+        OKF["OKF Memory Graph\n(student_profiles/alseny/)"]
     end
 
-    subgraph Agent ["LiveKit Voice Agent Stack (tutor_agent_realtime.py)"]
-        LKSever["LiveKit Cloud / Local Server"]
-        Gemini["Gemini 3.1 Flash Live Engine (GANDHO)"]
+    subgraph AgentStack ["LiveKit Voice Agent Stack"]
+        OnlineAgent["tutor_agent.py\n(Gemini 3.1 Flash Live)"]
+        OfflineAgent["tutor_agent_offline.py\n(Gemma 4 E4B + Kokoro + VAD)"]
     end
 
     Sensor -->|UDP Signal| UDP
     UDP -->|Broadcast| Client
-    Cam -->|Video Stream| FaceDetect
     Client <-->|HTTP REST / WebSockets| FastAPI
     FastAPI <-->|Read / Write| SQLite
     FastAPI <-->|Write State| SessionManager
-    SessionManager <-->|Read State| Agent
-    LKClient <-->|WebRTC Audio/Video| LKSever
-    LKSever <-->|Realtime Stream| Gemini
-    Gemini <-->|RAG Vector Search| Lance
+    SessionManager <-->|Read State| AgentStack
+    LKClient <-->|WebRTC Audio/Video| OnlineAgent
+    LKClient <-->|Local WebSockets| OfflineAgent
+    OfflineAgent <-->|NPU Acceleration| NPU
+    AgentStack <-->|RAG Search| Lance
+    AgentStack <-->|Personalization| OKF
 ```
 
 ---
 
 ## 5. Database Schemas & Data Storage
 
-The system relies on **SQLite (`vault.db`)** for relational metadata and **LanceDB** for vector embeddings.
+The system relies on **SQLite (`vault.db`)** for relational metadata, **LanceDB** for vector embeddings, and **OKF Markdown Files** for student personalization.
 
 ### **SQLite Tables (`vault.db`)**:
 
 1. `curriculum_tree`:
    - `video_id` (TEXT PRIMARY KEY)
-   - `subject` (TEXT) — e.g. `Economics`, `Chemistry`, `Philosophy`, `Physics`
+   - `subject` (TEXT) — e.g. `Economics`, `Chemistry`, `Philosophy`, `Physics`, `Mathematics`
    - `chapter_id` (TEXT)
    - `title` (TEXT)
    - `video_path` (TEXT)
@@ -165,52 +170,51 @@ The system relies on **SQLite (`vault.db`)** for relational metadata and **Lance
 
 ## 6. Detailed Feature & Subsystem Breakdown
 
-### 6.1 Socratic Voice Agent (GANDHO)
+### 6.1 Dual-Mode Socratic Voice Agent (GANDHO: Online & Offline)
 - **Identity**: GANDHO, an empathetic, highly knowledgeable Socratic Tutor.
-- **Personalization**: Greets the student by name (**Alseny**) and reads student memory profiles from `student_memory.py` (OKF memory framework).
-- **Socratic Method**: Never gives away direct answers immediately. Asks guiding questions, breaks down math/science problems step-by-step, and encourages critical thinking.
+- **Personalization via OKF**: Greets the student by name (**Alseny**) and reads student memory profiles from `student_memory.py` (`subject_*.md`, `session_state.md`).
+- **Socratic Method**: Never gives away direct answers. Asks guiding questions, breaks down problems step-by-step, and encourages critical thinking.
 
-### 6.2 Video Player & Synced Textbook Drawer
-- **Video Playback**: Renders lecture videos with custom controls.
-- **Synced Textbook Drawer (`📖`)**: Clicking the book icon slides out the textbook PDF viewer (`workspacePdfIframe`) loaded with the exact PDF corresponding to the current video lesson.
-- **Auto-Pause & State Locking**: Opening the textbook drawer sets `window.isTextbookDrawerOpen = true`, pausing the video.
+### 6.2 Hugging Face Speech-to-Speech (S2S) Offline Framework & Gemma 4 NPU Acceleration
+- **Framework Integration**: Built upon Hugging Face S2S architecture principles for real-time full-duplex voice interaction.
+- **Barge-In (Interruption)**: Silero VAD micro-chunk listening continuously monitors input audio. Detecting human speech instantly flushes the playout buffer and halts ongoing LLM generation.
+- **NPU Execution**: Offloads quantized Gemma 4 E4B to the Qualcomm Hexagon NPU (40 TOPS), leaving CPU memory and compute free for Kokoro TTS and LanceDB vector search.
 
-### 6.3 Split Study Workspace & Spatius 3D Avatar Engine
+### 6.3 Video Player & Hardened Synced Textbook Drawer
+- **Video Playback**: Custom video player with timeline synchronization.
+- **Hardened Textbook Drawer (`📖`)**: Clicking the Book Icon on the video player or header calls `toggleTextbook(true)`, which **hardens and re-syncs** the drawer PDF to the exact textbook of the currently playing lecture video, even if a custom book (e.g. Baltasar Gracián) was opened inside the drawer earlier.
+
+### 6.4 Split Study Workspace & Spatius 3D Avatar Engine
 - **Workspace Access**: Clicking **`[📚 Espaces d'Étude]`** opens a side-by-side study environment featuring the 3D avatar on the left and a dual PDF/Whiteboard pane on the right.
 - **WebGL Context Preservation**: Whenever `#avatarImgBox` is reparented in the DOM tree, `window.spatiusAvatarManager.stopAvatar()` is called, followed by `startAvatar()` to rebuild the WebGL canvas without context loss.
-- **`[🚪 Return to Video]`**: Exiting the split workspace clears workspace locks and automatically resumes video playback seamlessly.
 
-### 6.4 Document Picture-in-Picture (PiP) & Docking
-- **Popout Button (`🗗 Popout`)**: Utilizes the modern Browser Document Picture-in-Picture API to detach `#avatarImgBox` into a floating, always-on-top OS window.
-- **Docking (`↙ Dock`)**: Re-adopts the DOM node into the main document and re-anchors it back into `#socraticWorkspaceAvatarPanel`.
+### 6.5 Document Picture-in-Picture (PiP) & Docking
+- **Popout Button (`🗗 Popout`)**: Detaches `#avatarImgBox` into a floating, always-on-top OS window via Browser Document PiP API.
+- **Docking (`↙ Dock`)**: Re-anchors the avatar DOM node back into `#socraticWorkspaceAvatarPanel`.
 
-### 6.5 Sentry Vision & Presence Detection
-- **BlazeFace Detector**: Runs a continuous loop checking for the student's face.
-- **State Locks**: If the student steps away, Sentry Vision pauses the video. When the student returns, Sentry Vision resumes the video **unless** the textbook drawer or split workspace is active (`window.isTextbookDrawerOpen` or `window.isWorkspaceActive`).
+### 6.6 Sentry Vision & Presence Detection
+- **Presence Sentry**: Detects face presence to auto-pause lecture video when the student steps away and resume when they return (unless textbook drawer or split workspace is open).
 
-### 6.6 Live Screen Sharing & Desktop Multimodal Vision
-- **Screen Share Button (`🖥️ Screen Share`)**: Allows the student to share their Entire Screen / Desktop.
-- **Multimodal Stream**: The screen share video track is published to LiveKit, where GANDHO inspects the desktop screen in real-time to assist with external books, code, or homework documents.
+### 6.7 Live Screen Sharing, 1 FPS Vision Rate-Limiting & Desktop Multimodal Vision
+- **Screen Share Button (`🖥️ Screen Share`)**: Allows sharing Entire Screen / Desktop.
+- **1 FPS Vision Throttling**: Frame forwarding in `tutor_agent.py` (`forward_video()`) is rate-limited to 1 frame per second to prevent Realtime API vision buffer overflow and hallucinations.
+- **Strict Vision Prompting**: Instructs GANDHO to read and discuss ONLY the exact title, text, and visual content displayed on the shared screen (e.g., Plato's *The Republic*), forbidding default topic hallucinations.
 
-### 6.7 Evaluation & Mastery Quiz Engine
-- **85%+ Threshold**: Students must achieve $\ge 85\%$ on the 3-question evaluation test to mark the video as **`VALIDÉ (85%+)`** and unlock subsequent curriculum lessons.
-- **Extra Practice Button (`PLUS DE QUESTIONS D'ENTRAÎNEMENT`)**: Completely hidden/locked until the active video achieves 85%+ mastery. Once passed, unlocks an expanded 30-question practice mode.
+### 6.8 Evaluation & Mastery Quiz Engine
+- **85%+ Threshold**: Students must achieve $\ge 85\%$ on the evaluation test to mark the video as **`VALIDÉ (85%+)`** and unlock subsequent curriculum lessons.
+- **Practice Quiz Mode**: Unlocks expanded 30-question practice mode after achieving 85%+ mastery.
 
-### 6.8 Revision & Course Library with Batch Pagination
+### 6.9 Revision & Course Library with Batch Pagination
 - **Tab (`Révision & Cours`)**: Overview library of all curriculum lessons across subjects.
-- **Batch Pagination**: Displays 4 video cards at a time.
-- **"Voir Plus" / "See More" Button**: Clicking `▼ Voir Plus (+4 leçons restantes)` dynamically loads and renders the next batch of 4 lessons.
-- **Subject Filtering**: Instant filtering by subject tabs (`Tous les sujets`, `Économie`, `Chimie`, `Philosophie`, `Physique`).
+- **Batch Pagination**: Displays 4 video cards at a time with `▼ Voir Plus` loading.
 
-### 6.9 Subject Switching & Progression Persistence
-- **State Persistence**: The system maintains per-subject active video state in `localStorage` under `lastActiveVideo_<subject>` (e.g. `lastActiveVideo_Economics`).
-- **Subject Transition**: Switching from Economics to Chemistry and back to Economics preserves the student's latest unlocked lesson (`02_Les problèmes sanitaires`) instead of defaulting back to lesson 01.
+### 6.10 Universal Subject Switching & Progression Persistence
+- **Universal Restoration**: `bootActiveSessionVideo()` checks `lastActiveVideoId` and subject-specific bookmarks (`lastActiveVideo_<Subject>`) across Economics, Chemistry, Physics, Philosophy, and Mathematics.
+- **Flicker-Free Boot**: Initial track setup checks `localStorage` during initial script execution, eliminating any title flicker on page refresh.
 
 ---
 
 ## 7. Offline Pre-Processing & Device Ingestion Pipeline
-
-Before distributing an Arduino Ventuno Q device to a student, the entire curriculum is pre-processed offline:
 
 ```
 [Raw MP4 Video & PDF Files] 
@@ -233,9 +237,18 @@ Before distributing an Arduino Ventuno Q device to a student, the entire curricu
 python display_client.py
 ```
 
-### **Start LiveKit Voice Agent (Realtime Mode)**:
+### **Start LiveKit Voice Agent (Online Mode - Gemini 3.1 Flash Live)**:
 ```bash
-python livekit_stack/agent/tutor_agent_realtime.py dev
+python livekit_stack/agent/run_agent.py start
+# or in dev mode:
+python livekit_stack/agent/run_agent.py dev
+```
+
+### **Start LiveKit Voice Agent (Offline Mode - Local Gemma 4 NPU + Kokoro)**:
+```bash
+python livekit_stack/agent/run_agent.py --offline start
+# or in dev mode:
+python livekit_stack/agent/run_agent.py --offline dev
 ```
 
 ### **Check Active Session State API**:

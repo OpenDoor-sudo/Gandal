@@ -3684,7 +3684,7 @@
         <!-- Synced Textbook Viewer Toggle Button -->
         <button
           class="header-btn"
-          onclick="toggleTextbook()"
+          onclick="toggleTextbook(true)"
           title="Open Synced Textbook"
         >
           <svg
@@ -3852,7 +3852,7 @@
               </div>
               <button
                 class="control-btn"
-                onclick="toggleTextbook()"
+                onclick="toggleTextbook(true)"
                 title="Textbook"
               >
                 <svg
@@ -8745,15 +8745,18 @@
       }
 
       function selectRevisionLesson(subject, videoId) {
-        selectedGoalTrack = (subject === "Chemistry") ? "k12/12th_SM/chemistry" : "k12/12th_SM/Economics";
+        if (subject === "Chemistry") selectedGoalTrack = "k12/12th_SM/chemistry";
+        else if (subject === "Physics") selectedGoalTrack = "k12/12th_SM/physics";
+        else if (subject === "Philosophy") selectedGoalTrack = "independent_learner/philosophy/stoicism_and_ethics";
+        else if (subject === "Mathematics") selectedGoalTrack = "k12/1st_grade/mathematics";
+        else selectedGoalTrack = "k12/12th_SM/Economics";
+
         window.currentTrack = selectedGoalTrack;
         activeVideoId = videoId;
 
-        // If selecting the current active lesson or unlocked forward lesson, save progress
-        if (videoId.includes("sanitaire") || videoId.includes("alimentaire")) {
-          localStorage.setItem("lastActiveVideo_" + subject, videoId);
-          localStorage.setItem("maxUnlockedVideo_" + subject, videoId);
-        }
+        localStorage.setItem("lastActiveVideoId", videoId);
+        localStorage.setItem("lastActiveVideo_" + subject, videoId);
+
         loadTextbookPDF(videoId);
         switchView("dashboard", document.querySelector('.nav-item'));
         showToastNotification("Leçon Chargée", "Leçon chargée. Discutez avec GANDHO !");
@@ -11678,6 +11681,9 @@ function getQuizTrackKey() {
                   );
                   const bubbleText = btn.querySelector(".bubble-text");
                   if (bubbleText) bubbleText.innerText = cleanOpt;
+                })
+                .catch((err) => {
+                  console.warn("[QUIZ TRANSLATE WARN] Translation fetch fallback:", err);
                 });
             }
 
@@ -15508,7 +15514,7 @@ function getQuizTrackKey() {
         });
       };
 
-      function toggleTextbook() {
+      function toggleTextbook(forceSyncWithPlayingVideo = false) {
         const panel = document.getElementById("pdfViewerPanel");
         if (!panel) return;
         const isOpen = panel.classList.toggle("active");
@@ -15516,6 +15522,18 @@ function getQuizTrackKey() {
         const video = document.getElementById("lectureVideoPlayer");
 
         if (isOpen) {
+          // If opening via Book Icon or forceSync is requested, HARDEN the drawer PDF to match the active playing video!
+          if (forceSyncWithPlayingVideo || window.activePlayingVideoPdfPath) {
+            const frame = document.getElementById("pdfIframe");
+            const titleLabel = document.getElementById("pdfTitleLabel");
+            if (frame && window.activePlayingVideoPdfPath) {
+              frame.src = window.activePlayingVideoPdfPath;
+            }
+            if (titleLabel && window.activePlayingVideoPdfTitle) {
+              titleLabel.innerText = window.activePlayingVideoPdfTitle;
+            }
+          }
+
           // Pause main lecture video while reading textbook drawer
           if (video && !video.paused) {
             pauseVideoTimeline();
@@ -16366,8 +16384,14 @@ function getQuizTrackKey() {
         }
         window.lastLoadedVideoId = videoId;
         
-        // Immediately log active video progress to localStorage the very first second it loads
-        const currentSub = videoId.includes("chemistry") ? "Chemistry" : "Economics";
+        // Immediately log active video progress to localStorage the very first second it loads across any subject
+        let currentSub = "Economics";
+        if (videoId.includes("chemistry")) currentSub = "Chemistry";
+        else if (videoId.includes("physics")) currentSub = "Physics";
+        else if (videoId.includes("philosophy")) currentSub = "Philosophy";
+        else if (videoId.includes("math")) currentSub = "Mathematics";
+
+        localStorage.setItem("lastActiveVideoId", videoId);
         localStorage.setItem("lastActiveVideo_" + currentSub, videoId);
         if (videoId.includes("sanitaire") || videoId.includes("alimentaire")) {
           localStorage.setItem("maxUnlockedVideo_" + currentSub, videoId);
@@ -16651,13 +16675,19 @@ function getQuizTrackKey() {
               }
             }
             if (data.pdf_file_path) {
+              const fullPdfSrc = `${data.pdf_file_path}#page=${data.start_page}`;
+              const fullPdfTitle = `Textbook: ${data.pdf_file_path.split("/").pop()}`;
+
+              window.activePlayingVideoPdfPath = fullPdfSrc;
+              window.activePlayingVideoPdfTitle = fullPdfTitle;
+
               const frame = document.getElementById("pdfIframe");
               if (frame) {
-                frame.src = `${data.pdf_file_path}#page=${data.start_page}`;
+                frame.src = fullPdfSrc;
               }
               const titleLabel = document.getElementById("pdfTitleLabel");
               if (titleLabel) {
-                titleLabel.innerText = `Textbook: ${data.pdf_file_path.split("/").pop()}`;
+                titleLabel.innerText = fullPdfTitle;
               }
               const pageInd = document.getElementById("pdfPageIndicator");
               if (pageInd) {
@@ -17639,8 +17669,15 @@ function getQuizTrackKey() {
               selectedGoalTrack === "calculus" ||
               selectedGoalTrack === "k12/12th_SM/Economics"
             ) {
-              targetVideoId = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
-              activeVideoId = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
+              const savedEcon = localStorage.getItem("lastActiveVideo_Economics") || localStorage.getItem("lastActiveVideoId");
+              let resolvedEconVid = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
+              if (savedEcon && savedEcon.includes("sanitaire")) {
+                resolvedEconVid = "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires";
+              } else if (savedEcon && savedEcon.includes("alimentaire")) {
+                resolvedEconVid = "vid_economics_extraeconomiques_03_probl_mes_alimentaires";
+              }
+              targetVideoId = resolvedEconVid;
+              activeVideoId = resolvedEconVid;
               activeChapterId = "economics_extra_growth";
               activeTimestamp = "00:00";
             } else if (
@@ -18035,7 +18072,7 @@ function getQuizTrackKey() {
           "k12/12th_SM/Economics": (() => {
             const savedEcon = (localStorage.getItem("lastActiveVideo_Economics") || "").toLowerCase();
             const maxEcon = (localStorage.getItem("maxUnlockedVideo_Economics") || "").toLowerCase();
-            const vId = (typeof activeVideoId !== "undefined" ? activeVideoId : "").toLowerCase();
+            const vId = (typeof activeVideoId !== "undefined" && activeVideoId ? activeVideoId : savedEcon).toLowerCase();
 
             const isSanitaireUnlocked = maxEcon.includes("sanitaire") || savedEcon.includes("sanitaire") || vId.includes("sanitaire");
             const isAlimentaireUnlocked = maxEcon.includes("alimentaire") || savedEcon.includes("alimentaire") || vId.includes("alimentaire");
@@ -18043,7 +18080,14 @@ function getQuizTrackKey() {
             let activeTitle = "01_Les problèmes démographiques";
             let activeId = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
 
-            if (isAlimentaireUnlocked) {
+            // Dynamically match card title to the active video currently loaded in the player!
+            if (vId.includes("alimentaire")) {
+              activeTitle = "03_Problèmes alimentaires";
+              activeId = "vid_economics_extraeconomiques_03_probl_mes_alimentaires";
+            } else if (vId.includes("sanitaire")) {
+              activeTitle = "02_Les problèmes sanitaires";
+              activeId = "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires";
+            } else if (isAlimentaireUnlocked) {
               activeTitle = "03_Problèmes alimentaires";
               activeId = "vid_economics_extraeconomiques_03_probl_mes_alimentaires";
             } else if (isSanitaireUnlocked) {
@@ -18055,7 +18099,7 @@ function getQuizTrackKey() {
               id: activeId,
               title: activeTitle,
               grade: "A",
-              time: isSanitaireUnlocked ? "12m / 20h" : "15m / 20h",
+              time: (activeId.includes("sanitaire") || isSanitaireUnlocked) ? "12m / 20h" : "15m / 20h",
               isSanitaireUnlocked: isSanitaireUnlocked,
               isAlimentaireUnlocked: isAlimentaireUnlocked,
               isRevisingPast: (vId.includes("demographique") && isSanitaireUnlocked)
@@ -19779,28 +19823,43 @@ function getQuizTrackKey() {
 
         // Load active video's data, textbook, and preprocessed timestamps/flashcards
         (async function bootActiveSessionVideo() {
-          let lastVid = localStorage.getItem("lastActiveVideo_Economics") || localStorage.getItem("lastActiveVideoId");
+          // 1. Check global last active video ID
+          let savedLocalVid = localStorage.getItem("lastActiveVideoId");
 
-          // Priority 1: If localStorage has saved video ID, set it immediately
-          if (lastVid) {
-            activeVideoId = lastVid;
-            window.ACTIVE_DATABASE_VIDEO_ID = lastVid;
+          // 2. Check subject-specific video bookmarks across any subject if global is missing
+          if (!savedLocalVid) {
+            const activeSub = (selectedGoalTrack || window.currentTrack || "").toLowerCase();
+            if (activeSub.includes("chemistry")) {
+              savedLocalVid = localStorage.getItem("lastActiveVideo_Chemistry");
+            } else if (activeSub.includes("physics")) {
+              savedLocalVid = localStorage.getItem("lastActiveVideo_Physics");
+            } else if (activeSub.includes("philosophy")) {
+              savedLocalVid = localStorage.getItem("lastActiveVideo_Philosophy");
+            } else if (activeSub.includes("math")) {
+              savedLocalVid = localStorage.getItem("lastActiveVideo_Mathematics");
+            } else {
+              savedLocalVid = localStorage.getItem("lastActiveVideo_Economics");
+            }
           }
 
-          // Priority 2: Query active_session.json from server asynchronously
+          let serverVid = null;
           try {
             const sessionResp = await fetch('/get_active_session');
             if (sessionResp.ok) {
               const sessionData = await sessionResp.json();
               if (sessionData && sessionData.active_video_id) {
-                lastVid = sessionData.active_video_id;
-                activeVideoId = lastVid;
-                window.ACTIVE_DATABASE_VIDEO_ID = lastVid;
+                serverVid = sessionData.active_video_id;
               }
             }
           } catch(e) {
             console.warn('[SESSION BOOT WARN]', e);
           }
+
+          // Prioritize saved local video bookmark for whatever subject the student was on, else server session, else default
+          let finalBootVid = savedLocalVid || serverVid || "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
+
+          activeVideoId = finalBootVid;
+          window.ACTIVE_DATABASE_VIDEO_ID = finalBootVid;
 
           loadTextbookPDF(activeVideoId);
         })();

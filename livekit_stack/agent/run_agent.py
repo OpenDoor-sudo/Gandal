@@ -10,10 +10,15 @@ print("Running tutor_agent.py in an auto-restart loop. The agent may take a shor
 
 cwd = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(cwd, "..", ".."))
-# Forward any CLI args (like dev, start) or default to start
-cmd_arg = sys.argv[1] if len(sys.argv) > 1 else "start"
-args = [sys.executable, os.path.join(cwd, "tutor_agent.py"), cmd_arg]
+
+is_offline = "--offline" in sys.argv or os.environ.get("OFFLINE_MODE") == "1"
+agent_script = "tutor_agent_offline.py" if is_offline else "tutor_agent.py"
+cli_args = [a for a in sys.argv[1:] if a != "--offline"]
+cmd_arg = cli_args[0] if cli_args else "start"
+
+args = [sys.executable, os.path.join(cwd, agent_script), cmd_arg]
 log_path = os.path.abspath(os.path.join(project_root, "tutor_agent.log"))
+print(f"[WATCHER] Selected Agent Mode: {'OFFLINE (' + agent_script + ')' if is_offline else 'ONLINE (' + agent_script + ')'}")
 
 def wait_for_healthy_start(log_path):
     try:

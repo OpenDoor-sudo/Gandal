@@ -33,5 +33,8 @@ active_session.json
 .DS_Store
 Thumbs.db
 
+# Syncthing / Editor Sync Conflict Files
+*Edit conflict*
+
 # Node dependencies (if any)
 node_modules/
