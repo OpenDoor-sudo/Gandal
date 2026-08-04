@@ -234,19 +234,29 @@ def get_time_greeting(locale_str: str = "fr_FR") -> str:
         else:
             return "Good evening"
 
-    # 5. Build Socratic System Prompt with OKF Personalization
+    # 5. Build Socratic System Prompt with OKF Personalization & Savant Matrix
+    savant_context_offline = ""
+    try:
+        from savant_curriculum_matrix import get_savant_and_connections_context
+        active_vid_id = s_data.get("active_video_id", "default_vid") if os.path.exists(session_file) else "default_vid"
+        savant_context_offline = get_savant_and_connections_context(active_vid_id, "General", active_locale)
+    except Exception as s_err:
+        logger.warning(f"Failed to load savant matrix in offline agent: {s_err}")
+
     base_instructions = (
         f"You are GANDHO, an empathetic offline Socratic Tutor.\n"
         f"You are tutoring student {student_id.capitalize()}.\n"
         f"Student Learning Style: {student_style}.\n"
         f"Areas Student Struggles With: {student_struggles_str}.\n"
+        f"{savant_context_offline}\n"
         "GUIDELINES:\n"
         "1. Adapt greetings to local system time (Bonjour/Good morning, Bon après-midi/Good afternoon, Bonsoir/Good evening).\n"
         "2. DO NOT introduce yourself as 'GANDHO, the Socratic tutor' again if you have already greeted the student during the current video lesson.\n"
         "3. Occasionally ask warm, non-invasive personal questions (e.g. 'How are you feeling today?', 'How is your family doing?') to build personal rapport.\n"
-        "4. Never give answers directly. Guide the student with Socratic questions.\n"
-        "5. Keep responses short and conversational (under 3 sentences).\n"
-        "6. Encourage critical thinking step-by-step."
+        "4. Include quick historical savant bios, cross-chapter connections, and real-world applications when introducing or explaining topics.\n"
+        "5. Never give answers directly. Guide the student with Socratic questions.\n"
+        "6. Keep responses short and conversational (under 3 sentences).\n"
+        "7. Encourage critical thinking step-by-step."
     )
     if active_locale == "fr_FR":
         base_instructions += "\nIMPORTANT: Respond ONLY in French. Always ask guiding questions in French."

@@ -323,8 +323,16 @@ async def entrypoint(ctx: JobContext):
             memory_context += f"- Excel Areas in {active_subject}:\n{student_excels_str}\n"
         if student_struggles_str:
             memory_context += f"- Struggle Areas in {active_subject} (Adapt your Socratic guidance to address these!):\n{student_struggles_str}\n"
-            
-        instructions += memory_context
+
+        # Resolve Savant & Interdisciplinary Connections Matrix
+        savant_context = ""
+        try:
+            from savant_curriculum_matrix import get_savant_and_connections_context
+            savant_context = get_savant_and_connections_context(active_video_id, active_subject, locale)
+        except Exception as s_err:
+            logger.warning(f"Failed to load savant matrix: {s_err}")
+
+        instructions += memory_context + "\n" + savant_context
         return instructions
 
     # Resolve initial states

@@ -212,6 +212,11 @@ The system relies on **SQLite (`vault.db`)** for relational metadata, **LanceDB*
 - **Universal Restoration**: `bootActiveSessionVideo()` checks `lastActiveVideoId` and subject-specific bookmarks (`lastActiveVideo_<Subject>`) across Economics, Chemistry, Physics, Philosophy, and Mathematics.
 - **Flicker-Free Boot**: Initial track setup checks `localStorage` during initial script execution, eliminating any title flicker on page refresh.
 
+### 6.11 Historical Savants & Interdisciplinary Connections Matrix (`savant_curriculum_matrix.py`)
+- **Historical Savant Bios**: Automatically provides GANDHO with historical context and biographical origin stories for every topic (e.g. Thomas Malthus for Demographics, Louis Pasteur for Public Health, Galileo/Newton for Physics, Friedrich Wöhler for Organic Chemistry, George Boole & Newton/Leibniz for Calculus).
+- **Interdisciplinary Cross-Chapter Connections**: Dynamically bridges topics across chapters and subjects (e.g. linking Derivatives $\leftrightarrow$ Integrals, Demographics $\leftrightarrow$ Health & Food Security, Oscillation $\leftrightarrow$ Energy Conservation).
+- **Inspirational Real-World Applications**: Highlights modern, high-impact applications (AI circuit design, epidemiology models, space exploration) during Socratic dialogues to ignite student curiosity.
+
 ---
 
 ## 7. Offline Pre-Processing & Device Ingestion Pipeline
