@@ -35,6 +35,19 @@ def init_sqlite():
             PRIMARY KEY (video_id, timestamp)
         );
     """)
+
+    # Create savant_matrix table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS savant_matrix (
+            video_id TEXT PRIMARY KEY,
+            subject TEXT,
+            savant TEXT,
+            era_context TEXT,
+            historical_bio TEXT,
+            interdisciplinary_connections TEXT,
+            real_world_applications TEXT
+        );
+    """)
     
     # Create mastery_ledger table
     cursor.execute("""

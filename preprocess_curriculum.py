@@ -332,6 +332,34 @@ def preprocess_video_file(video_entry):
                 """, (video_id, chapter_id, content_id, component_name, widget, layout_json))
                 print(f"  -> SQLite: Registered dynamic simulation {content_id} ({component_name})")
                 
+        # Populate savant_matrix for historical bios and cross-chapter connections
+        try:
+            from savant_curriculum_matrix import SAVANT_AND_CHAPTER_CONNECTIONS
+            data = SAVANT_AND_CHAPTER_CONNECTIONS.get(video_id)
+            if not data:
+                subj_lower = subject.lower()
+                if "math" in subj_lower or "calculus" in subj_lower:
+                    data = SAVANT_AND_CHAPTER_CONNECTIONS["math_calculus_default"]
+                elif "econ" in subj_lower:
+                    data = SAVANT_AND_CHAPTER_CONNECTIONS["vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques"]
+                elif "physic" in subj_lower:
+                    data = SAVANT_AND_CHAPTER_CONNECTIONS["vid_physics_01"]
+                elif "chem" in subj_lower:
+                    data = SAVANT_AND_CHAPTER_CONNECTIONS["vid_chemistry_organic_chemistry_chemistry"]
+                elif "phil" in subj_lower:
+                    data = SAVANT_AND_CHAPTER_CONNECTIONS["vid_philosophy_01"]
+                else:
+                    data = SAVANT_AND_CHAPTER_CONNECTIONS["math_calculus_default"]
+
+            cursor.execute("""
+                INSERT OR REPLACE INTO savant_matrix 
+                (video_id, subject, savant, era_context, historical_bio, interdisciplinary_connections, real_world_applications)
+                VALUES (?, ?, ?, ?, ?, ?, ?);
+            """, (video_id, subject, data["savant"], data.get("era_context", ""), data["historical_bio"], data["interdisciplinary_connections"], data["real_world_applications"]))
+            print(f"  -> SQLite: Registered savant bio & interdisciplinary connections for '{video_id}'")
+        except Exception as sav_err:
+            print(f"  [WARN] Failed to populate savant_matrix for '{video_id}': {sav_err}")
+
         # Mark lesson as unlocked in curriculum_tree
         cursor.execute("""
             UPDATE curriculum_tree
@@ -341,7 +369,7 @@ def preprocess_video_file(video_entry):
         
         conn.commit()
         conn.close()
-        print(f"[SQLITE SUCCESS] Timestamps and unlocks successfully written for video '{video_id}'.")
+        print(f"[SQLITE SUCCESS] Timestamps, savant matrix, and unlocks successfully written for video '{video_id}'.")
     except Exception as e:
         print(f"[SQLITE ERROR] Database updates failed: {e}")
         return False

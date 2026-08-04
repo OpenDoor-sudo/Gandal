@@ -2266,6 +2266,17 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         );
                     """)
                     cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS savant_matrix (
+                            video_id TEXT PRIMARY KEY,
+                            subject TEXT,
+                            savant TEXT,
+                            era_context TEXT,
+                            historical_bio TEXT,
+                            interdisciplinary_connections TEXT,
+                            real_world_applications TEXT
+                        );
+                    """)
+                    cursor.execute("""
                         CREATE TABLE IF NOT EXISTS video_flashcards (
                             video_id TEXT NOT NULL,
                             front TEXT NOT NULL,

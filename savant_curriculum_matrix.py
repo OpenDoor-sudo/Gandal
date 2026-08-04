@@ -121,14 +121,47 @@ SAVANT_AND_CHAPTER_CONNECTIONS = {
     }
 }
 
+import os
+import sqlite3
+
 def get_savant_and_connections_context(video_id: str, subject: str = "General", locale: str = "fr_FR") -> str:
     """
     Returns a rich, formatted instruction string containing the historical savant bio,
     interdisciplinary chapter connections, and real-world applications for GANDHO.
+    Queries vault.db savant_matrix table first for auto-ingested curriculum.
     """
-    data = SAVANT_AND_CHAPTER_CONNECTIONS.get(video_id)
+    data = None
+
+    # 1. Try querying vault.db table savant_matrix
+    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
+    if os.path.exists(db_path):
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT savant, era_context, historical_bio, interdisciplinary_connections, real_world_applications
+                FROM savant_matrix
+                WHERE video_id = ?
+            """, (video_id,))
+            row = cursor.fetchone()
+            conn.close()
+            if row:
+                data = {
+                    "savant": row[0],
+                    "era_context": row[1],
+                    "historical_bio": row[2],
+                    "interdisciplinary_connections": row[3],
+                    "real_world_applications": row[4]
+                }
+        except Exception:
+            pass
+
+    # 2. Fallback to pre-baked dict catalog
     if not data:
-        # Check by subject fallback
+        data = SAVANT_AND_CHAPTER_CONNECTIONS.get(video_id)
+
+    # 3. Fallback by subject
+    if not data:
         subj_lower = subject.lower()
         if "math" in subj_lower or "calculus" in subj_lower:
             data = SAVANT_AND_CHAPTER_CONNECTIONS["math_calculus_default"]
