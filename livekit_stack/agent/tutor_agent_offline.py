@@ -212,6 +212,28 @@ async def entrypoint(ctx: JobContext):
             response_format="wav"
         )
 
+import datetime
+
+OFFLINE_GREETED_VIDEOS_CACHE = set()
+
+def get_time_greeting(locale_str: str = "fr_FR") -> str:
+    """Calculate time-appropriate greeting based on local system time."""
+    hour = datetime.datetime.now().hour
+    if locale_str == "fr_FR":
+        if 5 <= hour < 12:
+            return "Bonjour"
+        elif 12 <= hour < 17:
+            return "Bon après-midi"
+        else:
+            return "Bonsoir"
+    else:
+        if 5 <= hour < 12:
+            return "Good morning"
+        elif 12 <= hour < 17:
+            return "Good afternoon"
+        else:
+            return "Good evening"
+
     # 5. Build Socratic System Prompt with OKF Personalization
     base_instructions = (
         f"You are GANDHO, an empathetic offline Socratic Tutor.\n"
@@ -219,9 +241,12 @@ async def entrypoint(ctx: JobContext):
         f"Student Learning Style: {student_style}.\n"
         f"Areas Student Struggles With: {student_struggles_str}.\n"
         "GUIDELINES:\n"
-        "1. Never give answers directly. Guide the student with Socratic questions.\n"
-        "2. Keep responses short and conversational (under 3 sentences).\n"
-        "3. Encourage critical thinking step-by-step."
+        "1. Adapt greetings to local system time (Bonjour/Good morning, Bon après-midi/Good afternoon, Bonsoir/Good evening).\n"
+        "2. DO NOT introduce yourself as 'GANDHO, the Socratic tutor' again if you have already greeted the student during the current video lesson.\n"
+        "3. Occasionally ask warm, non-invasive personal questions (e.g. 'How are you feeling today?', 'How is your family doing?') to build personal rapport.\n"
+        "4. Never give answers directly. Guide the student with Socratic questions.\n"
+        "5. Keep responses short and conversational (under 3 sentences).\n"
+        "6. Encourage critical thinking step-by-step."
     )
     if active_locale == "fr_FR":
         base_instructions += "\nIMPORTANT: Respond ONLY in French. Always ask guiding questions in French."
@@ -282,9 +307,21 @@ async def entrypoint(ctx: JobContext):
     await session.start(agent, room=ctx.room)
     logger.info("Offline Agent successfully connected and listening...")
     
-    greeting = f"Hello {student_id.capitalize()}! I am GANDHO, your offline Socratic tutor. What shall we learn today?"
+    time_salutation = get_time_greeting(active_locale)
+    active_vid = s_data.get("active_video_id", "default_vid") if os.path.exists(session_file) else "default_vid"
+    is_new_vid = active_vid not in OFFLINE_GREETED_VIDEOS_CACHE
+    OFFLINE_GREETED_VIDEOS_CACHE.add(active_vid)
+
     if active_locale == "fr_FR":
-        greeting = f"Bonjour {student_id.capitalize()} ! Je suis GANDHO, votre tuteur socratique hors ligne. Que souhaites-tu apprendre aujourd'hui ?"
+        if is_new_vid:
+            greeting = f"{time_salutation} {student_id.capitalize()} ! Je suis GANDHO, votre tuteur socratique. Comment vas-tu aujourd'hui ? Prêt à étudier ?"
+        else:
+            greeting = f"{time_salutation} {student_id.capitalize()} ! Je suis toujours là avec toi. Qu'aimerais-tu explorer maintenant ?"
+    else:
+        if is_new_vid:
+            greeting = f"{time_salutation} {student_id.capitalize()}! I am GANDHO, your Socratic tutor. How are you doing today? Ready to dive in?"
+        else:
+            greeting = f"{time_salutation} {student_id.capitalize()}! I'm right here with you. What would you like to explore next?"
         
     await session.say(greeting, allow_interruptions=True)
 

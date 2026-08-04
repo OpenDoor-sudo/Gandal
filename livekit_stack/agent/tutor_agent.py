@@ -42,6 +42,29 @@ for handler in logger.handlers:
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 os.chdir(PROJECT_ROOT)
 
+# Global memory cache to track greeted videos within the active server process
+GREETED_VIDEOS_CACHE = set()
+
+import datetime
+
+def get_time_greeting(locale_str: str = "fr_FR") -> str:
+    """Calculate time-appropriate greeting based on local system time."""
+    hour = datetime.datetime.now().hour
+    if locale_str == "fr_FR":
+        if 5 <= hour < 12:
+            return "Bonjour"
+        elif 12 <= hour < 17:
+            return "Bon après-midi"
+        else:
+            return "Bonsoir"
+    else:
+        if 5 <= hour < 12:
+            return "Good morning"
+        elif 12 <= hour < 17:
+            return "Good afternoon"
+        else:
+            return "Good evening"
+
 # Load credentials from parent .env file if available
 env_path = os.path.join(PROJECT_ROOT, ".env")
 if os.path.exists(env_path):
@@ -222,7 +245,11 @@ async def entrypoint(ctx: JobContext):
             role_instruction = "You are GANDHO, the Socratic Tutor. Be warm, chatty, explanatory, and intellectually engaging."
 
         chatty_socratic_guidelines = (
-            "STYLE GUIDELINES:\n"
+            "STYLE & CONVERSATIONAL GUIDELINES:\n"
+            "- Adapt greetings to local system time (Bonjour / Bon après-midi / Bonsoir in French; Good morning / Good afternoon / Good evening in English).\n"
+            "- DO NOT introduce yourself as 'GANDHO, the Socratic tutor' again if you have already introduced yourself for the current video lesson. Treat continuing interactions on the same video as an ongoing conversation.\n"
+            "- Occasionally ask warm, non-invasive personal questions (e.g. 'How are you feeling today?', 'Ready to study?', 'How is your family doing?') to build a supportive personal bond with the student.\n"
+            "- If the student shares how they feel or family updates, respond with warmth and empathy before transitioning into academic concepts.\n"
             "- Be chatty, conversational, and interactive—like an engaging dialogue or debate with a mentor.\n"
             "- Explain concepts clearly first (give a 1-2 sentence explanation or breakdown), and then follow up with a thought-provoking Socratic question to guide the student deeper.\n"
             "- Do NOT give away direct numerical answers, final formulas, or direct quiz options. Help the student reason through the steps."
@@ -810,48 +837,69 @@ async def entrypoint(ctx: JobContext):
                 except Exception:
                     pass
             
+            # Calculate time-appropriate salutation
+            time_salutation = get_time_greeting(locale)
+
+            # Check if this video has already been greeted in the current process
+            is_new_video = (active_video_id not in GREETED_VIDEOS_CACHE)
+            GREETED_VIDEOS_CACHE.add(active_video_id)
+
             if locale == "fr_FR":
                 if v_state == "screen_share":
                     greeting_instruction = (
-                        "Bonjour ! Présentez-vous en tant que GANDHO, le tuteur socratique. Confirmez que le partage d'écran est actif "
-                        "et demandez comment vous pouvez les aider avec le contenu partagé."
+                        f"{time_salutation} ! Présentez-vous brièvement à {student_name}. Confirmez que le partage d'écran est actif "
+                        "et demandez quel document ou sujet vous allez examiner ensemble."
                     )
                 elif v_state == "split_workspace":
                     greeting_instruction = (
-                        f"Bonjour ! Présentez-vous en tant que GANDHO, le tuteur socratique. Confirmez que vous examinez "
-                        f"'{p_name}' ensemble dans l'espace de travail partagé, et demandez quelles questions ils ont."
+                        f"{time_salutation} ! Confirmez que vous examinez le manuel '{p_name}' "
+                        f"ensemble dans l'espace de travail avec {student_name}, et demandez quelles questions ils ont."
                     )
                 elif v_state == "evaluation":
                     greeting_instruction = (
-                        "Bonjour ! Présentez-vous en tant que GANDHO, le tuteur socratique. Confirmez que vous les voyez "
-                        "travailler sur l'évaluation/quiz, et proposez de les aider à y réfléchir socratiquement."
+                        f"{time_salutation} ! Confirmez à {student_name} que vous les voyez travailler sur l'évaluation, "
+                        "et proposez de les aider à y réfléchir étape par étape."
                     )
                 else:
-                    greeting_instruction = (
-                        f"Bonjour ! Présentez-vous en tant que GANDHO, le tuteur socratique. Saluez impérativement l'étudiant par son prénom ('{student_name}') "
-                        f"pour la leçon vidéo active '{video_title}', et demandez comment vous pouvez l'aider aujourd'hui."
-                    )
+                    if is_new_video:
+                        greeting_instruction = (
+                            f"{time_salutation} {student_name} ! Présentez-vous en tant que GANDHO, le tuteur socratique. "
+                            f"Ravi de démarrer la leçon '{video_title}' avec vous ! Posez une brève question amicale de prise de contact (ex. 'Comment vas-tu aujourd'hui ? Prêt à étudier ?') "
+                            "puis demandez comment vous pouvez l'aider."
+                        )
+                    else:
+                        greeting_instruction = (
+                            f"{time_salutation} {student_name} ! NE VOUS PRÉSENTEZ PAS À NOUVEAU (ne dites PAS 'Je suis GANDHO le tuteur socratique'). "
+                            f"Dites simplement que vous êtes toujours là à ses côtés pour la leçon '{video_title}', et demandez ce qu'il aimerait aborder maintenant."
+                        )
             else:
                 if v_state == "screen_share":
                     greeting_instruction = (
-                        "Hello! Introduce yourself as GANDHO, the Socratic Tutor. Acknowledge that they are sharing their screen, "
+                        f"{time_salutation}! Acknowledge screen sharing with {student_name}, "
                         "and ask how you can help them with the shared content or slide."
                     )
                 elif v_state == "split_workspace":
                     greeting_instruction = (
-                        f"Hello! Introduce yourself as GANDHO, the Socratic Tutor. Acknowledge that you are reviewing the textbook "
-                        f"'{p_name}' together in the split-screen workspace, and ask what questions they have."
+                        f"{time_salutation}! Acknowledge that you are reviewing textbook '{p_name}' "
+                        f"together in the split-screen workspace with {student_name}, and ask what questions they have."
                     )
                 elif v_state == "evaluation":
                     greeting_instruction = (
-                        "Hello! Introduce yourself as GANDHO, the Socratic Tutor. Acknowledge that they are working on their "
-                        "Evaluation quiz, offer to read through the multiple choice questions together, and help solve them step-by-step!"
+                        f"{time_salutation}! Acknowledge that {student_name} is working on their evaluation quiz, "
+                        "and offer to help work through the questions step-by-step!"
                     )
                 else:
-                    greeting_instruction = (
-                        f"Hello! Introduce yourself as GANDHO, the Socratic Tutor, state that you are ready to discuss their "
-                        f"active curriculum video '{video_title}', and ask what questions they have."
-                    )
+                    if is_new_video:
+                        greeting_instruction = (
+                            f"{time_salutation} {student_name}! Introduce yourself as GANDHO, the Socratic Tutor. "
+                            f"Excited to start the lesson '{video_title}' with you! Ask a quick friendly rapport question (e.g. 'How are you doing today? Ready to study?') "
+                            "and ask what questions they have."
+                        )
+                    else:
+                        greeting_instruction = (
+                            f"{time_salutation} {student_name}! DO NOT introduce yourself again or say 'I am GANDHO, the Socratic tutor'. "
+                            f"Simply state that you are right here with them on '{video_title}', and ask what they'd like to explore next."
+                        )
 
             if not getattr(session, "_activity", None):
                 logger.info("Session not active after waiting; skipping greeting.")
