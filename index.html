@@ -16032,29 +16032,19 @@ function getQuizTrackKey() {
 
           // Extract subject from path
           const getSubjectFromPath = (path) => {
-            const cleanParts = path.split("/").filter((pt) => pt);
+            const p = (path || "").toLowerCase();
+            if (p.includes("gracian") || p.includes("stoic") || p.includes("philosophy")) return "Philosophy";
+            if (p.includes("chemistry")) return "Chemistry";
+            if (p.includes("economics")) return "Economics";
+            if (p.includes("physics")) return "Physics";
+            if (p.includes("biology")) return "Biology";
+            if (p.includes("math") || p.includes("calculus")) return "Mathematics";
+
+            const cleanParts = path.split("/").filter((pt) => pt && !pt.toLowerCase().endsWith(".pdf"));
             if (cleanParts.length === 0) return "General";
-            const firstDir = cleanParts[0].toLowerCase();
-            let subject = "General";
-            if (
-              firstDir === "curriculum_staging" ||
-              firstDir === "saved_notebooks"
-            ) {
-              const subParts = cleanParts.slice(1);
-              if (subParts.length > 0) {
-                const subFirst = subParts[0].toLowerCase();
-                if (subFirst === "k12") {
-                  subject = subParts[2] || subParts[1] || "General";
-                } else {
-                  subject = subParts[1] || subParts[0] || "General";
-                }
-              }
-            } else {
-              if (firstDir === "k12") {
-                subject = cleanParts[2] || cleanParts[1] || "General";
-              } else {
-                subject = cleanParts[1] || cleanParts[0] || "General";
-              }
+            let subject = cleanParts[cleanParts.length - 1] || "General";
+            if (subject === "uploads" || subject === "textbooks" || subject === "curriculum_staging") {
+              subject = "General";
             }
             return subject
               .replace(/_|-/g, " ")
