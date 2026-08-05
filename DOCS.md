@@ -249,6 +249,15 @@ python livekit_stack/agent/run_agent.py start
 python livekit_stack/agent/run_agent.py dev
 ```
 
+### **Ingest Standalone PDF Textbooks (e.g. Professor's Books - No Video Needed)**:
+```bash
+# Ingest single PDF textbook:
+python ingest_pdf.py --pdf "path/to/Professor_Book.pdf" --title "Advanced Cell Biology" --subject "Biology" --author "Prof. Smith"
+
+# OR place all PDF files in 'professor_books/' directory and run:
+python ingest_pdf.py
+```
+
 ### **Start LiveKit Voice Agent (Offline Mode - Local Gemma 4 NPU + Kokoro)**:
 ```bash
 python livekit_stack/agent/run_agent.py --offline start
