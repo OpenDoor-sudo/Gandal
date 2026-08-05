@@ -16765,54 +16765,39 @@ function getQuizTrackKey() {
                   if (tutorContainer) {
                     tutorContainer.innerHTML = "";
                   }
+                }
 
-                  let restoreDone = false;
-                  const performSeekRestore = () => {
-                    if (restoreDone) return;
-                    restoreDone = true;
-                    try {
-                      window.isProgrammaticSeek = true;
-                      if (effectiveRestoreTime > 0.5) {
-                        console.log("[SEEK_DEBUG] Restoring video position to:", effectiveRestoreTime);
-                        if (effectiveRestoreTime > maxTimeWatched) {
-                          maxTimeWatched = effectiveRestoreTime;
-                        }
-                        video.currentTime = effectiveRestoreTime;
-                      }
-                      video
-                        .play()
-                        .catch((e) =>
-                          console.log(
-                            "[PLAY_DEBUG] Autoplay prevented play:",
-                            e,
-                          ),
-                        );
-                    } catch (e) {
-                      console.warn("[SEEK_DEBUG] Seek restore failed:", e);
-                    }
-                  };
-
-                  if (video.readyState >= 1) {
-                    performSeekRestore();
-                  } else {
-                    video.addEventListener("loadedmetadata", performSeekRestore, { once: true });
-                    video.addEventListener("canplay", performSeekRestore, { once: true });
-                  }
-                } else {
-                  // Same video file is already loaded — seek if chapter was clicked OR restore saved progress
-                  if (effectiveRestoreTime > 0.5) {
-                    console.log("[SEEK_DEBUG] Same-src resume to:", effectiveRestoreTime);
+                let restoreDone = false;
+                const performSeekRestore = () => {
+                  if (restoreDone) return;
+                  restoreDone = true;
+                  try {
                     window.isProgrammaticSeek = true;
-                    if (effectiveRestoreTime > maxTimeWatched) {
-                      maxTimeWatched = effectiveRestoreTime;
+                    if (effectiveRestoreTime > 0.5) {
+                      console.log("[SEEK_DEBUG] Restoring video position to:", effectiveRestoreTime);
+                      if (effectiveRestoreTime > maxTimeWatched) {
+                        maxTimeWatched = effectiveRestoreTime;
+                      }
+                      video.currentTime = effectiveRestoreTime;
                     }
-                    video.currentTime = effectiveRestoreTime;
                     video
                       .play()
                       .catch((e) =>
-                        console.log("[PLAY_DEBUG] Same-src play blocked:", e),
+                        console.log(
+                          "[PLAY_DEBUG] Autoplay prevented play:",
+                          e,
+                        ),
                       );
+                  } catch (e) {
+                    console.warn("[SEEK_DEBUG] Seek restore failed:", e);
                   }
+                };
+
+                if (video.readyState >= 1) {
+                  performSeekRestore();
+                } else {
+                  video.addEventListener("loadedmetadata", performSeekRestore, { once: true });
+                  video.addEventListener("canplay", performSeekRestore, { once: true });
                 }
               }
             }
@@ -18204,6 +18189,41 @@ function getQuizTrackKey() {
 
         grid.appendChild(cardsContainer);
       }
+
+      window.profileLevelsExpanded = window.profileLevelsExpanded || {
+        k12: true,
+        college_level: true,
+        independent_learner: true,
+        professional_certificates: true,
+      };
+      window.profileSubGroupsExpanded = window.profileSubGroupsExpanded || {
+        k12_1st_grade: true,
+        k12_12th_SE: true,
+        k12_12th_SM: true,
+        college_level_physics_undergrad: true,
+        college_level_chemistry_undergrad: true,
+        independent_learner_philosophy: true,
+        professional_certificates_ai_engineering: true,
+      };
+
+      window.toggleProfileLevelCollapse = function (catKey) {
+        if (typeof window.profileLevelsExpanded[catKey] === "undefined") {
+          window.profileLevelsExpanded[catKey] = false;
+        } else {
+          window.profileLevelsExpanded[catKey] = !window.profileLevelsExpanded[catKey];
+        }
+        renderProfileInterests();
+      };
+
+      window.toggleProfileSubGroupCollapse = function (catKey, grpKey) {
+        const key = catKey + "_" + grpKey;
+        if (typeof window.profileSubGroupsExpanded[key] === "undefined") {
+          window.profileSubGroupsExpanded[key] = true;
+        } else {
+          window.profileSubGroupsExpanded[key] = !window.profileSubGroupsExpanded[key];
+        }
+        renderProfileInterests();
+      };
 
       function renderProfileInterests() {
         const container = document.getElementById("profileInterestsList");
@@ -19855,8 +19875,8 @@ function getQuizTrackKey() {
             console.warn('[SESSION BOOT WARN]', e);
           }
 
-          // Prioritize saved local video bookmark for whatever subject the student was on, else server session, else default
-          let finalBootVid = savedLocalVid || serverVid || "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
+          // Prioritize active database/server video session, then local subject bookmark
+          let finalBootVid = window.ACTIVE_DATABASE_VIDEO_ID || serverVid || savedLocalVid || "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires";
 
           activeVideoId = finalBootVid;
           window.ACTIVE_DATABASE_VIDEO_ID = finalBootVid;
