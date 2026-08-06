@@ -3725,28 +3725,6 @@
             <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
           </svg>
         </button>
-        <!-- Settings Modal Trigger Button -->
-        <button
-          class="header-btn"
-          id="btnHeaderSettings"
-          onclick="window.openSettingsModal && window.openSettingsModal()"
-          title="System & Tutor Settings"
-          style="font-weight: 700; display: flex; align-items: center; gap: 4px; padding: 0 10px; cursor: pointer;"
-        >
-          ⚙️ <span style="font-size: 0.75rem; color: #e2e2e3; font-family: 'Inter', sans-serif;">Settings</span>
-        </button>
-
-        <!-- Help Modal Trigger Button -->
-        <button
-          class="header-btn"
-          id="btnHeaderHelp"
-          onclick="window.openHelpModal && window.openHelpModal()"
-          title="Help & Support Center"
-          style="font-weight: 700; display: flex; align-items: center; gap: 4px; padding: 0 10px; cursor: pointer;"
-        >
-          ❓ <span style="font-size: 0.75rem; color: #e2e2e3; font-family: 'Inter', sans-serif;">Help</span>
-        </button>
-
         <!-- User avatar triggers profiles metrics modal -->
         <div class="profile-avatar" onclick="toggleProfileModal()">
           <img
@@ -20634,11 +20612,15 @@ function getQuizTrackKey() {
       // ==========================================
       window.openSettingsModal = function() {
         console.log("[SETTINGS] Opening Settings Modal...");
-        const modal = document.getElementById("settingsModal");
+        let modal = document.getElementById("settingsModal");
         if (modal) {
+          if (modal.parentNode !== document.body) {
+            document.body.appendChild(modal);
+          }
           modal.style.display = "flex";
           modal.style.opacity = "1";
           modal.style.visibility = "visible";
+          modal.style.zIndex = "9999999";
           fetch('/api/user_settings')
             .then(res => res.json())
             .then(data => {
@@ -20704,11 +20686,15 @@ function getQuizTrackKey() {
 
       window.openHelpModal = function() {
         console.log("[HELP] Opening Help Modal...");
-        const modal = document.getElementById("helpModal");
+        let modal = document.getElementById("helpModal");
         if (modal) {
+          if (modal.parentNode !== document.body) {
+            document.body.appendChild(modal);
+          }
           modal.style.display = "flex";
           modal.style.opacity = "1";
           modal.style.visibility = "visible";
+          modal.style.zIndex = "9999999";
           window.switchHelpTab('contact');
         }
       };
@@ -20765,25 +20751,25 @@ function getQuizTrackKey() {
       };
 
       window.showFeedbackToast = function(msg) {
-        const toast = document.getElementById("feedbackToast");
+        let toast = document.getElementById("feedbackToast");
         const toastText = document.getElementById("feedbackToastText");
         if (toast && toastText) {
+          if (toast.parentNode !== document.body) {
+            document.body.appendChild(toast);
+          }
           toastText.innerText = msg;
           toast.style.display = "flex";
+          toast.style.zIndex = "9999999";
           setTimeout(() => { toast.style.display = "none"; }, 4000);
         }
       };
 
-      // Bind direct event listeners across header and sidebar buttons
+      // Bind direct event listeners across sidebar buttons
       document.addEventListener("DOMContentLoaded", function() {
-        ["btnSidebarSettings", "btnHeaderSettings"].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.onclick = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } window.openSettingsModal(); };
-        });
-        ["btnSidebarHelp", "btnHeaderHelp"].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.onclick = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } window.openHelpModal(); };
-        });
+        const sBtn = document.getElementById("btnSidebarSettings");
+        const hBtn = document.getElementById("btnSidebarHelp");
+        if (sBtn) sBtn.onclick = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } window.openSettingsModal(); };
+        if (hBtn) hBtn.onclick = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } window.openHelpModal(); };
       });
     </script>
   </body>
