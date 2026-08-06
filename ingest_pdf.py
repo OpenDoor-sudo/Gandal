@@ -99,7 +99,8 @@ def process_single_pdf(pdf_path, title=None, subject="College", author="Professo
 
     # 3. Build vector records for LanceDB
     print(f"[4/5] Computing 384-dim embeddings & indexing into LanceDB...")
-    lancedb_records = []
+    raw_chunks = []
+    chunk_meta = []
     sqlite_timestamps = []
 
     for item in pages:
@@ -114,20 +115,24 @@ def process_single_pdf(pdf_path, title=None, subject="College", author="Professo
             ts_label = f"Page {p_num}" if len(chunks) == 1 else f"Page {p_num} (Part {c_idx+1})"
             summary = chunk[:250] + ("..." if len(chunk) > 250 else "")
             
-            # Compute MiniLM embedding
-            vec = embed_model.encode(chunk).tolist()
-            
-            lancedb_records.append({
-                "video_id": book_slug,
-                "timestamp": ts_label,
-                "title": f"{book_title} - {ts_label}",
-                "transcript_summary": summary,
-                "keywords": f"{book_title} {subject} {author} {ts_label}",
-                "vector_payload": chunk,
-                "vector": vec
-            })
-            
+            raw_chunks.append(chunk)
+            chunk_meta.append((ts_label, summary, chunk))
             sqlite_timestamps.append((book_slug, ts_label, f"{book_title} - {ts_label}", summary))
+
+    print(f"  -> Batched {len(raw_chunks)} text chunks across {len(pages)} pages. Encoding embeddings...")
+    embeddings = embed_model.encode(raw_chunks, batch_size=64, show_progress_bar=False)
+
+    lancedb_records = []
+    for idx, (ts_label, summary, chunk) in enumerate(chunk_meta):
+        lancedb_records.append({
+            "video_id": book_slug,
+            "timestamp": ts_label,
+            "title": f"{book_title} - {ts_label}",
+            "transcript_summary": summary,
+            "keywords": f"{book_title} {subject} {author} {ts_label}",
+            "vector_payload": chunk,
+            "vector": embeddings[idx].tolist()
+        })
 
     # Add to LanceDB
     try:
@@ -145,15 +150,15 @@ def process_single_pdf(pdf_path, title=None, subject="College", author="Professo
         
         # Insert into curriculum_tree
         cursor.execute("""
-            INSERT OR REPLACE INTO curriculum_tree (video_id, subject, chapter_id, title, video_path, pdf_path, unlocked)
-            VALUES (?, ?, ?, ?, ?, ?, 1);
-        """, (book_slug, subject, f"ch_{book_slug}", book_title, "", rel_pdf_path))
+            INSERT OR REPLACE INTO curriculum_tree (video_id, chapter_id, title, unlocked)
+            VALUES (?, ?, ?, 1);
+        """, (book_slug, f"ch_{book_slug}", book_title))
 
         # Insert into lesson_metadata
         cursor.execute("""
-            INSERT OR REPLACE INTO lesson_metadata (video_id, title, instructor_id, instructor_avatar, pdf_file_path, video_file_path, start_page)
-            VALUES (?, ?, ?, ?, ?, ?, 1);
-        """, (book_slug, book_title, "prof_author", "assets/prof_avatar.png", rel_pdf_path, "", 1))
+            INSERT OR REPLACE INTO lesson_metadata (video_id, chapter_id, pdf_file_path, start_page, instructor_id)
+            VALUES (?, ?, ?, 1, 'prof_author');
+        """, (book_slug, f"ch_{book_slug}", rel_pdf_path))
 
         # Insert into instructors
         cursor.execute("""
@@ -190,6 +195,32 @@ def process_single_pdf(pdf_path, title=None, subject="College", author="Professo
     except Exception as sq_err:
         print(f"  [SQLITE ERROR] SQLite registration failed: {sq_err}")
         return False
+
+    # Also update custom_books.json so the Book Drawer renders it immediately
+    try:
+        books_file = os.path.join(PROJECT_ROOT, "custom_books.json")
+        custom_books = []
+        if os.path.exists(books_file):
+            try:
+                with open(books_file, "r", encoding="utf-8") as bf:
+                    custom_books = json.load(bf)
+            except Exception:
+                pass
+        
+        existing_paths = [b.get("path") for b in custom_books]
+        if ("/" + rel_pdf_path) not in existing_paths and rel_pdf_path not in existing_paths:
+            custom_books.append({
+                "id": book_slug,
+                "name": book_title,
+                "path": "/" + rel_pdf_path,
+                "subject": subject,
+                "type": "pdf"
+            })
+            with open(books_file, "w", encoding="utf-8") as bf:
+                json.dump(custom_books, bf, indent=2)
+            print(f"  [CUSTOM BOOKS] Added '{book_title}' to custom_books.json")
+    except Exception as cb_err:
+        print(f"  [CUSTOM BOOKS WARN] Failed to update custom_books.json: {cb_err}")
 
     print(f"\n✅ SUCCESS: Book '{book_title}' is fully ingested and ready for Socratic tutoring!")
     print(f"   Book ID: '{book_slug}'")
