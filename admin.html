@@ -953,7 +953,7 @@
                                     <option value="Feature Idea">Recommandation</option>
                                 </select>
                             </div>
-                            <button type="button" onclick="loadAdminFeedbackData()" style="background: rgba(168, 85, 247, 0.15); border: 1px solid #a855f7; color: #c084fc; padding: 8px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">🔄 Actualiser</button>
+                            <button type="button" onclick="loadAdminFeedbackData(true)" style="background: rgba(168, 85, 247, 0.15); border: 1px solid #a855f7; color: #c084fc; padding: 8px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">🔄 Actualiser</button>
                         </div>
                     </div>
 
@@ -978,7 +978,7 @@
 
         let rawAdminFeedbackData = [];
 
-        function loadAdminFeedbackData() {
+        function loadAdminFeedbackData(manual = false) {
             fetch('/api/get_feedback')
                 .then(res => {
                     if (!res.ok) {
@@ -991,6 +991,9 @@
                         rawAdminFeedbackData = data.feedback;
                         populateStudentFilterOptions(rawAdminFeedbackData);
                         renderFeedbackCards(rawAdminFeedbackData);
+                        if (manual) {
+                            showToast("Retours Actualisés", "La liste des messages et suggestions a été mise à jour.");
+                        }
                     }
                 })
                 .catch(err => {
