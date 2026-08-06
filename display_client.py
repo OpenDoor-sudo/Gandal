@@ -3383,7 +3383,7 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             try:
                 data = json.loads(post_data.decode('utf-8'))
                 student_name = data.get('name', 'Alseny')
-                contact_email = data.get('email', 'admin@gandal.ai')
+                contact_email = data.get('email', 'contact@gandal.school')
                 category = data.get('category', 'General Suggestion')
                 message = data.get('message', '')
 

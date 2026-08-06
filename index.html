@@ -20547,7 +20547,7 @@ function getQuizTrackKey() {
               </div>
               <div>
                 <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #a1a1aa; margin-bottom: 4px;">Admin Contact Email</label>
-                <input type="email" id="helpAdminEmail" value="admin@gandal.ai" readonly style="width: 100%; background: #09090b; border: 1px solid #27272a; color: #a855f7; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600;" />
+                <input type="email" id="helpAdminEmail" value="contact@gandal.school" readonly style="width: 100%; background: #09090b; border: 1px solid #27272a; color: #a855f7; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600;" />
               </div>
             </div>
 
@@ -20709,7 +20709,7 @@ function getQuizTrackKey() {
 
       function submitHelpFeedback() {
         const name = document.getElementById("helpStudentName")?.value || "Alseny";
-        const email = document.getElementById("helpAdminEmail")?.value || "admin@gandal.ai";
+        const email = document.getElementById("helpAdminEmail")?.value || "contact@gandal.school";
         const category = document.getElementById("helpCategory")?.value || "General Suggestion";
         const message = document.getElementById("helpMessage")?.value || "";
 
@@ -20728,7 +20728,7 @@ function getQuizTrackKey() {
           if (data.success) {
             document.getElementById("helpMessage").value = "";
             closeHelpModal();
-            showFeedbackToast("Message transmis à l'administration (admin@gandal.ai) !");
+            showFeedbackToast("Message transmis à l'administration (contact@gandal.school) !");
           }
         })
         .catch(err => alert("Erreur envoi message: " + err));
