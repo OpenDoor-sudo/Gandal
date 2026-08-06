@@ -248,10 +248,12 @@ async def entrypoint(ctx: JobContext):
             "STYLE & SOCRATIC PEDAGOGICAL GUIDELINES:\n"
             "- Adapt greetings to local system time (Bonjour / Bon après-midi / Bonsoir in French; Good morning / Good afternoon / Good evening in English).\n"
             "- DO NOT introduce yourself as 'GANDHO, the Socratic tutor' again if you have already introduced yourself for the current session. Treat continuing interactions as an ongoing classroom dialogue.\n"
+            "- OKF MEMORY RECALL: Always use your OKF student memory graph and session bookmarks to warmly remind Alseny where you left off in previous sessions! (e.g. 'La dernière fois, nous nous étions arrêtés à 08:31 sur les problèmes sanitaires...'). Pick up smoothly right where you left off.\n"
+            "- PERSONAL BONDING: Ask warm, supportive, gentle personal questions (e.g. 'How are you feeling today?', 'Ready to study?', 'How is your family doing?') to build a strong personal rapport before or during study.\n"
             "- EXPLANATION FIRST: Always provide a clear, thorough explanation or conceptual breakdown FIRST (2-3 structured sentences explaining the core idea clearly) before asking follow-up questions.\n"
             "- LISTEN & FOLLOW USER INTENT IN TEXTBOOKS/PDFs: When the student opens or navigates a textbook, PDF, or audiobook (whether page 1 or page 100), acknowledge their exact location. Ask if they want a conceptual explanation first, or if they prefer to jump straight into questions or debate. Follow their preference!\n"
             "- INTELLECTUAL DEBATE & RESPECTFUL PUSHBACK (Philosophy, Ethics, Literature, History): For debate-oriented subjects, act as a real Socratic debate partner! Do NOT just passively agree with everything the student says. If the student makes an assertion, interpretation, or philosophical argument, respectfully push back with counter-arguments, test their logic, present alternative perspectives ('Mais qu'en serait-il si...?', 'Certains philosophes rétorqueront que...'), and foster a vibrant back-and-forth intellectual dialogue!\n"
-            "- VIDEO LESSON MODE & HAND-RAISE: When watching a video lesson or when the student raises their hand/asks a question, greet them warmly, wait for their instruction, provide a clear explanation first, and then guide them with a Socratic question.\n"
+            "- VIDEO LESSON MODE & HAND-RAISE: When watching a video lesson or when the student raises their hand/asks a question, greet them warmly, reference where you left off, wait for their instruction, provide a clear explanation first, and then guide them with a Socratic question.\n"
             "- Do NOT give away direct numerical answers, final option letters (A, B, C, D) on quizzes, or formulas directly without guiding the student to reason through the steps."
         )
 
@@ -315,9 +317,19 @@ async def entrypoint(ctx: JobContext):
                 f"{chatty_socratic_guidelines}"
             )
 
+        # Read OKF Session State Bookmark for memory recall continuity
+        last_bookmark_str = ""
+        sess_state_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "student_profiles", student_name, "session_state.md"))
+        if os.path.exists(sess_state_file):
+            try:
+                with open(sess_state_file, "r", encoding="utf-8") as sf:
+                    last_bookmark_str = sf.read()
+            except Exception:
+                pass
+
         # Append Student Memory Context to instructions
         memory_context = (
-            f"\n\n## STUDENT PERSONALIZATION & PROGRESS (STRICTLY CONFIDENTIAL)\n"
+            f"\n\n## STUDENT PERSONALIZATION, OKF MEMORY & PROGRESS (STRICTLY CONFIDENTIAL)\n"
             f"- Student Name: {student_name}\n"
             f"- Learning Style: {student_style}\n"
         )
@@ -325,6 +337,9 @@ async def entrypoint(ctx: JobContext):
             memory_context += f"- Excel Areas in {active_subject}:\n{student_excels_str}\n"
         if student_struggles_str:
             memory_context += f"- Struggle Areas in {active_subject} (Adapt your Socratic guidance to address these!):\n{student_struggles_str}\n"
+        if last_bookmark_str:
+            memory_context += f"- OKF PREVIOUS SESSION BOOKMARK & RECALL:\n{last_bookmark_str}\n"
+            memory_context += "CRITICAL MEMORY RECALL RULE: Use this OKF memory to warmly remind Alseny where you both left off in previous sessions! (e.g. 'Ravi de te retrouver Alseny ! La dernière fois, nous nous étions arrêtés à...').\n"
 
         # Resolve Savant & Interdisciplinary Connections Matrix
         savant_context = ""
