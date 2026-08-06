@@ -909,12 +909,18 @@ async def entrypoint(ctx: JobContext):
                             f"Simply state that you are right here with them on '{video_title}', and ask what they'd like to explore next."
                         )
 
-            if not getattr(session, "_activity", None):
-                logger.info("Session not active after waiting; skipping greeting.")
-            else:
+            # Retry waiting for session._activity to become ready after session.start connects
+            for _ in range(12):
+                if getattr(session, "_activity", None):
+                    break
+                await asyncio.sleep(0.5)
+
+            if getattr(session, "_activity", None):
                 session.generate_reply(
                     user_input=greeting_instruction
                 )
+            else:
+                logger.info("Session not active after 6 seconds waiting; skipping greeting.")
         except Exception as e:
             logger.error(f"Failed sending initial greeting: {e}")
 
