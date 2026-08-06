@@ -20476,19 +20476,19 @@ function getQuizTrackKey() {
         <div style="display: flex; flex-direction: column; gap: 20px; max-height: 65vh; overflow-y: auto; padding-right: 6px;">
           <!-- Voice Selection -->
           <div style="background: #09090b; border: 1px solid #27272a; border-radius: 14px; padding: 16px;">
-            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #a855f7; margin-bottom: 8px;">🎙️ GANDHO Socratic Voice Model</label>
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #a855f7; margin-bottom: 8px;">🎙️ Modèle de Voix Socratique GANDHO</label>
             <select id="settingVoiceSelect" style="width: 100%; background: #18181b; border: 1px solid #3f3f46; color: #f4f4f5; padding: 10px 14px; border-radius: 10px; font-size: 0.9rem; outline: none;">
-              <option value="Aoede">Aoede (Default Female - Melodic & Warm)</option>
-              <option value="Puck">Puck (Male - Energetic & Expressive)</option>
-              <option value="Kore">Kore (Female - Calm & Precise)</option>
-              <option value="Fenrir">Fenrir (Male - Deep & Authoritative)</option>
-              <option value="Charcoal">Charcoal (Male - Conversational)</option>
+              <option value="Aoede">Aoede (Féminine par défaut - Mélodique & Chaleureuse)</option>
+              <option value="Puck">Puck (Masculine - Énergique & Expressive)</option>
+              <option value="Kore">Kore (Féminine - Calme & Précise)</option>
+              <option value="Fenrir">Fenrir (Masculine - Profonde & Autoritaire)</option>
+              <option value="Charcoal">Charcoal (Masculine - Conversationnelle)</option>
             </select>
           </div>
 
           <!-- Language Locale -->
           <div style="background: #09090b; border: 1px solid #27272a; border-radius: 14px; padding: 16px;">
-            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #3b82f6; margin-bottom: 8px;">🌐 Primary Interaction Language</label>
+            <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #3b82f6; margin-bottom: 8px;">🌐 Langue Principale d'Interaction</label>
             <select id="settingLocaleSelect" style="width: 100%; background: #18181b; border: 1px solid #3f3f46; color: #f4f4f5; padding: 10px 14px; border-radius: 10px; font-size: 0.9rem; outline: none;">
               <option value="fr_FR">Français (French)</option>
               <option value="en_US">English (US)</option>
@@ -20498,25 +20498,25 @@ function getQuizTrackKey() {
           <!-- Subtitles & Captions -->
           <div style="background: #09090b; border: 1px solid #27272a; border-radius: 14px; padding: 16px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-              <div style="font-size: 0.9rem; font-weight: 600; color: #f4f4f5;">💬 Live Speech Subtitles</div>
-              <div style="font-size: 0.75rem; color: #71717a;">Show real-time transcript subtitles on video player</div>
+              <div style="font-size: 0.9rem; font-weight: 600; color: #f4f4f5;">💬 Sous-titres Vocaux en Direct</div>
+              <div style="font-size: 0.75rem; color: #71717a;">Afficher la transcription en sous-titres sur le lecteur vidéo</div>
             </div>
             <input type="checkbox" id="settingSubtitlesToggle" checked style="width: 20px; height: 20px; accent-color: #a855f7; cursor: pointer;" />
           </div>
 
           <!-- Audio Level Test -->
           <div style="background: #09090b; border: 1px solid #27272a; border-radius: 14px; padding: 16px;">
-            <div style="font-size: 0.85rem; font-weight: 600; color: #22c55e; margin-bottom: 8px;">🎤 Microphone Sensitivity & Audio Test</div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #22c55e; margin-bottom: 8px;">🎤 Test Sensibilité Microphone & Audio</div>
             <div style="display: flex; gap: 12px; align-items: center;">
-              <button type="button" onclick="testMicSensitivity()" style="background: rgba(34, 197, 94, 0.15); border: 1px solid #22c55e; color: #4ade80; padding: 8px 16px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">Test Microphone</button>
-              <div id="micTestStatus" style="font-size: 0.8rem; color: #a1a1aa;">Ready for input check</div>
+              <button type="button" onclick="testMicSensitivity()" style="background: rgba(34, 197, 94, 0.15); border: 1px solid #22c55e; color: #4ade80; padding: 8px 16px; border-radius: 10px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">Tester le Microphone</button>
+              <div id="micTestStatus" style="font-size: 0.8rem; color: #a1a1aa;">Prêt pour la vérification audio</div>
             </div>
           </div>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #27272a; padding-top: 16px; margin-top: 20px;">
-          <button type="button" onclick="closeSettingsModal()" style="background: #27272a; border: none; color: #a1a1aa; padding: 10px 20px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer;">Cancel</button>
-          <button type="button" onclick="saveUserSettings()" style="background: linear-gradient(135deg, #a855f7, #7c3aed); border: none; color: #ffffff; padding: 10px 24px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);">Save Preferences</button>
+          <button type="button" onclick="closeSettingsModal()" style="background: #27272a; border: none; color: #a1a1aa; padding: 10px 20px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer;">Annuler</button>
+          <button type="button" onclick="saveUserSettings()" style="background: linear-gradient(135deg, #a855f7, #7c3aed); border: none; color: #ffffff; padding: 10px 24px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);">Enregistrer les Préférences</button>
         </div>
       </div>
     </div>
@@ -20529,15 +20529,15 @@ function getQuizTrackKey() {
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #27272a; padding-bottom: 16px; margin-bottom: 16px;">
           <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 1.4rem;">❓</span>
-            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 700; background: linear-gradient(135deg, #ffffff, #a1a1aa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Help & Support Center</h2>
+            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 700; background: linear-gradient(135deg, #ffffff, #a1a1aa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Centre d'Aide & Support</h2>
           </div>
           <button type="button" onclick="closeHelpModal()" style="background: transparent; border: none; color: #a1a1aa; font-size: 1.5rem; cursor: pointer; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">&times;</button>
         </div>
 
         <!-- Navigation Tabs -->
         <div style="display: flex; gap: 8px; margin-bottom: 20px; background: #09090b; padding: 4px; border-radius: 12px; border: 1px solid #27272a;">
-          <button type="button" id="helpTabContactBtn" onclick="switchHelpTab('contact')" style="flex: 1; padding: 8px 12px; border-radius: 8px; border: none; background: #a855f7; color: #ffffff; font-size: 0.8rem; font-weight: 700; cursor: pointer;">💬 Contact Admin & Feedback</button>
-          <button type="button" id="helpTabFaqBtn" onclick="switchHelpTab('faq')" style="flex: 1; padding: 8px 12px; border-radius: 8px; border: none; background: transparent; color: #a1a1aa; font-size: 0.8rem; font-weight: 600; cursor: pointer;">📚 Quick Guide & FAQ</button>
+          <button type="button" id="helpTabContactBtn" onclick="switchHelpTab('contact')" style="flex: 1; padding: 8px 12px; border-radius: 8px; border: none; background: #a855f7; color: #ffffff; font-size: 0.8rem; font-weight: 700; cursor: pointer;">💬 Contacter l'Administration & Retours</button>
+          <button type="button" id="helpTabFaqBtn" onclick="switchHelpTab('faq')" style="flex: 1; padding: 8px 12px; border-radius: 8px; border: none; background: transparent; color: #a1a1aa; font-size: 0.8rem; font-weight: 600; cursor: pointer;">📚 Guide Rapide & FAQ</button>
         </div>
 
         <!-- Tab 1: Contact Admin & Feedback Form -->
@@ -20545,31 +20545,31 @@ function getQuizTrackKey() {
           <form onsubmit="event.preventDefault(); submitHelpFeedback();" style="display: flex; flex-direction: column; gap: 14px;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
               <div>
-                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #a1a1aa; margin-bottom: 4px;">Student Name</label>
+                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #a1a1aa; margin-bottom: 4px;">Nom de l'élève</label>
                 <input type="text" id="helpStudentName" value="Alseny" readonly style="width: 100%; background: #09090b; border: 1px solid #27272a; color: #f4f4f5; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem;" />
               </div>
               <div>
-                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #a1a1aa; margin-bottom: 4px;">Admin Contact Email</label>
+                <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #a1a1aa; margin-bottom: 4px;">Email de contact administration</label>
                 <input type="email" id="helpAdminEmail" value="contact@gandal.school" readonly style="width: 100%; background: #09090b; border: 1px solid #27272a; color: #a855f7; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; font-weight: 600;" />
               </div>
             </div>
 
             <div>
-              <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #a1a1aa; margin-bottom: 4px;">Feedback / Inquiry Category</label>
+              <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #a1a1aa; margin-bottom: 4px;">Catégorie du message / retour</label>
               <select id="helpCategory" style="width: 100%; background: #09090b; border: 1px solid #27272a; color: #f4f4f5; padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; outline: none;">
-                <option value="General Suggestion">General Comment / Suggestion</option>
-                <option value="Course Request">Course / Textbook Request</option>
-                <option value="Bug Report">Bug Report</option>
-                <option value="Feature Idea">Feature Recommendation</option>
+                <option value="General Suggestion">Suggestion Générale / Commentaire</option>
+                <option value="Course Request">Demande de Cours / Manuel</option>
+                <option value="Bug Report">Rapport de Bug</option>
+                <option value="Feature Idea">Recommandation de Fonctionnalité</option>
               </select>
             </div>
 
             <div>
-              <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #a1a1aa; margin-bottom: 4px;">Your Message / Comment</label>
-              <textarea id="helpMessage" rows="4" placeholder="Write your suggestion, request, or comment here for the administration..." style="width: 100%; background: #09090b; border: 1px solid #27272a; color: #f4f4f5; padding: 10px 12px; border-radius: 10px; font-size: 0.85rem; font-family: inherit; outline: none; resize: vertical;"></textarea>
+              <label style="display: block; font-size: 0.75rem; font-weight: 600; color: #a1a1aa; margin-bottom: 4px;">Votre Message / Commentaire</label>
+              <textarea id="helpMessage" rows="4" placeholder="Écrivez votre suggestion, demande ou commentaire ici pour l'administration..." style="width: 100%; background: #09090b; border: 1px solid #27272a; color: #f4f4f5; padding: 10px 12px; border-radius: 10px; font-size: 0.85rem; font-family: inherit; outline: none; resize: vertical;"></textarea>
             </div>
 
-            <button type="submit" style="background: linear-gradient(135deg, #a855f7, #7c3aed); border: none; color: #ffffff; padding: 10px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; margin-top: 4px; box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);">Send Message to Admin</button>
+            <button type="submit" style="background: linear-gradient(135deg, #a855f7, #7c3aed); border: none; color: #ffffff; padding: 10px; border-radius: 10px; font-size: 0.85rem; font-weight: 700; cursor: pointer; margin-top: 4px; box-shadow: 0 4px 14px rgba(168, 85, 247, 0.35);">Envoyer le message à l'administration</button>
           </form>
         </div>
 
@@ -20577,23 +20577,23 @@ function getQuizTrackKey() {
         <div id="helpTabFaq" style="display: none; max-height: 55vh; overflow-y: auto; padding-right: 6px;">
           <div style="display: flex; flex-direction: column; gap: 10px;">
             <div style="background: #09090b; border: 1px solid #27272a; border-radius: 10px; padding: 12px;">
-              <div style="font-size: 0.85rem; font-weight: 700; color: #a855f7; margin-bottom: 4px;">📖 How to use Split Study Mode with Textbooks?</div>
-              <div style="font-size: 0.78rem; color: #a1a1aa; line-height: 1.4;">Click on any book in the Book Drawer on the left sidebar. The workspace will automatically split into a side-by-side textbook reader and video screen. GANDHO will immediately have full access to search and explain the textbook.</div>
+              <div style="font-size: 0.85rem; font-weight: 700; color: #a855f7; margin-bottom: 4px;">📖 Comment utiliser le mode d'étude divisé avec les manuels ?</div>
+              <div style="font-size: 0.78rem; color: #a1a1aa; line-height: 1.4;">Cliquez sur n'importe quel livre dans le tiroir de gauche. L'espace de travail se divisera automatiquement en un lecteur de manuel et un écran vidéo côte à côte. GANDHO aura immédiatement accès pour rechercher et expliquer le manuel.</div>
             </div>
 
             <div style="background: #09090b; border: 1px solid #27272a; border-radius: 10px; padding: 12px;">
-              <div style="font-size: 0.85rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px;">🎙️ How to speak with GANDHO via Microphone?</div>
-              <div style="font-size: 0.78rem; color: #a1a1aa; line-height: 1.4;">Click the purple Microphone button under the main player. Once connected, GANDHO will greet you verbally. You can ask questions, ask for explanations, or engage in philosophical debate!</div>
+              <div style="font-size: 0.85rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px;">🎙️ Comment parler avec GANDHO via Microphone ?</div>
+              <div style="font-size: 0.78rem; color: #a1a1aa; line-height: 1.4;">Cliquez sur le bouton violet Microphone sous le lecteur principal. Une fois connecté, GANDHO vous saluera verbalement. Vous pouvez poser des questions, demander des explications ou participer à un débat philosophique !</div>
             </div>
 
             <div style="background: #09090b; border: 1px solid #27272a; border-radius: 10px; padding: 12px;">
-              <div style="font-size: 0.85rem; font-weight: 700; color: #06b6d4; margin-bottom: 4px;">🖥️ How does Screen Sharing work for slides & homework?</div>
-              <div style="font-size: 0.78rem; color: #a1a1aa; line-height: 1.4;">Click the Screen Share button next to the mic. Select any tab, PDF window, or slide deck. GANDHO will see your live screen feed at 1 FPS and discuss the visible content in real time.</div>
+              <div style="font-size: 0.85rem; font-weight: 700; color: #06b6d4; margin-bottom: 4px;">🖥️ Comment fonctionne le partage d'écran pour les diapositives & devoirs ?</div>
+              <div style="font-size: 0.78rem; color: #a1a1aa; line-height: 1.4;">Cliquez sur le bouton Partage d'écran à côté du micro. Sélectionnez un onglet, une fenêtre PDF ou une présentation. GANDHO verra votre flux d'écran en direct à 1 FPS et discutera du contenu visible en temps réel.</div>
             </div>
 
             <div style="background: #09090b; border: 1px solid #27272a; border-radius: 10px; padding: 12px;">
-              <div style="font-size: 0.85rem; font-weight: 700; color: #22c55e; margin-bottom: 4px;">📚 How to upload new custom books & PDFs?</div>
-              <div style="font-size: 0.78rem; color: #a1a1aa; line-height: 1.4;">Click the Upload button in the Book Drawer, select any PDF or audiobook file, and assign a subject. The system will vector-embed the file into LanceDB instantly without requiring terminal commands!</div>
+              <div style="font-size: 0.85rem; font-weight: 700; color: #22c55e; margin-bottom: 4px;">📚 Comment importer de nouveaux livres & PDF personnalisés ?</div>
+              <div style="font-size: 0.78rem; color: #a1a1aa; line-height: 1.4;">Cliquez sur le bouton Importer dans le tiroir de livres, sélectionnez un fichier PDF ou livre audio et attribuez une matière. Le système vectorisera le fichier instantanément dans LanceDB sans aucune commande terminal !</div>
             </div>
           </div>
         </div>

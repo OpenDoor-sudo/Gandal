@@ -3376,6 +3376,41 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode('utf-8'))
                 return
 
+        # Route for fetching student feedback for Admin Panel
+        if clean_path == '/api/get_feedback':
+            try:
+                db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
+                conn = sqlite3.connect(db_path)
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS admin_feedback (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        student_name TEXT,
+                        contact_email TEXT,
+                        category TEXT,
+                        message TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cursor.execute("SELECT * FROM admin_feedback ORDER BY id DESC")
+                rows = cursor.fetchall()
+                feedback_list = [dict(row) for row in rows]
+                conn.close()
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "feedback": feedback_list}).encode('utf-8'))
+                return
+            except Exception as fe:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": str(fe)}).encode('utf-8'))
+                return
+
         # Route for student help feedback & admin communication
         if clean_path == '/api/send_feedback':
             content_length = int(self.headers.get('Content-Length', 0))
