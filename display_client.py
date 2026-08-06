@@ -1397,6 +1397,9 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        import urllib.parse
+        clean_path = self.path.split('?')[0]
+
         if clean_path in ['/api/get_feedback', '/get_feedback']:
             try:
                 db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
