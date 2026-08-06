@@ -5,5 +5,26 @@
     "path": "/curriculum_staging/uploads/Gracian.pdf",
     "subject": "Philosophy",
     "type": "pdf"
+  },
+  {
+    "id": "book-bacteriologie",
+    "name": "Manuel Cours Bacteriologie",
+    "path": "/textbooks/MANUEL COURS BACTERIOLOGIE.pdf",
+    "subject": "Biology",
+    "type": "pdf"
+  },
+  {
+    "id": "book-virologie",
+    "name": "Manuel De Cours Virologie",
+    "path": "/textbooks/MANUEL DE COURS VIROLOGIE.pdf",
+    "subject": "Biology",
+    "type": "pdf"
+  },
+  {
+    "id": "book-microbiologie",
+    "name": "Manuel Cours Microbiologie",
+    "path": "/textbooks/MANUEL COURS MICROBIOLOGIE.pdf",
+    "subject": "Biology",
+    "type": "pdf"
   }
 ]
