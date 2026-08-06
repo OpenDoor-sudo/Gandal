@@ -162,9 +162,9 @@ def process_single_pdf(pdf_path, title=None, subject="College", author="Professo
 
         # Insert into instructors
         cursor.execute("""
-            INSERT OR REPLACE INTO instructors (instructor_id, full_name, role_title, avatar_path, locale, subjects_list)
-            VALUES (?, ?, ?, ?, 'en_US', ?);
-        """, ("prof_author", author, f"Professor of {subject}", "assets/prof_avatar.png", subject))
+            INSERT OR REPLACE INTO instructors (instructor_id, full_name, experience_years, subjects_list, profile_image, biography, locale)
+            VALUES (?, ?, 10, ?, 'assets/prof_avatar.png', ?, 'en_US');
+        """, ("prof_author", author, subject, f"Professor of {subject}"))
 
         # Clear and insert video_timestamps
         cursor.execute("DELETE FROM video_timestamps WHERE video_id = ?", (book_slug,))
