@@ -3725,6 +3725,28 @@
             <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
           </svg>
         </button>
+        <!-- Settings Modal Trigger Button -->
+        <button
+          class="header-btn"
+          id="btnHeaderSettings"
+          onclick="window.openSettingsModal && window.openSettingsModal()"
+          title="System & Tutor Settings"
+          style="font-weight: 700; display: flex; align-items: center; gap: 4px; padding: 0 10px; cursor: pointer;"
+        >
+          ⚙️ <span style="font-size: 0.75rem; color: #e2e2e3; font-family: 'Inter', sans-serif;">Settings</span>
+        </button>
+
+        <!-- Help Modal Trigger Button -->
+        <button
+          class="header-btn"
+          id="btnHeaderHelp"
+          onclick="window.openHelpModal && window.openHelpModal()"
+          title="Help & Support Center"
+          style="font-weight: 700; display: flex; align-items: center; gap: 4px; padding: 0 10px; cursor: pointer;"
+        >
+          ❓ <span style="font-size: 0.75rem; color: #e2e2e3; font-family: 'Inter', sans-serif;">Help</span>
+        </button>
+
         <!-- User avatar triggers profiles metrics modal -->
         <div class="profile-avatar" onclick="toggleProfileModal()">
           <img
@@ -20752,12 +20774,16 @@ function getQuizTrackKey() {
         }
       };
 
-      // Bind direct event listeners to ensure clickability
+      // Bind direct event listeners across header and sidebar buttons
       document.addEventListener("DOMContentLoaded", function() {
-        const sBtn = document.getElementById("btnSidebarSettings");
-        const hBtn = document.getElementById("btnSidebarHelp");
-        if (sBtn) sBtn.onclick = function() { window.openSettingsModal(); };
-        if (hBtn) hBtn.onclick = function() { window.openHelpModal(); };
+        ["btnSidebarSettings", "btnHeaderSettings"].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.onclick = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } window.openSettingsModal(); };
+        });
+        ["btnSidebarHelp", "btnHeaderHelp"].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.onclick = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } window.openHelpModal(); };
+        });
       });
     </script>
   </body>
