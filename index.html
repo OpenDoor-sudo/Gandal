@@ -17644,63 +17644,67 @@ function getQuizTrackKey() {
               selectedGoalTrack === "calculus" ||
               selectedGoalTrack === "k12/12th_SM/Economics"
             ) {
-              const savedEcon = localStorage.getItem("lastActiveVideo_Economics") || localStorage.getItem("lastActiveVideoId");
-              let resolvedEconVid = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
-              if (savedEcon && savedEcon.includes("sanitaire")) {
-                resolvedEconVid = "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires";
-              } else if (savedEcon && savedEcon.includes("alimentaire")) {
-                resolvedEconVid = "vid_economics_extraeconomiques_03_probl_mes_alimentaires";
-              }
-              targetVideoId = resolvedEconVid;
-              activeVideoId = resolvedEconVid;
-              activeChapterId = "economics_extra_growth";
-              activeTimestamp = "00:00";
-            } else if (
-              selectedGoalTrack === "College" ||
-              selectedGoalTrack === "k12/12th_SM/physics"
-            ) {
-              targetVideoId = "vid_physics_01";
-              activeVideoId = "vid_physics_01";
-              activeChapterId = "physics_pendulums";
-              activeTimestamp = "01:15";
-            } else if (
-              selectedGoalTrack === "Chemistry" ||
-              selectedGoalTrack === "k12/12th_SM/chemistry"
-            ) {
-              targetVideoId = "vid_chemistry_organic_chemistry_chemistry";
-              activeVideoId = "vid_chemistry_organic_chemistry_chemistry";
-              activeChapterId = "ch_chemistry_organic_chemistry";
-              activeTimestamp = "00:00";
-            } else if (
-              selectedGoalTrack === "Random Topics" ||
-              selectedGoalTrack === "Philosophy" ||
-              selectedGoalTrack ===
-                "independent_learner/philosophy/stoicism_and_ethics"
-            ) {
-              targetVideoId = "vid_philosophy_01";
-              activeVideoId = "vid_philosophy_01";
-              activeChapterId = "philosophy_stoicism";
-              activeTimestamp = "01:15";
-            } else if (
-              selectedGoalTrack === "5th Grade" ||
-              selectedGoalTrack === "Basic Science" ||
-              selectedGoalTrack === "k12/1st_grade/mathematics"
-            ) {
-              targetVideoId = "vid_physics_02";
-              activeVideoId = "vid_physics_02";
-              activeChapterId = "physics_pendulums";
-              activeTimestamp = "04:30";
-            } else {
-              // Dynamic path fallback
-              targetVideoId = selectedGoalTrack;
-              activeVideoId = selectedGoalTrack;
-              activeChapterId = "dynamic_chapter";
-              activeTimestamp = "00:00";
+            const serverVid = window.ACTIVE_DATABASE_VIDEO_ID;
+            const savedEcon = serverVid || localStorage.getItem("lastActiveVideo_Economics") || localStorage.getItem("lastActiveVideoId");
+            let resolvedEconVid = "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires";
+            if (savedEcon && savedEcon.includes("sanitaire")) {
+              resolvedEconVid = "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires";
+            } else if (savedEcon && savedEcon.includes("alimentaire")) {
+              resolvedEconVid = "vid_economics_extraeconomiques_03_probl_mes_alimentaires";
+            } else if (savedEcon && savedEcon.includes("demographique")) {
+              resolvedEconVid = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
             }
-            // Relational lookup call to map video player src dynamically (ONLY if video is different from currently active video)
-            if (targetVideoId && targetVideoId !== activeVideoId && targetVideoId !== window.ACTIVE_DATABASE_VIDEO_ID) {
-              loadTextbookPDF(targetVideoId);
-            }
+            targetVideoId = resolvedEconVid;
+            activeVideoId = resolvedEconVid;
+            window.ACTIVE_DATABASE_VIDEO_ID = resolvedEconVid;
+            activeChapterId = "economics_extra_growth";
+            activeTimestamp = "00:00";
+          } else if (
+            selectedGoalTrack === "College" ||
+            selectedGoalTrack === "k12/12th_SM/physics"
+          ) {
+            targetVideoId = "vid_physics_01";
+            activeVideoId = "vid_physics_01";
+            activeChapterId = "physics_pendulums";
+            activeTimestamp = "01:15";
+          } else if (
+            selectedGoalTrack === "Chemistry" ||
+            selectedGoalTrack === "k12/12th_SM/chemistry"
+          ) {
+            targetVideoId = "vid_chemistry_organic_chemistry_chemistry";
+            activeVideoId = "vid_chemistry_organic_chemistry_chemistry";
+            activeChapterId = "ch_chemistry_organic_chemistry";
+            activeTimestamp = "00:00";
+          } else if (
+            selectedGoalTrack === "Random Topics" ||
+            selectedGoalTrack === "Philosophy" ||
+            selectedGoalTrack ===
+              "independent_learner/philosophy/stoicism_and_ethics"
+          ) {
+            targetVideoId = "vid_philosophy_01";
+            activeVideoId = "vid_philosophy_01";
+            activeChapterId = "philosophy_stoicism";
+            activeTimestamp = "01:15";
+          } else if (
+            selectedGoalTrack === "5th Grade" ||
+            selectedGoalTrack === "Basic Science" ||
+            selectedGoalTrack === "k12/1st_grade/mathematics"
+          ) {
+            targetVideoId = "vid_physics_02";
+            activeVideoId = "vid_physics_02";
+            activeChapterId = "physics_pendulums";
+            activeTimestamp = "04:30";
+          } else {
+            // Dynamic path fallback
+            targetVideoId = selectedGoalTrack;
+            activeVideoId = selectedGoalTrack;
+            activeChapterId = "dynamic_chapter";
+            activeTimestamp = "00:00";
+          }
+          // Load active video, badge, PDF and profile card synchronously
+          if (activeVideoId) {
+            loadTextbookPDF(activeVideoId);
+          }
           }
 
           // Update active video quiz status in Evaluation tab
