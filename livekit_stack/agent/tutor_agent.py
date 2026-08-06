@@ -281,11 +281,12 @@ async def entrypoint(ctx: JobContext):
                 f"{role_instruction}\n"
                 f"{lang_instruction}\n"
                 f"The student's name is {student_name}.\n"
-                f"IMPORTANT: The student is working in the split-screen workspace reviewing the textbook: '{pdf_name}'.\n"
+                f"IMPORTANT: The student is currently studying the textbook: '{pdf_name}' (PDF path: {pdf_path}) in the split-screen workspace.\n"
                 f"{workspace_context_str}"
-                f"Your task is to explain and discuss the concepts in this textbook document '{pdf_name}' with the student.\n"
-                f"DO NOT try to relate or connect the conversation back to the playing video lesson or course timeline unless the student explicitly asks about the video. Focus entirely on the textbook document.\n"
-                f"When the student asks questions, prioritize searching the textbook database using the search_curriculum tool.\n"
+                f"CRITICAL: You HAVE DIRECT FULL ACCESS to the complete content of this textbook '{pdf_name}' in your LanceDB vector database via the search_curriculum tool.\n"
+                f"Whenever the student asks any question about the textbook, author, introduction, definitions, chapters, or concepts, YOU MUST IMMEDIATELY CALL THE search_curriculum(query) TOOL to retrieve the exact text.\n"
+                f"NEVER tell the student that you don't have access to the textbook or ask them to read text aloud to you. You have full access to search the textbook via search_curriculum!\n"
+                f"DO NOT try to relate the conversation back to the playing video lesson unless the student explicitly asks. Focus 100% on the textbook '{pdf_name}'.\n"
                 f"{chatty_socratic_guidelines}"
             )
         elif view_state == "evaluation":
@@ -502,14 +503,31 @@ async def entrypoint(ctx: JobContext):
             user_words_set = set(user_words)
             logger.info(f"[TOOL USE] Filtered query keywords for matching: {user_words_set}")
 
-            # 4. Search curriculum_video_blocks first
-            if table_video and active_video_id:
-                all_video_rows = table_video.search().where(f"video_id = '{active_video_id}'").limit(100).to_list()
+            # 4. Search curriculum_video_blocks (supports both video and ingested PDF textbook chunks)
+            if table_video:
+                pdf_slug = None
+                if active_pdf_path:
+                    import re
+                    base_pdf_name = os.path.basename(active_pdf_path)
+                    base_no_ext, _ = os.path.splitext(base_pdf_name)
+                    pdf_slug = "book_" + re.sub(r'[^a-zA-Z0-9_]', '_', base_no_ext).lower()[:40]
+
+                all_video_rows = []
+                try:
+                    if pdf_slug:
+                        all_video_rows = table_video.search().where(f"video_id = '{pdf_slug}'").limit(200).to_list()
+                    if not all_video_rows and active_video_id:
+                        all_video_rows = table_video.search().where(f"video_id = '{active_video_id}'").limit(200).to_list()
+                    if not all_video_rows:
+                        all_video_rows = table_video.search().limit(300).to_list()
+                except Exception as db_ex:
+                    logger.warning(f"LanceDB video search filter error: {db_ex}")
+                    all_video_rows = table_video.search().limit(300).to_list()
                 
                 best_overlap = 0
                 best_video_row = None
                 for row in all_video_rows:
-                    text = f"{row.get('title', '')} {row.get('transcript_summary', '')} {row.get('keywords', '')}".lower()
+                    text = f"{row.get('title', '')} {row.get('transcript_summary', '')} {row.get('vector_payload', '')} {row.get('keywords', '')}".lower()
                     text_clean = text.replace("?", "").replace(".", "").replace(",", "").replace(";", "")
                     text_words = set(text_clean.split())
                     
@@ -520,17 +538,17 @@ async def entrypoint(ctx: JobContext):
                 
                 required_threshold = 1 if len(user_words_set) <= 2 else 2
                 if best_overlap >= required_threshold and best_video_row:
-                    ts = best_video_row.get("timestamp", "00:00:00")
-                    title = best_video_row.get("title", "Lecture segment")
-                    summary = best_video_row.get("transcript_summary", "")
+                    ts = best_video_row.get("timestamp", "Page 1")
+                    title = best_video_row.get("title", "Course document")
+                    summary = best_video_row.get("vector_payload") or best_video_row.get("transcript_summary", "")
                     
                     # Translate summary back to student locale if mismatch
                     if student_locale != instructor_locale:
                         summary = await translate_via_gemini(summary, student_locale)
                         title = await translate_via_gemini(title, student_locale)
 
-                    logger.info(f"[TOOL USE SUCCESS] Match found in video blocks! Overlap: {best_overlap} words.")
-                    return f"In the active video lecture ({title}) at timestamp {ts}, the teacher explains:\n{summary}"
+                    logger.info(f"[TOOL USE SUCCESS] Match found in LanceDB! Overlap: {best_overlap} words.")
+                    return f"From the textbook/course document ({title} - {ts}):\n{summary}"
 
             # 5. Fallback to curriculum_rag (textbooks)
             if table_rag:
