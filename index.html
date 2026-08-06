@@ -6183,8 +6183,8 @@
         </div>
 
         <div class="sidebar-bottom">
-          <div class="bottom-item" onclick="openSettingsModal()" style="cursor: pointer; font-weight: 600; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.03);">⚙️ Settings</div>
-          <div class="bottom-item" onclick="openHelpModal()" style="cursor: pointer; font-weight: 600; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.03);">❓ Help & Support</div>
+          <div id="btnSidebarSettings" class="bottom-item" onclick="window.openSettingsModal && window.openSettingsModal()" style="cursor: pointer; font-weight: 600; padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.05); user-select: none;">⚙️ Settings</div>
+          <div id="btnSidebarHelp" class="bottom-item" onclick="window.openHelpModal && window.openHelpModal()" style="cursor: pointer; font-weight: 600; padding: 8px 12px; border-radius: 8px; background: rgba(255,255,255,0.05); user-select: none;">❓ Help & Support</div>
         </div>
       </div>
 
@@ -20463,7 +20463,7 @@ function getQuizTrackKey() {
     <!-- ========================================== -->
     <!-- SETTINGS MODAL SYSTEM -->
     <!-- ========================================== -->
-    <div id="settingsModal" style="display: none; position: fixed; inset: 0; z-index: 99999; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(12px); align-items: center; justify-content: center;">
+    <div id="settingsModal" style="display: none; position: fixed; inset: 0; z-index: 999999; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(12px); align-items: center; justify-content: center; pointer-events: auto;">
       <div style="background: #18181b; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; width: 90%; max-width: 580px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: #f4f4f5; font-family: 'Inter', sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #27272a; padding-bottom: 16px; margin-bottom: 20px;">
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -20524,7 +20524,7 @@ function getQuizTrackKey() {
     <!-- ========================================== -->
     <!-- HELP & SUPPORT MODAL SYSTEM -->
     <!-- ========================================== -->
-    <div id="helpModal" style="display: none; position: fixed; inset: 0; z-index: 99999; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(12px); align-items: center; justify-content: center;">
+    <div id="helpModal" style="display: none; position: fixed; inset: 0; z-index: 999999; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(12px); align-items: center; justify-content: center; pointer-events: auto;">
       <div style="background: #18181b; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px; width: 90%; max-width: 640px; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); color: #f4f4f5; font-family: 'Inter', sans-serif;">
         <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #27272a; padding-bottom: 16px; margin-bottom: 16px;">
           <div style="display: flex; align-items: center; gap: 10px;">
@@ -20610,11 +20610,13 @@ function getQuizTrackKey() {
       // ==========================================
       // SETTINGS & HELP MODAL JAVASCRIPT HANDLERS
       // ==========================================
-      function openSettingsModal() {
+      window.openSettingsModal = function() {
+        console.log("[SETTINGS] Opening Settings Modal...");
         const modal = document.getElementById("settingsModal");
         if (modal) {
           modal.style.display = "flex";
-          // Load current settings from API or localStorage
+          modal.style.opacity = "1";
+          modal.style.visibility = "visible";
           fetch('/api/user_settings')
             .then(res => res.json())
             .then(data => {
@@ -20630,14 +20632,14 @@ function getQuizTrackKey() {
             })
             .catch(err => console.warn("Failed loading user settings:", err));
         }
-      }
+      };
 
-      function closeSettingsModal() {
+      window.closeSettingsModal = function() {
         const modal = document.getElementById("settingsModal");
         if (modal) modal.style.display = "none";
-      }
+      };
 
-      function saveUserSettings() {
+      window.saveUserSettings = function() {
         const voice = document.getElementById("settingVoiceSelect")?.value || "Aoede";
         const locale = document.getElementById("settingLocaleSelect")?.value || "fr_FR";
         const subs = document.getElementById("settingSubtitlesToggle")?.checked ?? true;
@@ -20655,14 +20657,14 @@ function getQuizTrackKey() {
         .then(res => res.json())
         .then(data => {
           if (data.success) {
-            closeSettingsModal();
-            showFeedbackToast("Préférences enregistrées avec succès !");
+            window.closeSettingsModal();
+            window.showFeedbackToast("Préférences enregistrées avec succès !");
           }
         })
         .catch(err => alert("Erreur enregistrement préférences: " + err));
-      }
+      };
 
-      function testMicSensitivity() {
+      window.testMicSensitivity = function() {
         const statusEl = document.getElementById("micTestStatus");
         if (!statusEl) return;
         statusEl.innerText = "Requesting mic access...";
@@ -20676,22 +20678,25 @@ function getQuizTrackKey() {
             statusEl.innerText = "❌ Mic access denied: " + err.message;
             statusEl.style.color = "#f87171";
           });
-      }
+      };
 
-      function openHelpModal() {
+      window.openHelpModal = function() {
+        console.log("[HELP] Opening Help Modal...");
         const modal = document.getElementById("helpModal");
         if (modal) {
           modal.style.display = "flex";
-          switchHelpTab('contact');
+          modal.style.opacity = "1";
+          modal.style.visibility = "visible";
+          window.switchHelpTab('contact');
         }
-      }
+      };
 
-      function closeHelpModal() {
+      window.closeHelpModal = function() {
         const modal = document.getElementById("helpModal");
         if (modal) modal.style.display = "none";
-      }
+      };
 
-      function switchHelpTab(tab) {
+      window.switchHelpTab = function(tab) {
         const contactTab = document.getElementById("helpTabContact");
         const faqTab = document.getElementById("helpTabFaq");
         const contactBtn = document.getElementById("helpTabContactBtn");
@@ -20708,9 +20713,9 @@ function getQuizTrackKey() {
           if (contactBtn) { contactBtn.style.background = "transparent"; contactBtn.style.color = "#a1a1aa"; }
           if (faqBtn) { faqBtn.style.background = "#a855f7"; faqBtn.style.color = "#ffffff"; }
         }
-      }
+      };
 
-      function submitHelpFeedback() {
+      window.submitHelpFeedback = function() {
         const name = document.getElementById("helpStudentName")?.value || "Alseny";
         const email = document.getElementById("helpAdminEmail")?.value || "contact@gandal.school";
         const category = document.getElementById("helpCategory")?.value || "General Suggestion";
@@ -20730,14 +20735,14 @@ function getQuizTrackKey() {
         .then(data => {
           if (data.success) {
             document.getElementById("helpMessage").value = "";
-            closeHelpModal();
-            showFeedbackToast("Message transmis à l'administration (contact@gandal.school) !");
+            window.closeHelpModal();
+            window.showFeedbackToast("Message transmis à l'administration (contact@gandal.school) !");
           }
         })
         .catch(err => alert("Erreur envoi message: " + err));
-      }
+      };
 
-      function showFeedbackToast(msg) {
+      window.showFeedbackToast = function(msg) {
         const toast = document.getElementById("feedbackToast");
         const toastText = document.getElementById("feedbackToastText");
         if (toast && toastText) {
@@ -20745,7 +20750,15 @@ function getQuizTrackKey() {
           toast.style.display = "flex";
           setTimeout(() => { toast.style.display = "none"; }, 4000);
         }
-      }
+      };
+
+      // Bind direct event listeners to ensure clickability
+      document.addEventListener("DOMContentLoaded", function() {
+        const sBtn = document.getElementById("btnSidebarSettings");
+        const hBtn = document.getElementById("btnSidebarHelp");
+        if (sBtn) sBtn.onclick = function() { window.openSettingsModal(); };
+        if (hBtn) hBtn.onclick = function() { window.openHelpModal(); };
+      });
     </script>
   </body>
 </html>
