@@ -3376,6 +3376,153 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode('utf-8'))
                 return
 
+        # Route for student help feedback & admin communication
+        if clean_path == '/api/send_feedback':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+                student_name = data.get('name', 'Alseny')
+                contact_email = data.get('email', 'admin@gandal.ai')
+                category = data.get('category', 'General Suggestion')
+                message = data.get('message', '')
+
+                db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS admin_feedback (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        student_name TEXT,
+                        contact_email TEXT,
+                        category TEXT,
+                        message TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cursor.execute("""
+                    INSERT INTO admin_feedback (student_name, contact_email, category, message)
+                    VALUES (?, ?, ?, ?)
+                """, (student_name, contact_email, category, message))
+                conn.commit()
+                conn.close()
+
+                print(f"[ADMIN FEEDBACK] Saved message from {student_name} ({category}): '{message[:60]}...'", flush=True)
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": True, "message": "Feedback submitted successfully"}).encode('utf-8'))
+                return
+            except Exception as fe:
+                print(f"[ADMIN FEEDBACK ERROR] {fe}", flush=True)
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"success": False, "error": str(fe)}).encode('utf-8'))
+                return
+
+        # Route for retrieving and saving user settings preferences
+        if clean_path == '/api/user_settings':
+            if self.command == 'GET':
+                try:
+                    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS user_settings (
+                            user_id TEXT PRIMARY KEY,
+                            tutor_voice TEXT,
+                            locale TEXT,
+                            subtitles_enabled INTEGER,
+                            speech_speed REAL
+                        )
+                    """)
+                    cursor.execute("SELECT tutor_voice, locale, subtitles_enabled, speech_speed FROM user_settings WHERE user_id = 'Alseny'")
+                    row = cursor.fetchone()
+                    conn.close()
+
+                    settings = {
+                        "tutor_voice": row[0] if row else "Aoede",
+                        "locale": row[1] if row else "fr_FR",
+                        "subtitles_enabled": bool(row[2]) if row else True,
+                        "speech_speed": row[3] if row else 1.0
+                    }
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": True, "settings": settings}).encode('utf-8'))
+                    return
+                except Exception as se:
+                    self.send_response(500)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": False, "error": str(se)}).encode('utf-8'))
+                    return
+            elif self.command == 'POST':
+                content_length = int(self.headers.get('Content-Length', 0))
+                post_data = self.rfile.read(content_length)
+                try:
+                    data = json.loads(post_data.decode('utf-8'))
+                    voice = data.get('tutor_voice', 'Aoede')
+                    loc = data.get('locale', 'fr_FR')
+                    subs = 1 if data.get('subtitles_enabled', True) else 0
+                    speed = float(data.get('speech_speed', 1.0))
+
+                    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
+                    conn = sqlite3.connect(db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS user_settings (
+                            user_id TEXT PRIMARY KEY,
+                            tutor_voice TEXT,
+                            locale TEXT,
+                            subtitles_enabled INTEGER,
+                            speech_speed REAL
+                        )
+                    """)
+                    cursor.execute("""
+                        INSERT INTO user_settings (user_id, tutor_voice, locale, subtitles_enabled, speech_speed)
+                        VALUES ('Alseny', ?, ?, ?, ?)
+                        ON CONFLICT(user_id) DO UPDATE SET
+                            tutor_voice = excluded.tutor_voice,
+                            locale = excluded.locale,
+                            subtitles_enabled = excluded.subtitles_enabled,
+                            speech_speed = excluded.speech_speed
+                    """, (voice, loc, subs, speed))
+                    conn.commit()
+                    conn.close()
+
+                    # Also sync locale to active_session.json if changed
+                    if os.path.exists(SESSION_JSON_PATH):
+                        try:
+                            with open(SESSION_JSON_PATH, "r+", encoding="utf-8") as sf:
+                                sdata = json.load(sf)
+                                sdata["active_locale"] = loc
+                                sf.seek(0)
+                                json.dump(sdata, sf, indent=2)
+                                sf.truncate()
+                        except Exception:
+                            pass
+
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": True, "message": "Settings saved"}).encode('utf-8'))
+                    return
+                except Exception as se:
+                    self.send_response(500)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": False, "error": str(se)}).encode('utf-8'))
+                    return
+
         # Route for local OpenAI-compatible Speech synthesis (TTS)
         if clean_path == '/v1/audio/speech':
             content_length = int(self.headers.get('Content-Length', 0))
