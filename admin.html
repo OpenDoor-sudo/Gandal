@@ -980,7 +980,12 @@
 
         function loadAdminFeedbackData() {
             fetch('/api/get_feedback')
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                    }
+                    return res.json();
+                })
                 .then(data => {
                     if (data.success && data.feedback) {
                         rawAdminFeedbackData = data.feedback;
@@ -992,7 +997,7 @@
                     console.error("Error loading feedback:", err);
                     const container = document.getElementById("feedbackContainer");
                     if (container) {
-                        container.innerHTML = `<div style="color: #f87171; text-align: center; padding: 20px;">Erreur chargement retours: ${err}</div>`;
+                        container.innerHTML = `<div style="color: #f87171; text-align: center; padding: 20px;">Erreur chargement retours: ${err.message || err}</div>`;
                     }
                 });
         }

@@ -1397,8 +1397,43 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        import urllib.parse
-        clean_path = self.path.split('?')[0]
+        if clean_path in ['/api/get_feedback', '/get_feedback']:
+            try:
+                db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
+                conn = sqlite3.connect(db_path)
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS admin_feedback (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        student_name TEXT,
+                        contact_email TEXT,
+                        category TEXT,
+                        message TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cursor.execute("SELECT * FROM admin_feedback ORDER BY id DESC")
+                rows = cursor.fetchall()
+                feedback_list = [dict(row) for row in rows]
+                conn.close()
+
+                res_body = json.dumps({"success": True, "feedback": feedback_list}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_body)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_body)
+                return
+            except Exception as fe:
+                err_body = json.dumps({"success": False, "error": str(fe)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_body)))
+                self.end_headers()
+                self.wfile.write(err_body)
+                return
 
         if clean_path == '/get_active_session':
             info = load_session_info()
@@ -3374,41 +3409,6 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
                 self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode('utf-8'))
-                return
-
-        # Route for fetching student feedback for Admin Panel
-        if clean_path == '/api/get_feedback':
-            try:
-                db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
-                conn = sqlite3.connect(db_path)
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS admin_feedback (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        student_name TEXT,
-                        contact_email TEXT,
-                        category TEXT,
-                        message TEXT,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-                cursor.execute("SELECT * FROM admin_feedback ORDER BY id DESC")
-                rows = cursor.fetchall()
-                feedback_list = [dict(row) for row in rows]
-                conn.close()
-
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({"success": True, "feedback": feedback_list}).encode('utf-8'))
-                return
-            except Exception as fe:
-                self.send_response(500)
-                self.send_header('Content-Type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({"success": False, "error": str(fe)}).encode('utf-8'))
                 return
 
         # Route for student help feedback & admin communication
