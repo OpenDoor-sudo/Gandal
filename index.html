@@ -17644,8 +17644,9 @@ function getQuizTrackKey() {
               selectedGoalTrack === "calculus" ||
               selectedGoalTrack === "k12/12th_SM/Economics"
             ) {
+            const localEcon = localStorage.getItem("lastActiveVideo_Economics");
             const serverVid = window.ACTIVE_DATABASE_VIDEO_ID;
-            const savedEcon = serverVid || localStorage.getItem("lastActiveVideo_Economics") || localStorage.getItem("lastActiveVideoId");
+            const savedEcon = (localEcon && localEcon.includes("sanitaire")) ? localEcon : (serverVid || localEcon || localStorage.getItem("lastActiveVideoId"));
             let resolvedEconVid = "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires";
             if (savedEcon && savedEcon.includes("sanitaire")) {
               resolvedEconVid = "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires";
@@ -17657,6 +17658,7 @@ function getQuizTrackKey() {
             targetVideoId = resolvedEconVid;
             activeVideoId = resolvedEconVid;
             window.ACTIVE_DATABASE_VIDEO_ID = resolvedEconVid;
+            localStorage.setItem("lastActiveVideo_Economics", resolvedEconVid);
             activeChapterId = "economics_extra_growth";
             activeTimestamp = "00:00";
           } else if (
