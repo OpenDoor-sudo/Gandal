@@ -663,7 +663,10 @@ async def entrypoint(ctx: JobContext):
 
     @ctx.room.on("track_subscribed")
     def on_track_subscribed(track, publication, participant):
-        if track.kind == "video":
+        if track.kind == "audio":
+            logger.info(f"[AUDIO TRACK SUBSCRIBED] Student '{participant.identity}' connected audio track. Triggering immediate greeting!")
+            asyncio.create_task(send_greeting())
+        elif track.kind == "video":
             logger.info(f"[VIDEO TRACK SUBSCRIBED] Subscribed to video track {track.sid} from participant {participant.identity}")
             
             async def forward_video():
@@ -823,8 +826,13 @@ async def entrypoint(ctx: JobContext):
             except Exception as monitor_err:
                 logger.warning(f"Error in monitor_session_changes loop: {monitor_err}")
 
-    # Trigger initial greeting referencing the active video title in the background
+    greeting_sent = False
     async def send_greeting():
+        nonlocal greeting_sent
+        if greeting_sent:
+            return
+        greeting_sent = True
+
         # Wait up to 5s for session activity to be established by session.start()
         for _ in range(20):
             if getattr(session, "_activity", None) is not None:
