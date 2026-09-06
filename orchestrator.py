@@ -308,16 +308,18 @@ else:
 def get_subject_by_video_id(video_id):
     if not video_id:
         return "Physics"
-    vid_lower = video_id.lower()
+    vid_lower = str(video_id).lower()
     if "chemistry" in vid_lower or "chimie" in vid_lower:
         return "Chemistry"
     if "physics" in vid_lower or "physique" in vid_lower:
         return "Physics"
     if "philosophy" in vid_lower or "phil_" in vid_lower:
         return "Philosophy"
-    if "calculus" in vid_lower or "economics" in vid_lower or "extraeconomiques" in vid_lower:
+    if "calculus" in vid_lower or "mathematics" in vid_lower or "/math" in vid_lower or vid_lower.startswith("math"):
+        return "Mathematics"
+    if "economics" in vid_lower or "extraeconomiques" in vid_lower:
         return "Economics"
-        
+
     try:
         conn = sqlite3.connect("vault.db")
         cursor = conn.cursor()
@@ -329,11 +331,17 @@ def get_subject_by_video_id(video_id):
         """, (video_id,))
         row = cursor.fetchone()
         conn.close()
-        if row:
-            return row[0]
+        if row and row[0]:
+            subjects = str(row[0])
+            subjects_l = subjects.lower()
+            if "calculus" in subjects_l or "mathematics" in subjects_l:
+                return "Mathematics"
+            if "economics" in subjects_l:
+                return "Economics"
+            return subjects.split(",")[0].strip() or "Physics"
     except Exception:
         pass
-        
+
     return "Physics"
 
 def check_subject_gating(attempted_video_id):

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Offline PhET-Style Simulation: Projectile Motion</title>
+  <style>
+    body {
+      margin: 0;
+      background: #0f172a;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+    .header {
+      padding: 12px 20px;
+      background: #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #334155;
+    }
+    .sim-area {
+      flex: 1;
+      position: relative;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: linear-gradient(180deg, #090d16 0%, #1e293b 80%, #166534 80%, #14532d 100%);
+    }
+    .controls {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      backdrop-filter: blur(8px);
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.8rem;
+    }
+    button.btn-fire {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+    button.btn-fire:hover { background: #dc2626; }
+    .hud {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(15, 23, 42, 0.85);
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      font-family: monospace;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <strong>🚀 Offline Simulation: Projectile Motion & Kinematics</strong>
+    <span style="font-size: 0.8rem; color: #94a3b8;">100% Offline Local Engine</span>
+  </div>
+
+  <div class="sim-area">
+    <canvas id="projCanvas"></canvas>
+
+    <div class="hud" id="hudReadout">
+      <div>Angle: <span id="hudAngle">45°</span></div>
+      <div>Initial Velocity: <span id="hudVel">18 m/s</span></div>
+      <div>Range: <span id="hudRange">0.0 m</span></div>
+      <div>Max Height: <span id="hudHeight">0.0 m</span></div>
+    </div>
+
+    <div class="controls">
+      <div class="slider-group">
+        <label>Launch Angle: <span id="angleVal" style="color: #38bdf8;">45°</span></label>
+        <input type="range" id="angleSlider" min="10" max="85" value="45">
+      </div>
+      <div class="slider-group">
+        <label>Initial Speed: <span id="speedVal" style="color: #38bdf8;">20 m/s</span></label>
+        <input type="range" id="speedSlider" min="5" max="35" value="20">
+      </div>
+      <button type="button" class="btn-fire" id="btnFire">FIRE CANNON 💥</button>
+      <button type="button" style="background:#334155; color:white; border:none; padding:10px 16px; border-radius:8px; cursor:pointer;" id="btnClear">Clear Path</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("projCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resize() {
+      if (!canvas || !canvas.parentElement) return;
+      canvas.width = canvas.parentElement.clientWidth || 800;
+      canvas.height = canvas.parentElement.clientHeight || 500;
+    }
+    window.addEventListener("resize", resize);
+    if (window.ResizeObserver) {
+      new ResizeObserver(() => resize()).observe(canvas.parentElement);
+    }
+    resize();
+
+    let angle = 45;
+    let speed = 20;
+    let projectile = null;
+    let path = [];
+    const g = 9.8;
+    const scale = 12; // pixels per meter
+
+    document.getElementById("angleSlider").oninput = (e) => {
+      angle = parseInt(e.target.value);
+      document.getElementById("angleVal").innerText = angle + "°";
+      document.getElementById("hudAngle").innerText = angle + "°";
+    };
+
+    document.getElementById("speedSlider").oninput = (e) => {
+      speed = parseInt(e.target.value);
+      document.getElementById("speedVal").innerText = speed + " m/s";
+      document.getElementById("hudVel").innerText = speed + " m/s";
+    };
+
+    document.getElementById("btnFire").onclick = () => {
+      const rad = (angle * Math.PI) / 180;
+      const startX = 60;
+      const startY = canvas.height * 0.8;
+      projectile = {
+        x: startX,
+        y: startY,
+        vx: speed * Math.cos(rad) * scale,
+        vy: -speed * Math.sin(rad) * scale,
+        time: 0
+      };
+      path = [{x: startX, y: startY}];
+    };
+
+    document.getElementById("btnClear").onclick = () => {
+      path = [];
+      projectile = null;
+      document.getElementById("hudRange").innerText = "0.0 m";
+      document.getElementById("hudHeight").innerText = "0.0 m";
+    };
+
+    let lastT = performance.now();
+    function loop(now) {
+      const dt = Math.min((now - lastT) / 1000, 0.05);
+      lastT = now;
+
+      const groundY = canvas.height * 0.8;
+      const startX = 60;
+
+      if (projectile) {
+        projectile.vy += g * scale * dt;
+        projectile.x += projectile.vx * dt;
+        projectile.y += projectile.vy * dt;
+        projectile.time += dt;
+
+        path.push({x: projectile.x, y: projectile.y});
+
+        // Max height calculation
+        const maxH = Math.max(...path.map(p => (groundY - p.y) / scale));
+        document.getElementById("hudHeight").innerText = maxH.toFixed(1) + " m";
+
+        if (projectile.y >= groundY) {
+          projectile.y = groundY;
+          const range = (projectile.x - startX) / scale;
+          document.getElementById("hudRange").innerText = range.toFixed(1) + " m";
+          projectile = null;
+        }
+      }
+
+      // Render
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Trajectory Path
+      if (path.length > 1) {
+        ctx.beginPath();
+        ctx.strokeStyle = "#38bdf8";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([4, 4]);
+        ctx.moveTo(path[0].x, path[0].y);
+        for (let p of path) ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Cannon
+      ctx.save();
+      ctx.translate(startX, groundY);
+      const rad = (-angle * Math.PI) / 180;
+      ctx.rotate(rad);
+      ctx.fillStyle = "#64748b";
+      ctx.fillRect(0, -10, 45, 20);
+      ctx.restore();
+
+      // Cannon Base
+      ctx.beginPath();
+      ctx.arc(startX, groundY, 18, 0, Math.PI * 2);
+      ctx.fillStyle = "#334155";
+      ctx.fill();
+
+      // Projectile
+      if (projectile) {
+        ctx.beginPath();
+        ctx.arc(projectile.x, projectile.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = "#ef4444";
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

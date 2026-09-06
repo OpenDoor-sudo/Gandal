@@ -43,19 +43,35 @@ import sqlite3
 import json
 from orchestrator import check_subject_gating
 
+# Virtual Labs science solvers (RDKit, SymPy, PubChem, ChemPy)
+LABS_BACKEND_DIR = os.path.join(PROJECT_ROOT, "antigravity_labs", "chemistry_backend")
+if os.path.exists(LABS_BACKEND_DIR) and LABS_BACKEND_DIR not in sys.path:
+    sys.path.insert(0, LABS_BACKEND_DIR)
+
+try:
+    import science_solvers
+    import main as chem_main
+    LABS_SOLVERS_AVAILABLE = True
+except Exception as _labs_err:
+    print(f"[LABS] Science solvers notice: {_labs_err}")
+    LABS_SOLVERS_AVAILABLE = False
+
+
 def get_subject_by_video_id(video_id):
     if not video_id:
         return "Physics"
-    vid_lower = video_id.lower()
+    vid_lower = str(video_id).lower()
     if "chemistry" in vid_lower or "chimie" in vid_lower:
         return "Chemistry"
     if "physics" in vid_lower or "physique" in vid_lower:
         return "Physics"
     if "philosophy" in vid_lower or "phil_" in vid_lower:
         return "Philosophy"
-    if "calculus" in vid_lower or "economics" in vid_lower or "extraeconomiques" in vid_lower:
+    if "calculus" in vid_lower or "mathematics" in vid_lower or "/math" in vid_lower or vid_lower.startswith("math"):
+        return "Mathematics"
+    if "economics" in vid_lower or "extraeconomiques" in vid_lower:
         return "Economics"
-        
+
     try:
         conn = sqlite3.connect(VAULT_DB_PATH)
         cursor = conn.cursor()
@@ -67,12 +83,77 @@ def get_subject_by_video_id(video_id):
         """, (video_id,))
         row = cursor.fetchone()
         conn.close()
-        if row:
-            return row[0]
+        if row and row[0]:
+            subjects = str(row[0])
+            subjects_l = subjects.lower()
+            if "calculus" in subjects_l or "mathematics" in subjects_l:
+                return "Mathematics"
+            if "economics" in subjects_l:
+                return "Economics"
+            return subjects.split(",")[0].strip() or "Physics"
     except Exception:
         pass
-        
+
     return "Physics"
+
+
+def lookup_student_answer(student_answers, q_id):
+    if not isinstance(student_answers, dict):
+        return None
+    if q_id in student_answers:
+        return student_answers[q_id]
+    q_str = str(q_id)
+    if q_str in student_answers:
+        return student_answers[q_str]
+    try:
+        q_int = int(q_id)
+        if q_int in student_answers:
+            return student_answers[q_int]
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
+def answers_match(student_ans, correct_ans):
+    if student_ans is None or correct_ans is None:
+        return False
+    return str(student_ans).strip().upper() == str(correct_ans).strip().upper()
+
+
+def split_quiz_sets(main_items, alt_items, is_practice, is_alt):
+    main_items = list(main_items or [])
+    alt_items = list(alt_items or [])
+    if is_practice:
+        extras = main_items[3:] + alt_items
+        return extras[:30]
+    if is_alt:
+        target = alt_items[:3] if alt_items else main_items[:3]
+        return target
+    return main_items[:3]
+
+
+def find_next_curriculum_lesson(cursor, video_id):
+    cursor.execute("SELECT video_id, chapter_id, unlocked FROM curriculum_tree ORDER BY rowid ASC")
+    rows = cursor.fetchall()
+    subject_prefix = ""
+    if video_id and "_" in video_id:
+        parts = video_id.split("_")
+        if len(parts) >= 2:
+            subject_prefix = parts[0] + "_" + parts[1]
+    idx = -1
+    for i, r in enumerate(rows):
+        if r[0] == video_id:
+            idx = i
+            break
+    if idx == -1:
+        return None, None
+    if subject_prefix:
+        for i in range(idx + 1, len(rows)):
+            if rows[i][0].startswith(subject_prefix):
+                return rows[i][0], rows[i][1]
+    if idx + 1 < len(rows):
+        return rows[idx + 1][0], rows[idx + 1][1]
+    return None, None
 
 import base64
 import time
@@ -126,7 +207,7 @@ def save_translation_cache(cache):
     except Exception as e:
         print(f"[CACHE ERROR] Failed to save translation cache: {e}")
 
-def generate_livekit_token(api_key, api_secret, room_name, participant_identity):
+def generate_livekit_token(api_key, api_secret, room_name, participant_identity, name=None, metadata=None):
     header = {
         "alg": "HS256",
         "typ": "JWT"
@@ -135,6 +216,7 @@ def generate_livekit_token(api_key, api_secret, room_name, participant_identity)
     payload = {
         "iss": api_key,
         "sub": participant_identity,
+        "name": name or participant_identity,
         "nbf": now - 60,
         "exp": now + 7200,
         "video": {
@@ -142,6 +224,8 @@ def generate_livekit_token(api_key, api_secret, room_name, participant_identity)
             "room": room_name
         }
     }
+    if metadata:
+        payload["metadata"] = json.dumps(metadata) if isinstance(metadata, dict) else str(metadata)
     
     def base64_url_encode(data):
         return base64.urlsafe_b64encode(data).rstrip(b'=').decode('utf-8')
@@ -502,8 +586,40 @@ def pcm_to_wav(pcm_bytes, sample_rate=16000):
 HTTP_PORT = 8000
 WS_PORT = 8001
 
-# Track connected WebSocket client sockets
+# Deployment Mode configuration ("SINGLE" vs "CLASSROOM" vs "LAB")
+DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "SINGLE")
+
+# Track connected WebSocket client sockets and classroom session state
 connected_clients = set()
+connected_students_map = {}
+active_mic_speaker = None
+
+# Mode 3: LAB Mode Pod Session maps
+pod_sessions = {}
+connected_pod_map = {}
+
+MAIN_ASYNCIO_LOOP = None
+
+def sync_broadcast_ws(payload_dict):
+    global MAIN_ASYNCIO_LOOP
+    if not connected_clients:
+        return
+    msg = json.dumps(payload_dict)
+    if MAIN_ASYNCIO_LOOP and MAIN_ASYNCIO_LOOP.is_running():
+        for ws in list(connected_clients):
+            try:
+                asyncio.run_coroutine_threadsafe(ws.send(msg), MAIN_ASYNCIO_LOOP)
+            except Exception:
+                pass
+
+async def broadcast_to_pod(pod_id, message_str, exclude_ws=None):
+    if pod_id in pod_sessions:
+        for ws in list(pod_sessions[pod_id].get("sockets", set())):
+            if ws != exclude_ws:
+                try:
+                    await ws.send(message_str)
+                except Exception as e:
+                    print(f"[POD WS WARN] Send failed for socket in pod {pod_id}: {e}")
 
 # MCQ Quiz questions answers mapping for grading
 QUIZ_QUESTIONS = {
@@ -535,6 +651,16 @@ QUIZ_QUESTIONS = {
         ],
         "alternative": [
             { "id": 1, "correct": "B" }
+        ]
+    },
+    "Sanitaire": {
+        "main": [
+            { "id": 1, "correct": "A" },
+            { "id": 2, "correct": "A" },
+            { "id": 3, "correct": "A" }
+        ],
+        "alternative": [
+            { "id": 1, "correct": "A" }
         ]
     },
     "calculus": {
@@ -1400,6 +1526,33 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         import urllib.parse
         clean_path = self.path.split('?')[0]
 
+        # Virtual Labs: PubChem / ChEMBL Search API
+        if clean_path == '/api/v1/chemistry/database/search':
+            query_params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            q = query_params.get('q', [''])[0]
+            try:
+                if LABS_SOLVERS_AVAILABLE:
+                    data = science_solvers.search_chemical_database(q)
+                    res_bytes = json.dumps(data).encode('utf-8')
+                else:
+                    res_bytes = json.dumps({"success": False, "error": "Solvers not loaded"}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+
         if clean_path in ['/api/get_feedback', '/get_feedback']:
             try:
                 db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
@@ -1437,23 +1590,269 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(err_body)
                 return
-
-        if clean_path == '/get_active_session':
-            info = load_session_info()
-            res_payload = {
-                "status": "success",
-                "active_video_id": info.get("active_video_id"),
-                "active_pdf_path": info.get("active_pdf_path"),
-                "active_locale": info.get("active_locale", "fr_FR")
-            }
-            body_bytes = json.dumps(res_payload).encode('utf-8')
+        if clean_path in ['/get_active_session', '/api/get_active_session']:
+            session_data = load_session_info()
+            res_bytes = json.dumps(session_data).encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Content-Length', str(len(body_bytes)))
+            self.send_header('Content-Length', str(len(res_bytes)))
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            self.wfile.write(body_bytes)
+            self.wfile.write(res_bytes)
             return
+
+        if clean_path in ['/get_lesson_summary', '/api/get_lesson_summary']:
+            query = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(query)
+            video_id = params.get('video_id', [''])[0]
+            loc = params.get('locale', ['en_US'])[0]
+            payload = {}
+            try:
+                conn = sqlite3.connect(VAULT_DB_PATH)
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT title, subtitle, overview, formulas_json, concepts_json, takeaways_json
+                    FROM lesson_summaries WHERE video_id = ? AND locale = ?
+                """, (video_id, loc))
+                row = cur.fetchone()
+                if not row:
+                    cur.execute("""
+                        SELECT title, subtitle, overview, formulas_json, concepts_json, takeaways_json
+                        FROM lesson_summaries WHERE video_id = ? LIMIT 1
+                    """, (video_id,))
+                    row = cur.fetchone()
+                conn.close()
+                if row:
+                    payload = {
+                        "title": row[0],
+                        "subtitle": row[1],
+                        "overview": row[2],
+                        "formulas": json.loads(row[3] or "[]"),
+                        "concepts": json.loads(row[4] or "[]"),
+                        "takeaways": json.loads(row[5] or "[]"),
+                    }
+            except Exception as e:
+                print(f"[SUMMARY API] {e}")
+            res_bytes = json.dumps(payload).encode("utf-8")
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Content-Length', str(len(res_bytes)))
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(res_bytes)
+            return
+
+        if clean_path == '/api/get_classes':
+            try:
+                conn = sqlite3.connect(VAULT_DB_PATH)
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS classroom_sessions (
+                        class_code TEXT PRIMARY KEY,
+                        class_name TEXT,
+                        video_id TEXT,
+                        schedule_time TEXT,
+                        created_by TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cur.execute("SELECT * FROM classroom_sessions ORDER BY created_at DESC")
+                rows = cur.fetchall()
+                classes_list = [dict(r) for r in rows]
+                conn.close()
+                res_body = json.dumps({"success": True, "classes": classes_list}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_body)
+                return
+            except Exception as e:
+                err_body = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(err_body)
+                return
+
+        if clean_path == '/api/get_fleet_students':
+            try:
+                conn = sqlite3.connect(VAULT_DB_PATH)
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+                cur.execute("SELECT user_id, background_context FROM user_profiles")
+                user_rows = cur.fetchall()
+                fleet = []
+                for u in user_rows:
+                    user_id = u["user_id"]
+                    bg = u["background_context"] or "College"
+                    is_classroom = ":" in user_id or "STU-" in user_id or "PHYS-" in user_id or "CALC-" in user_id
+                    fleet.append({
+                        "student_id": user_id,
+                        "track": bg,
+                        "deployment_type": "Classroom Fleet" if is_classroom else "Device Owner / Renter",
+                        "status": "Active"
+                    })
+                conn.close()
+                res_body = json.dumps({"success": True, "fleet": fleet}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_body)
+                return
+            except Exception as e:
+                err_body = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_body)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_body)
+                return
+        if clean_path == '/api/get_deployment_mode':
+            try:
+                pods_summary = []
+                for pid, pdata in pod_sessions.items():
+                    pods_summary.append({
+                        "pod_id": pid,
+                        "members": list(pdata.get("members", [])),
+                        "video_id": pdata.get("video_id", ""),
+                        "playback_state": pdata.get("playback_state", "paused"),
+                        "current_time": pdata.get("current_time", 0.0),
+                        "socket_count": len(pdata.get("sockets", set()))
+                    })
+                res_body = json.dumps({
+                    "success": True,
+                    "mode": DEPLOYMENT_MODE,
+                    "active_pods": pods_summary,
+                    "active_mic_speaker": active_mic_speaker
+                }).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_body)
+                return
+            except Exception as e:
+                err_body = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(err_body)
+                return
+
+        if clean_path == '/api/get_active_pods':
+            try:
+                pods_summary = []
+                for pid, pdata in pod_sessions.items():
+                    pods_summary.append({
+                        "pod_id": pid,
+                        "members": list(pdata.get("members", [])),
+                        "video_id": pdata.get("video_id", ""),
+                        "playback_state": pdata.get("playback_state", "paused"),
+                        "current_time": pdata.get("current_time", 0.0),
+                        "socket_count": len(pdata.get("sockets", set()))
+                    })
+                res_body = json.dumps({"success": True, "pods": pods_summary}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_body)
+                return
+            except Exception as e:
+                err_body = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(err_body)
+                return
+
+        if clean_path in ['/api/curriculum', '/api/get_curriculum_catalog', '/api/get_full_curriculum_tree']:
+            try:
+                staging_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "curriculum_staging")
+                tree = {}
+                
+                def clean_media_list(dp):
+                    try:
+                        all_f = os.listdir(dp)
+                    except Exception:
+                        return ["01_Lesson.mp4"]
+                    v_exts = ('.mp4', '.mkv', '.webm', '.avi', '.mov')
+                    v_files = [f for f in all_f if f.lower().endswith(v_exts)]
+                    if v_files:
+                        seen_b = set()
+                        res = []
+                        for vf in sorted(v_files):
+                            b = os.path.splitext(vf)[0]
+                            if b not in seen_b:
+                                seen_b.add(b)
+                                res.append(vf)
+                        return res
+                    a_files = [f for f in all_f if f.lower().endswith(('.mp3', '.wav', '.m4a', '.aac'))]
+                    if a_files:
+                        seen_b = set()
+                        res = []
+                        for af in sorted(a_files):
+                            b = os.path.splitext(af)[0]
+                            if b not in seen_b:
+                                seen_b.add(b)
+                                res.append(af)
+                        return res
+                    other_f = [f for f in all_f if not f.startswith('.')]
+                    return sorted(other_f) if other_f else ["01_Lesson.mp4"]
+
+                if os.path.exists(staging_dir):
+                    for level in os.listdir(staging_dir):
+                        level_path = os.path.join(staging_dir, level)
+                        if os.path.isdir(level_path) and level != "uploads":
+                            tree[level] = {}
+                            for grade in os.listdir(level_path):
+                                grade_path = os.path.join(level_path, grade)
+                                if os.path.isdir(grade_path):
+                                    tree[level][grade] = {}
+                                    for subj in os.listdir(grade_path):
+                                        subj_path = os.path.join(grade_path, subj)
+                                        if os.path.isdir(subj_path):
+                                            tree[level][grade][subj] = {}
+                                            sub_items = os.listdir(subj_path)
+                                            sub_dirs = [d for d in sub_items if os.path.isdir(os.path.join(subj_path, d))]
+                                            if sub_dirs:
+                                                for chapter in sub_dirs:
+                                                    chap_path = os.path.join(subj_path, chapter)
+                                                    tree[level][grade][subj][chapter] = clean_media_list(chap_path)
+                                            else:
+                                                tree[level][grade][subj]["Main Chapter"] = clean_media_list(subj_path)
+                                                
+                res_body = json.dumps({"success": True, "tree": tree, "deployment_mode": DEPLOYMENT_MODE}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_body)
+                return
+            except Exception as e:
+                err_body = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(err_body)
+                return
+
+        if DEPLOYMENT_MODE in ["CLASSROOM", "LAB"] and clean_path in ['', '/', '/index.html', '/index', '/student']:
+            student_template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates', 'student.html')
+            if os.path.exists(student_template_path):
+                with open(student_template_path, 'r', encoding='utf-8') as sf:
+                    content = sf.read()
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html')
+                self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                self.send_header('Content-Length', str(len(content.encode('utf-8'))))
+                self.end_headers()
+                self.wfile.write(content.encode('utf-8'))
+                return
         
         # Onboarding redirect: if database user profiles table is empty, redirect index page requests to onboarding
         if clean_path in ['', '/', '/index.html', '/index']:
@@ -2097,6 +2496,7 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             pdf_path = None
             start_page = 1
+            stored_media_path = None
             if os.path.exists(db_path):
                 try:
                     conn = sqlite3.connect(db_path)
@@ -2105,12 +2505,22 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     row = cursor.fetchone()
                     if row:
                         pdf_path = row[0]
-                        start_page = int(row[1])
+                        start_page = int(row[1] or 1)
+                    try:
+                        cursor.execute("SELECT media_file_path FROM lesson_metadata WHERE video_id = ?", (video_id,))
+                        mrow = cursor.fetchone()
+                        if mrow and mrow[0]:
+                            media_candidate = mrow[0].lstrip("/")
+                            abs_media = os.path.join(os.path.dirname(os.path.abspath(__file__)), media_candidate)
+                            if os.path.exists(abs_media):
+                                stored_media_path = media_candidate.replace("\\", "/")
+                    except sqlite3.OperationalError:
+                        pass
                     conn.close()
                 except Exception as e:
                     print(f"[ERROR] Database lesson metadata lookup failed: {e}")
 
-            resolved_video_path = None
+            resolved_video_path = stored_media_path
             
             # Dynamic directory path resolver
             if video_id and ("/" in video_id or "\\" in video_id or os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "curriculum_staging", video_id))):
@@ -2493,7 +2903,7 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     daemon=True
                 ).start()
 
-            if active_locale != "en_US":
+            if active_locale != instructor_locale:
                 try:
                     print(f"[TRANSLATE] Active locale ({active_locale}) is different from instructor locale ({instructor_locale}). Translating metadata...")
                     timestamps = translate_timestamps(timestamps, active_locale)
@@ -2716,11 +3126,34 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             params = urllib.parse.parse_qs(query)
             room = params.get('room', ['socratic_tutor_room'])[0]
             identity = params.get('identity', ['student_01'])[0]
+            name = params.get('name', [identity])[0]
+            mode = params.get('mode', [DEPLOYMENT_MODE])[0]
+            vid_param = params.get('video_id', [None])[0]
+            
+            # Save active session info
+            session_data = load_session_info()
+            if vid_param:
+                session_data["active_video_id"] = vid_param
+            session_data["active_student_name"] = name
+            session_data["active_student_id"] = identity
+            session_data["active_mode"] = mode
+            try:
+                with open(SESSION_JSON_PATH, "w", encoding="utf-8") as f:
+                    json.dump(session_data, f, indent=2)
+            except Exception as e:
+                print(f"[SESSION SAVE WARN] {e}")
+            
+            metadata_dict = {
+                "student_name": name,
+                "identity": identity,
+                "mode": mode,
+                "video_id": vid_param or session_data.get("active_video_id")
+            }
             
             api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
             api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretsecretsecretsecretsecretsecretsecret")
             
-            token = generate_livekit_token(api_key, api_secret, room, identity)
+            token = generate_livekit_token(api_key, api_secret, room, identity, name=name, metadata=metadata_dict)
             
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -2901,18 +3334,394 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(html_content.encode('utf-8'))
             return
 
-        # Fallback to serving static files from filesystem
-        if clean_path.startswith('/k12/') or clean_path.startswith('/college_level/') or clean_path.startswith('/independent_learner/') or clean_path.startswith('/professional_certificates/'):
+        # Fallback to serving static files from filesystem with range-streaming support
+        if clean_path.startswith('/curriculum_staging/') or clean_path.startswith(('/k12/', '/college_level/', '/independent_learner/', '/professional_certificates/')):
             import urllib.parse
-            unquoted_path = urllib.parse.unquote(clean_path).lstrip('/')
+            unquoted_path = urllib.parse.unquote(clean_path).replace('/curriculum_staging/', '', 1).lstrip('/')
             staging_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'curriculum_staging', unquoted_path)
-            if os.path.exists(staging_file):
-                self.path = '/curriculum_staging/' + clean_path.lstrip('/')
+            if os.path.exists(staging_file) and os.path.isfile(staging_file):
+                import mimetypes
+                mime_type, _ = mimetypes.guess_type(staging_file)
+                if not mime_type:
+                    if staging_file.lower().endswith('.mp4'): mime_type = 'video/mp4'
+                    elif staging_file.lower().endswith('.mp3'): mime_type = 'audio/mpeg'
+                    elif staging_file.lower().endswith('.pdf'): mime_type = 'application/pdf'
+                    else: mime_type = 'application/octet-stream'
+                
+                file_size = os.path.getsize(staging_file)
+                range_header = self.headers.get('Range')
+                if range_header:
+                    import re
+                    match = re.match(r'bytes=(\d+)-(\d*)', range_header)
+                    if match:
+                        start = int(match.group(1))
+                        end = int(match.group(2)) if match.group(2) else file_size - 1
+                        if start >= file_size:
+                            self.send_error(416, "Requested Range Not Satisfiable")
+                            return
+                        end = min(end, file_size - 1)
+                        length = end - start + 1
+                        self.send_response(206)
+                        self.send_header('Content-Type', mime_type)
+                        self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
+                        self.send_header('Content-Length', str(length))
+                        self.send_header('Accept-Ranges', 'bytes')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        with open(staging_file, 'rb') as f:
+                            f.seek(start)
+                            bytes_remaining = length
+                            chunk_size = 65536
+                            while bytes_remaining > 0:
+                                to_read = min(chunk_size, bytes_remaining)
+                                chunk = f.read(to_read)
+                                if not chunk:
+                                    break
+                                try:
+                                    self.wfile.write(chunk)
+                                    bytes_remaining -= len(chunk)
+                                except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+                                    break
+                        return
+                
+                self.send_response(200)
+                self.send_header('Content-Type', mime_type)
+                self.send_header('Content-Length', str(file_size))
+                self.send_header('Accept-Ranges', 'bytes')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                with open(staging_file, 'rb') as f:
+                    chunk_size = 65536
+                    while True:
+                        chunk = f.read(chunk_size)
+                        if not chunk:
+                            break
+                        try:
+                            self.wfile.write(chunk)
+                        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+                            break
+                return
                 
         super().do_GET()
 
     def do_POST(self):
+        import urllib.request
+        import urllib.parse
+        global DEPLOYMENT_MODE
         clean_path = self.path.split('?')[0]
+
+        if clean_path == '/api/set_deployment_mode':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                data = json.loads(post_data) if post_data else {}
+                target_mode = (data.get("mode") or "SINGLE").upper()
+                if target_mode not in ["SINGLE", "CLASSROOM", "LAB"]:
+                    target_mode = "SINGLE"
+                old_mode = DEPLOYMENT_MODE
+                DEPLOYMENT_MODE = target_mode
+                print(f"\n[DEPLOYMENT CONTROLLER] Mode switched dynamically from {old_mode} to {DEPLOYMENT_MODE}", flush=True)
+
+                # Broadcast mode change to all connected WebSocket displays
+                sync_broadcast_ws({
+                    "action": "DEPLOYMENT_MODE_CHANGED",
+                    "mode": DEPLOYMENT_MODE,
+                    "previous_mode": old_mode,
+                    "message": f"Deployment mode updated to {DEPLOYMENT_MODE}"
+                })
+
+                res_body = json.dumps({"success": True, "mode": DEPLOYMENT_MODE, "previous_mode": old_mode}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_body)
+                return
+            except Exception as e:
+                err_body = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(err_body)
+                return
+
+        if clean_path == '/api/create_class':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                data = json.loads(post_data) if post_data else {}
+                class_code = data.get("class_code") or f"CLASS-{int(time.time())%10000}"
+                class_name = data.get("class_name", "General Physics")
+                video_id = data.get("video_id", "vid_physics_01")
+                schedule_time = data.get("schedule_time", "Mon/Wed 9:00 AM")
+                created_by = data.get("created_by", "Teacher Admin")
+                
+                conn = sqlite3.connect(VAULT_DB_PATH)
+                cur = conn.cursor()
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS classroom_sessions (
+                        class_code TEXT PRIMARY KEY,
+                        class_name TEXT,
+                        video_id TEXT,
+                        schedule_time TEXT,
+                        created_by TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cur.execute("""
+                    INSERT OR REPLACE INTO classroom_sessions (class_code, class_name, video_id, schedule_time, created_by)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (class_code, class_name, video_id, schedule_time, created_by))
+                conn.commit()
+                conn.close()
+                
+                res_body = json.dumps({"success": True, "class_code": class_code, "class_name": class_name}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_body)
+                return
+            except Exception as e:
+                err_body = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(err_body)
+                return
+
+        # Virtual Labs: RDKit 2D Molecule Render API
+        if clean_path == '/api/v1/chemistry/molecule/render':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                data = json.loads(post_data) if post_data else {}
+                smiles = data.get("smiles", "CCO")
+                if LABS_SOLVERS_AVAILABLE:
+                    res = science_solvers.render_molecule_rdkit(smiles)
+                else:
+                    res = {"success": False, "error": "RDKit solver not loaded"}
+                res_bytes = json.dumps(res).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+
+        # Virtual Labs: SymPy & SciPy Calculus / Waves API
+        if clean_path == '/api/v1/physics/calculus/solve':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                data = json.loads(post_data) if post_data else {}
+                m_type = data.get("type", "standing_wave")
+                params = data.get("params", {})
+                if LABS_SOLVERS_AVAILABLE:
+                    res = science_solvers.solve_physics_symbolic(m_type, params)
+                else:
+                    res = {"success": False, "error": "SymPy solver not loaded"}
+                res_bytes = json.dumps(res).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+
+        # Virtual Labs: ChemPy Mixture & Stoichiometry API
+        if clean_path == '/api/v1/chemistry/mix':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                data = json.loads(post_data) if post_data else {}
+                solutions = data.get("solutions", [])
+                indicator = data.get("indicator", "phenolphthalein")
+                temp_c = data.get("temp_c", 25.0)
+                if LABS_SOLVERS_AVAILABLE:
+                    res = chem_main.calculate_mixture(solutions, indicator, temp_c)
+                else:
+                    res = {"success": False, "error": "ChemPy engine not loaded"}
+                res_bytes = json.dumps(res).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+
+        # OmniGraph STEM Engine: Math Vision OCR API (Tier 1: Offline Gemma 4 E4B, Tier 2: Cloud Gemini)
+        if clean_path == '/api/v1/math/vision_ocr':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                data = json.loads(post_data) if post_data else {}
+                img_b64 = data.get("image_base64", "")
+                if not img_b64:
+                    res_bytes = json.dumps({"success": False, "error": "No image data provided"}).encode('utf-8')
+                    self.send_response(400)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Content-Length', str(len(res_bytes)))
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(res_bytes)
+                    return
+
+                extracted = None
+                source = None
+                local_url = os.environ.get("LOCAL_LLM_URL", "http://localhost:8080/v1")
+                try:
+                    data_url = img_b64 if img_b64.startswith("data:") else f"data:image/png;base64,{img_b64}"
+                    prompt = (
+                        "You are an expert mathematical OCR and vision parser for an interactive STEM graphing engine.\n"
+                        "Examine this image containing a mathematical problem or equation.\n"
+                        "Extract ALL mathematical equations, functions, or inequalities that need to be plotted.\n"
+                        "CRITICAL INSTRUCTIONS:\n"
+                        "- If there are multiple equations or inequalities (e.g. 'y <= x + 1' and 'y >= 2x + 1'), extract ALL separated by a comma: 'y <= x + 1, y >= 2x + 1'.\n"
+                        "- Do not omit any equation or inequality.\n"
+                        "- Standard syntax: '^' for power (e.g. 'x^2'), '<=', '>=', 'sin(x)', 'cos(x)', 'sqrt(x)'.\n"
+                        "- Return ONLY the clean formula string, nothing else. No markdown, no explanations."
+                    )
+                    payload = {
+                        "model": os.environ.get("LOCAL_MODEL_NAME", "gemma-4-e4b"),
+                        "messages": [
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": prompt},
+                                    {"type": "image_url", "image_url": {"url": data_url}}
+                                ]
+                            }
+                        ],
+                        "temperature": 0.0,
+                        "max_tokens": 150
+                    }
+                    req = urllib.request.Request(
+                        f"{local_url}/chat/completions",
+                        data=json.dumps(payload).encode("utf-8"),
+                        headers={"Content-Type": "application/json"}
+                    )
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        res_obj = json.loads(resp.read().decode("utf-8"))
+                        txt = res_obj["choices"][0]["message"]["content"].strip()
+                        txt = txt.replace("```math", "").replace("```", "").strip()
+                        if txt and len(txt) >= 2:
+                            extracted = txt
+                            source = "gemma-4-e4b (offline)"
+                except Exception:
+                    pass
+
+                if not extracted:
+                    google_key = os.environ.get("GOOGLE_API_KEY")
+                    if not google_key or google_key == "your_google_api_key_here":
+                        env_file = os.path.join(PROJECT_ROOT, ".env")
+                        if os.path.exists(env_file):
+                            try:
+                                with open(env_file, "r", encoding="utf-8") as ef:
+                                    for line in ef:
+                                        if line.strip().startswith("GOOGLE_API_KEY="):
+                                            google_key = line.strip().split("=", 1)[1].strip().strip('"\'')
+                                            break
+                            except Exception:
+                                pass
+                    if google_key and google_key != "your_google_api_key_here":
+                        try:
+                            clean_b64 = img_b64
+                            mime = "image/png"
+                            if "," in clean_b64:
+                                hdr, clean_b64 = clean_b64.split(",", 1)
+                                if "jpeg" in hdr or "jpg" in hdr:
+                                    mime = "image/jpeg"
+                                elif "webp" in hdr:
+                                    mime = "image/webp"
+
+                            prompt = (
+                                "You are an expert mathematical OCR and vision parser for an interactive STEM graphing engine.\n"
+                                "Examine this image containing a mathematical problem or equation.\n"
+                                "Extract ALL mathematical equations, functions, or inequalities that need to be plotted.\n"
+                                "CRITICAL INSTRUCTIONS:\n"
+                                "- If there are multiple equations or inequalities (e.g. 'y <= x + 1' and 'y >= 2x + 1'), extract ALL separated by a comma: 'y <= x + 1, y >= 2x + 1'.\n"
+                                "- Do not omit any equation or inequality.\n"
+                                "- Standard syntax: '^' for power (e.g. 'x^2'), '<=', '>=', 'sin(x)', 'cos(x)', 'sqrt(x)'.\n"
+                                "- Return ONLY the clean formula string, nothing else. No markdown, no explanations."
+                            )
+                            g_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={google_key}"
+                            g_data = {
+                                "contents": [{
+                                    "parts": [
+                                        {"text": prompt},
+                                        {"inline_data": {"mime_type": mime, "data": clean_b64}}
+                                    ]
+                                }],
+                                "generationConfig": {"temperature": 0.0, "maxOutputTokens": 1000}
+                            }
+                            req = urllib.request.Request(
+                                g_url,
+                                data=json.dumps(g_data).encode("utf-8"),
+                                headers={"Content-Type": "application/json"}
+                            )
+                            with urllib.request.urlopen(req, timeout=12) as g_resp:
+                                g_result = json.loads(g_resp.read().decode("utf-8"))
+                                txt = g_result["candidates"][0]["content"]["parts"][0]["text"].strip()
+                                txt = txt.replace("```math", "").replace("```", "").strip()
+                                if txt and len(txt) >= 2:
+                                    extracted = txt
+                                    source = "gemini-vision (cloud)"
+                        except Exception as g_err:
+                            print(f"[VISION OCR GEMINI ERROR] {g_err}", flush=True)
+
+                if extracted:
+                    res_bytes = json.dumps({"success": True, "equation": extracted, "source": source}).encode('utf-8')
+                    self.send_response(200)
+                else:
+                    res_bytes = json.dumps({"success": False, "error": "Could not recognize math formula from image"}).encode('utf-8')
+                    self.send_response(422)
+
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
 
         if clean_path == '/save_active_session':
             content_length = int(self.headers.get('Content-Length', 0))
@@ -3801,8 +4610,15 @@ def start_http_server():
     # Direct to workspace directory (where display_client.py and index.html are located)
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     
-    with ThreadingTCPServerQuietErrors(("", HTTP_PORT), handler) as httpd:
-        print(f"[HTTP] Dashboard interface hosted at http://localhost:{HTTP_PORT}/")
+    port = HTTP_PORT
+    try:
+        httpd = ThreadingTCPServerQuietErrors(("", port), handler)
+    except Exception as e:
+        port = 8080
+        httpd = ThreadingTCPServerQuietErrors(("", port), handler)
+        
+    print(f"[HTTP] Classroom Fleet Cockpit live at http://ventuno.local:{port}/ (or http://<device-ip>:{port}/)", flush=True)
+    with httpd:
         httpd.serve_forever()
 
 # ---------------------------------------------------------
@@ -3837,25 +4653,55 @@ async def run_esim_simulation(project_title, sender):
     await broadcast(json.dumps(status_payload))
 
 async def ws_handler(websocket):
+    global active_mic_speaker, MANUAL_LOCALE_SELECTION
     # Register connection
     connected_clients.add(websocket)
-    print(f"[WS] Connection opened from {websocket.remote_address}. Total active: {len(connected_clients)}")
+    import urllib.parse
+    ws_path = ""
+    try:
+        if hasattr(websocket, "path") and websocket.path:
+            ws_path = str(websocket.path)
+        elif hasattr(websocket, "request") and websocket.request:
+            ws_path = str(getattr(websocket.request, "path", ""))
+    except Exception:
+        ws_path = ""
+    query_params = urllib.parse.parse_qs(urllib.parse.urlparse(ws_path).query)
+    student_id = query_params.get("student_id", [None])[0]
+    pod_id = query_params.get("pod_id", [None])[0]
+    if student_id:
+        connected_students_map[websocket] = student_id
+    if pod_id:
+        connected_pod_map[websocket] = pod_id
+        if pod_id not in pod_sessions:
+            pod_sessions[pod_id] = {
+                "members": [],
+                "video_id": "",
+                "playback_state": "paused",
+                "current_time": 0.0,
+                "sockets": set()
+            }
+        pod_sessions[pod_id]["sockets"].add(websocket)
+        if student_id and student_id not in pod_sessions[pod_id]["members"]:
+            pod_sessions[pod_id]["members"].append(student_id)
+        print(f"[POD AUTO-JOIN] Connected {websocket.remote_address} (student: {student_id}) into pod {pod_id}. Total sockets: {len(pod_sessions[pod_id]['sockets'])}")
+    print(f"[WS] Connection opened from {websocket.remote_address} (student: {student_id}, pod: {pod_id}). Total active: {len(connected_clients)}")
     
+    # Send current mic lock status to newly connected client if mic is held
+    if active_mic_speaker:
+        await websocket.send(json.dumps({"status": "LOCKED", "speaker_id": active_mic_speaker}))
+
     try:
         async for message in websocket:
             # Parse data packet
             print(f"[WS] Received packet from client {websocket.remote_address}")
             
-            # Broadcast incoming JSON payload to all other connected client screens
-            await broadcast(message)
-            
-            # Intercept BROADCAST_PROJECT event to run simulation
             try:
                 data = json.loads(message)
-                if data.get("action") == "BROADCAST_PROJECT":
+                act = data.get("action")
+                
+                if act == "BROADCAST_PROJECT":
                     asyncio.create_task(run_esim_simulation(data.get("project_title"), data.get("sender")))
-                elif data.get("action") == "UPDATE_LOCALE":
-                    global MANUAL_LOCALE_SELECTION
+                elif act == "UPDATE_LOCALE":
                     student_name = data.get("name")
                     locale = data.get("locale", "en_US")
                     MANUAL_LOCALE_SELECTION = locale
@@ -3866,7 +4712,7 @@ async def ws_handler(websocket):
                                    (student_name, locale))
                     conn.commit()
                     conn.close()
-                elif data.get("action") == "ONBOARDING_SUBMIT":
+                elif act == "ONBOARDING_SUBMIT":
                     track_id = data.get("track", "College")
                     locale = data.get("locale", "en_US")
                     print(f"[ONBOARDING] Submitting configs: {data.get('name')} | Track: {track_id} | Locale: {locale}")
@@ -3876,7 +4722,6 @@ async def ws_handler(websocket):
                                    (data.get("name"), track_id))
                     cursor.execute("INSERT OR REPLACE INTO language_localization (user_id, locale) VALUES (?, ?)",
                                    (data.get("name"), locale))
-                    # Complete database binding for calculus track
                     clean_tracks = []
                     if "|" in track_id:
                         interests, active = track_id.split("|", 1)
@@ -3887,12 +4732,12 @@ async def ws_handler(websocket):
                     
                     is_calculus = any(t in ["calculus", "12th Grade", "k12/12th_grade/mathematics/calculus"] for t in clean_tracks)
                     if is_calculus:
-                        cursor.execute("INSERT OR REPLACE INTO mastery_ledger (video_id, chapter_id, mastery_achieved) VALUES (?, ?, ?)",
-                                       ("calculus", "calculus", 1))
-                        cursor.execute("INSERT OR REPLACE INTO mastery_ledger (video_id, chapter_id, mastery_achieved) VALUES (?, ?, ?)",
-                                       ("vid_economics_01", "economics_extra_growth", 1))
-                        cursor.execute("INSERT OR REPLACE INTO mastery_ledger (video_id, chapter_id, mastery_achieved) VALUES (?, ?, ?)",
-                                       ("vid_calculus_01", "calculus_derivatives", 1))
+                        cursor.execute("INSERT OR REPLACE INTO mastery_ledger (video_id, chapter_id, score, mastery_achieved) VALUES (?, ?, ?, ?)",
+                                       ("calculus", "calculus", 100.0, 1))
+                        cursor.execute("INSERT OR REPLACE INTO mastery_ledger (video_id, chapter_id, score, mastery_achieved) VALUES (?, ?, ?, ?)",
+                                       ("vid_economics_01", "economics_extra_growth", 100.0, 1))
+                        cursor.execute("INSERT OR REPLACE INTO mastery_ledger (video_id, chapter_id, score, mastery_achieved) VALUES (?, ?, ?, ?)",
+                                       ("vid_calculus_01", "calculus_derivatives", 100.0, 1))
                     conn.commit()
                     conn.close()
                     
@@ -3902,7 +4747,7 @@ async def ws_handler(websocket):
                         "track": track_id
                     }
                     await broadcast(json.dumps(complete_payload))
-                elif data.get("action") == "SUBMIT_HANDWRITING_IMAGE":
+                elif act == "SUBMIT_HANDWRITING_IMAGE":
                     print("[WS] Received SUBMIT_HANDWRITING_IMAGE Base64 frame.")
                     try:
                         import base64
@@ -3941,12 +4786,11 @@ async def ws_handler(websocket):
                             sock.close()
                     except Exception as e:
                         print(f"[WS ERROR] Failed to save/decode base64 image: {e}")
-                elif data.get("action") == "SUBMIT_HANDWRITING":
+                elif act == "SUBMIT_HANDWRITING":
                     print(f"[WS] Received SUBMIT_HANDWRITING for path: {data.get('image_path')}")
-                    # Forward to orchestrator via UDP port 8002
                     udp_payload = {
                         "event": "GPIO_INTERRUPT",
-                        "pin": 24, # Mock pin for camera interrupt
+                        "pin": 24,
                         "action": "SUBMIT_HANDWRITING",
                         "image_path": data.get("image_path", "student_pendulum_work.png"),
                         "video_id": data.get("video_id", "vid_physics_01"),
@@ -3963,7 +4807,7 @@ async def ws_handler(websocket):
                         print(f"[WS -> UDP ERROR] Failed to forward: {e}")
                     finally:
                         sock.close()
-                elif data.get("action") == "SUBMIT_QUIZ":
+                elif act == "SUBMIT_QUIZ":
                     track_key = data.get("track", "College")
                     is_alt = data.get("is_alternative", False)
                     student_answers = data.get("answers", {})
@@ -3982,72 +4826,74 @@ async def ws_handler(websocket):
                     correct_count = 0
                     total_count = 0
 
-                    # 1. Query vault.db video_quiz_mcqs table first for dynamic ingested questions
                     try:
                         conn_q = sqlite3.connect(VAULT_DB_PATH)
                         cur_q = conn_q.cursor()
                         cur_q.execute("""
-                            SELECT question_id, correct_option
+                            SELECT question_id, correct_option, is_alternative
                             FROM video_quiz_mcqs
-                            WHERE video_id = ? AND is_alternative = ?
-                        """, (video_id, 1 if is_alt else 0))
-                        db_questions = cur_q.fetchall()
+                            WHERE video_id = ?
+                            ORDER BY is_alternative ASC, question_id ASC
+                        """, (video_id,))
+                        db_rows = cur_q.fetchall()
                         conn_q.close()
 
-                        if db_questions:
-                            if is_practice:
-                                target_db_questions = db_questions[3:]
-                            else:
-                                target_db_questions = db_questions[:3]
-                            if not target_db_questions:
-                                target_db_questions = db_questions
+                        if db_rows:
+                            main_items = [(r[0], r[1]) for r in db_rows if not r[2]]
+                            alt_items = [(r[0], r[1]) for r in db_rows if r[2]]
+                            target_db_questions = split_quiz_sets(main_items, alt_items, is_practice, is_alt)
                             total_count = len(target_db_questions)
                             for q_id, correct_ans in target_db_questions:
-                                student_ans = student_answers.get(str(q_id))
-                                if student_ans == correct_ans:
+                                student_ans = lookup_student_answer(student_answers, q_id)
+                                if answers_match(student_ans, correct_ans):
                                     correct_count += 1
                     except Exception as q_err:
                         print(f"[QUIZ DB GRADING ERROR] {q_err}")
 
-                    # 2. Fallback to hardcoded QUIZ_QUESTIONS dataset if not in DB
                     if total_count == 0:
-                        questions = QUIZ_QUESTIONS.get(track_key, {}).get("alternative" if is_alt else "main", [])
-                        if is_practice:
-                            questions = questions[3:]
-                        else:
-                            questions = questions[:3]
-                        total_count = len(questions)
-                        for q in questions:
-                            q_id = str(q["id"])
-                            correct_ans = q["correct"]
-                            student_ans = student_answers.get(q_id)
-                            if student_ans == correct_ans:
+                        bank = QUIZ_QUESTIONS.get(track_key) or {}
+                        main_items = [(q.get("id"), q.get("correct")) for q in bank.get("main", [])]
+                        alt_items = [(q.get("id"), q.get("correct")) for q in bank.get("alternative", [])]
+                        target_questions = split_quiz_sets(main_items, alt_items, is_practice, is_alt)
+                        total_count = len(target_questions)
+                        for q_id, correct_ans in target_questions:
+                            student_ans = lookup_student_answer(student_answers, q_id)
+                            if answers_match(student_ans, correct_ans):
                                 correct_count += 1
-                            
-                    score = (correct_count / total_count) * 100.0 if total_count > 0 else 0.0
-                    mastery_achieved = 1 if (not is_practice and score >= 85.0 and sentry_verified) else (1 if is_practice else 0)
                     
-                    print(f"[QUIZ] Grading Track={track_key}, Alt={is_alt}, Score={score}%, Mastery={mastery_achieved}, SentryVerified={sentry_verified}, Practice={is_practice}")
+                    score = (correct_count / total_count * 100.0) if total_count > 0 else 0.0
+                    mastery_achieved = 1 if (score >= 85.0 and sentry_verified) else 0
                     
-                    if enforce_sentry and sentry_verified and not is_practice:
-                        try:
-                            subject_name = get_subject_by_video_id(video_id)
-                            conn_hw = sqlite3.connect(VAULT_DB_PATH)
-                            cur_hw = conn_hw.cursor()
-                            cur_hw.execute("""
-                                INSERT INTO handwriting_archive (subject, video_id, chapter_id, image_path, extracted_text, score, passed)
-                                VALUES (?, ?, ?, ?, ?, ?, ?);
-                            """, (subject_name, video_id, chapter_id, "sentry_desk_verification.png", "Work Derivation Verified via Sentry Vision Desk Camera", score, 1 if score >= 85.0 else 0))
-                            conn_hw.commit()
-                            conn_hw.close()
-                            print(f"[SENTRY VERIFIED] Archived verified desk snapshot for {subject_name}.")
-                        except Exception as hw_err:
-                            print(f"[HANDWRITING ARCHIVE ERROR] {hw_err}")
+                    print(f"[QUIZ SUBMIT] Score: {score:.1f}% ({correct_count}/{total_count}) | Mastery: {mastery_achieved} | Sentry Verified: {sentry_verified}")
+                    
+                    try:
+                        conn = sqlite3.connect(VAULT_DB_PATH)
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            CREATE TABLE IF NOT EXISTS handwriting_archive (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                user_id TEXT,
+                                video_id TEXT,
+                                chapter_id TEXT,
+                                quiz_type TEXT,
+                                score REAL,
+                                sentry_verified BOOLEAN,
+                                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                            )
+                        """)
+                        cursor.execute("""
+                            INSERT INTO handwriting_archive (user_id, video_id, chapter_id, quiz_type, score, sentry_verified)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """, (connected_students_map.get(websocket, "STU-001"), video_id, chapter_id, "main" if not is_alt else "alt", score, sentry_verified))
+                        conn.commit()
+                        conn.close()
+                    except Exception as hw_err:
+                        print(f"[HANDWRITING ARCHIVE ERROR] {hw_err}")
 
                     next_video = None
                     next_chapter = None
                     
-                    if not is_practice and sentry_verified:
+                    if not is_practice:
                         conn = sqlite3.connect(VAULT_DB_PATH)
                         cursor = conn.cursor()
                         
@@ -4066,29 +4912,12 @@ async def ws_handler(websocket):
                             VALUES (?, ?, ?, ?)
                         """, (video_id, chapter_id, score, mastery_achieved))
                         
-                        if score >= 85.0:
-                            cursor.execute("SELECT video_id, chapter_id, unlocked FROM curriculum_tree")
-                            rows = cursor.fetchall()
-                            idx = -1
-                            for i, r in enumerate(rows):
-                                if r[0] == video_id:
-                                    idx = i
-                                    break
-                            if idx != -1 and idx + 1 < len(rows):
-                                next_video = rows[idx + 1][0]
-                                next_chapter = rows[idx + 1][1]
+                        if mastery_achieved:
+                            next_video, next_chapter = find_next_curriculum_lesson(cursor, video_id)
+                            if next_video:
                                 cursor.execute("UPDATE curriculum_tree SET unlocked = 1 WHERE video_id = ? AND chapter_id = ?",
                                                (next_video, next_chapter))
                                 print(f"[QUIZ] Unlocked next lesson: {next_video} ({next_chapter})")
-                            else:
-                                for r in rows:
-                                    if not r[2]:
-                                        next_video = r[0]
-                                        next_chapter = r[1]
-                                        cursor.execute("UPDATE curriculum_tree SET unlocked = 1 WHERE video_id = ? AND chapter_id = ?",
-                                                       (next_video, next_chapter))
-                                        print(f"[QUIZ] Fallback unlock next lesson: {next_video} ({next_chapter})")
-                                        break
                         
                         conn.commit()
                         conn.close()
@@ -4108,43 +4937,265 @@ async def ws_handler(websocket):
                         "next_chapter": next_chapter
                     }
                     await broadcast(json.dumps(quiz_result_payload))
-                elif data.get("action") == "RAISE_HAND":
-                    # DIAGNOSTIC NOTE: Socratic Whiteboard Canvas Trigger
-                    # When a student raises a hand asking for math concepts, the video player
-                    # is paused, and the Socratic Blackboard slides open next to the graphing canvas.
-                    # Typewriter text streaming is synchronized with SpeechSynthesisUtterance.
+                elif act == "RAISE_HAND":
                     print(f"[WS] Received RAISE_HAND from client")
-                    
-                    # Verbal Interlock: Always pause video for any hand-raise query to keep video paused during explanation
                     print(f"[WS] Hand-raise query detected. Broadcasting PAUSE_VIDEO to client.")
                     pause_payload = {
                         "action": "PAUSE_VIDEO",
                         "reason": "hand_raise_voice_input"
                     }
                     await broadcast(json.dumps(pause_payload))
+                elif (act and act.startswith("POD_")) or act in ["START_STREAM", "STOP_STREAM", "LESSON_COMPLETE", "SUBMIT_LAB_QUIZ"] or (data.get("pod_id") or connected_pod_map.get(websocket)):
+                    pod_id = data.get("pod_id") or connected_pod_map.get(websocket)
                     
-                    # Forward to orchestrator via UDP port 8002
-                    udp_payload = {
-                        "event": "GPIO_INTERRUPT",
-                        "pin": 22, # Mock pin for raise hand interrupt
-                        "action": "RAISE_HAND",
-                        "query": data.get("question", "Explain the active textbook concept"),
-                        "video_id": data.get("video_id"),
-                        "timestamp_marker": data.get("timestamp") or data.get("timestamp_marker"),
-                        "mode": data.get("mode"),
-                        "is_quiz": data.get("is_quiz", False),
-                        "quiz_question": data.get("quiz_question", ""),
-                        "locale": data.get("locale", "en_US")
-                    }
-                    import socket
-                    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    try:
-                        sock.sendto(json.dumps(udp_payload).encode('utf-8'), ("127.0.0.1", 8002))
-                        print("[WS -> UDP] Forwarded RAISE_HAND packet to orchestrator port 8002")
-                    except Exception as e:
-                        print(f"[WS -> UDP ERROR] Failed to forward: {e}")
-                    finally:
-                        sock.close()
+                    if act == "POD_CREATE":
+                        import random, string
+                        new_pod_id = f"POD-{''.join(random.choices(string.digits, k=4))}"
+                        members_raw = data.get("student_ids") or [data.get("student_id") or "Student"]
+                        if isinstance(members_raw, str):
+                            members = [m.strip() for m in members_raw.split(",") if m.strip()]
+                        else:
+                            members = members_raw
+                        
+                        pod_sessions[new_pod_id] = {
+                            "members": members,
+                            "video_id": data.get("video_id", ""),
+                            "playback_state": "paused",
+                            "current_time": 0.0,
+                            "sockets": {websocket}
+                        }
+                        connected_pod_map[websocket] = new_pod_id
+                        print(f"[LAB WS] Created {new_pod_id} for members: {members}")
+                        res = json.dumps({"action": "POD_CREATED", "pod_id": new_pod_id, "members": members})
+                        await websocket.send(res)
+                        
+                    elif act == "POD_JOIN":
+                        target_pod = data.get("pod_id") or connected_pod_map.get(websocket)
+                        members_raw = data.get("student_ids") or [data.get("student_id") or "Student"]
+                        if isinstance(members_raw, str):
+                            new_members = [m.strip() for m in members_raw.split(",") if m.strip()]
+                        else:
+                            new_members = members_raw
+                            
+                        if target_pod not in pod_sessions:
+                            pod_sessions[target_pod] = {
+                                "members": [],
+                                "video_id": data.get("video_id", ""),
+                                "playback_state": "paused",
+                                "current_time": 0.0,
+                                "sockets": set()
+                            }
+                        
+                        pod_sessions[target_pod]["sockets"].add(websocket)
+                        connected_pod_map[websocket] = target_pod
+                        for nm in new_members:
+                            if nm not in pod_sessions[target_pod]["members"]:
+                                pod_sessions[target_pod]["members"].append(nm)
+                        
+                        print(f"[LAB WS] Joined {target_pod}. Members: {pod_sessions[target_pod]['members']}, Total Sockets: {len(pod_sessions[target_pod]['sockets'])}")
+                        join_res = json.dumps({
+                            "action": "POD_JOINED",
+                            "pod_id": target_pod,
+                            "members": pod_sessions[target_pod]["members"],
+                            "video_id": pod_sessions[target_pod]["video_id"],
+                            "playback_state": pod_sessions[target_pod]["playback_state"],
+                            "current_time": pod_sessions[target_pod]["current_time"]
+                        })
+                        await broadcast_to_pod(target_pod, join_res)
+
+                    elif act in ["POD_MEDIA_CONTROL", "POD_TIME_SYNC"]:
+                        p_id = data.get("pod_id") or connected_pod_map.get(websocket)
+                        cmd = data.get("command")
+                        cur_time = data.get("current_time", 0.0)
+                        
+                        if DEPLOYMENT_MODE == "CLASSROOM":
+                            sync_msg = json.dumps({
+                                "action": "POD_MEDIA_CONTROL",
+                                "command": cmd,
+                                "current_time": cur_time,
+                                "sender": data.get("sender", "Teacher"),
+                                "deployment_mode": "CLASSROOM"
+                            })
+                            for ws in list(connected_clients):
+                                if ws != websocket:
+                                    try:
+                                        await ws.send(sync_msg)
+                                    except Exception:
+                                        pass
+                        else:
+                            if p_id in pod_sessions:
+                                if cmd in ["play", "pause"]:
+                                    pod_sessions[p_id]["playback_state"] = cmd
+                                pod_sessions[p_id]["current_time"] = cur_time
+                                sync_msg = json.dumps({
+                                    "action": "POD_MEDIA_CONTROL",
+                                    "command": cmd,
+                                    "current_time": cur_time,
+                                    "sender": data.get("sender", "Peer"),
+                                    "deployment_mode": "LAB"
+                                })
+                                await broadcast_to_pod(p_id, sync_msg, exclude_ws=websocket)
+
+                    elif act == "START_STREAM":
+                        p_id = data.get("pod_id") or connected_pod_map.get(websocket)
+                        speaker_id = data.get("student_id") or connected_students_map.get(websocket, "Student")
+                        lock_pkt = json.dumps({
+                            "status": "LOCKED",
+                            "speaker_id": speaker_id,
+                            "action": "PAUSE_VIDEO",
+                            "reason": "student_speaking"
+                        })
+                        if DEPLOYMENT_MODE == "CLASSROOM" or not p_id or p_id == "CLASSROOM_ALL":
+                            for ws in list(connected_clients):
+                                try:
+                                    await ws.send(lock_pkt)
+                                except Exception:
+                                    pass
+                        else:
+                            if p_id in pod_sessions:
+                                await broadcast_to_pod(p_id, lock_pkt)
+                            else:
+                                for ws in list(connected_clients):
+                                    try:
+                                        await ws.send(lock_pkt)
+                                    except Exception:
+                                        pass
+
+                    elif act == "STOP_STREAM":
+                        p_id = data.get("pod_id") or connected_pod_map.get(websocket)
+                        unlock_pkt = json.dumps({
+                            "status": "UNLOCKED",
+                            "action": "RESUME_VIDEO"
+                        })
+                        if DEPLOYMENT_MODE == "CLASSROOM" or not p_id or p_id == "CLASSROOM_ALL":
+                            for ws in list(connected_clients):
+                                try:
+                                    await ws.send(unlock_pkt)
+                                except Exception:
+                                    pass
+                        else:
+                            if p_id in pod_sessions:
+                                await broadcast_to_pod(p_id, unlock_pkt)
+                            else:
+                                for ws in list(connected_clients):
+                                    try:
+                                        await ws.send(unlock_pkt)
+                                    except Exception:
+                                        pass
+
+                    elif act == "LESSON_COMPLETE":
+                        p_id = data.get("pod_id") or connected_pod_map.get(websocket)
+                        if p_id in pod_sessions:
+                            await broadcast_to_pod(p_id, json.dumps({
+                                "action": "LESSON_COMPLETE",
+                                "video_id": data.get("video_id"),
+                                "sender": data.get("student_id")
+                            }), exclude_ws=websocket)
+
+                    elif act == "SUBMIT_LAB_QUIZ":
+                        p_id = data.get("pod_id") or connected_pod_map.get(websocket)
+                        s_id = data.get("student_id") or connected_students_map.get(websocket, "Student")
+                        v_id = data.get("video_id", "vid_physics_01")
+                        c_id = data.get("chapter_id", "General")
+                        score = data.get("score", 0)
+                        passed = (score >= 85)
+                        
+                        conn = sqlite3.connect(VAULT_DB_PATH)
+                        cursor = conn.cursor()
+                        cursor.execute("INSERT OR REPLACE INTO mastery_ledger (video_id, chapter_id, score, mastery_achieved) VALUES (?, ?, ?, ?)",
+                                       (v_id, f"student_{s_id}", score, 1 if passed else 0))
+                        conn.commit()
+                        conn.close()
+                        
+                        if p_id:
+                            if p_id not in pod_sessions:
+                                pod_sessions[p_id] = {"members": [s_id], "scores": {}, "sockets": {websocket}}
+                            if "scores" not in pod_sessions[p_id]:
+                                pod_sessions[p_id]["scores"] = {}
+                            pod_sessions[p_id]["scores"][s_id] = score
+                            
+                            members = pod_sessions[p_id].get("members", [s_id])
+                            scores = pod_sessions[p_id]["scores"]
+                            
+                            # Check if every single member in the pod has achieved >= 85%
+                            all_passed = len(members) > 0 and all(scores.get(m, 0) >= 85 for m in members)
+                            pending_members = [m for m in members if scores.get(m, 0) < 85]
+                            
+                            print(f"[POD EVALUATION] Student {s_id} scored {score}% in Pod {p_id}. All Passed: {all_passed}. Pending: {pending_members}")
+                            
+                            quiz_res = json.dumps({
+                                "action": "QUIZ_RESULT",
+                                "student_id": s_id,
+                                "score": score,
+                                "passed": passed,
+                                "pod_all_passed": all_passed,
+                                "pending_members": pending_members,
+                                "members_status": {m: {"score": scores.get(m, 0), "passed": scores.get(m, 0) >= 85} for m in members}
+                            })
+                            
+                            await broadcast_to_pod(p_id, quiz_res)
+                        else:
+                            quiz_res = json.dumps({
+                                "action": "QUIZ_RESULT",
+                                "student_id": s_id,
+                                "score": score,
+                                "passed": passed,
+                                "pod_all_passed": passed,
+                                "pending_members": [] if passed else [s_id]
+                            })
+                            await websocket.send(quiz_res)
+
+                    else:
+                        if pod_id and pod_id in pod_sessions:
+                            await broadcast_to_pod(pod_id, message, exclude_ws=websocket)
+                        else:
+                            await websocket.send(message)
+                else:
+                    # SINGLE and CLASSROOM mode (BROADCAST ROOM-WIDE)
+                    await broadcast(message)
+                    if act == "START_STREAM":
+                        speaker_id = data.get("student_id") or connected_students_map.get(websocket, "Student")
+                        active_mic_speaker = speaker_id
+                        print(f"[CLASSROOM WS] Mic stream START by speaker: {speaker_id}")
+                        await broadcast(json.dumps({"status": "LOCKED", "speaker_id": speaker_id}))
+                        await broadcast(json.dumps({"action": "PAUSE_VIDEO", "reason": "student_speaking", "speaker_id": speaker_id}))
+                    elif act == "STOP_STREAM":
+                        speaker_id = data.get("student_id") or connected_students_map.get(websocket, "Student")
+                        active_mic_speaker = None
+                        print(f"[CLASSROOM WS] Mic stream STOP by speaker: {speaker_id}")
+                        await broadcast(json.dumps({"status": "UNLOCKED"}))
+                        await broadcast(json.dumps({"action": "RESUME_VIDEO"}))
+                    elif act == "RAISE_HAND":
+                        print(f"[WS] Hand-raise query detected. Broadcasting PAUSE_VIDEO to client.")
+                        pause_payload = {
+                            "action": "PAUSE_VIDEO",
+                            "reason": "hand_raise_voice_input"
+                        }
+                        await broadcast(json.dumps(pause_payload))
+                        
+                        question_text = data.get("question")
+                        if question_text:
+                            udp_payload = {
+                                "event": "GPIO_INTERRUPT",
+                                "pin": 22,
+                                "action": "RAISE_HAND",
+                                "query": question_text,
+                                "video_id": data.get("video_id"),
+                                "timestamp_marker": data.get("timestamp") or data.get("timestamp_marker"),
+                                "mode": data.get("mode"),
+                                "is_quiz": data.get("is_quiz", False),
+                                "quiz_question": data.get("quiz_question", ""),
+                                "locale": data.get("locale", "en_US")
+                            }
+                            import socket
+                            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                            try:
+                                sock.sendto(json.dumps(udp_payload).encode('utf-8'), ("127.0.0.1", 8002))
+                                print(f"[WS -> UDP] Forwarded RAISE_HAND question '{question_text}' to orchestrator port 8002")
+                            except Exception as e:
+                                print(f"[WS -> UDP ERROR] Failed to forward: {e}")
+                            finally:
+                                sock.close()
 
                     # UDP Orchestrator handles intelligent RAG response & broadcasting to avoid double replies
                     pass
@@ -4156,21 +5207,27 @@ async def ws_handler(websocket):
     finally:
         # Unregister connection
         connected_clients.remove(websocket)
-        print(f"[WS] Connection closed with {websocket.remote_address}. Total active: {len(connected_clients)}")
+        st_id = connected_students_map.pop(websocket, None)
+        if active_mic_speaker and active_mic_speaker == st_id:
+            active_mic_speaker = None
+            print(f"[CLASSROOM WS] Active speaker {st_id} disconnected. Unlocking classroom mic.")
+            await broadcast(json.dumps({"status": "UNLOCKED"}))
+            await broadcast(json.dumps({"action": "RESUME_VIDEO"}))
+        print(f"[WS] Connection closed with {websocket.remote_address} (student: {st_id}). Total active: {len(connected_clients)}")
 
 async def start_ws_server():
+    global MAIN_ASYNCIO_LOOP
+    MAIN_ASYNCIO_LOOP = asyncio.get_running_loop()
     # Bind to 0.0.0.0 to allow incoming local client connections
     async with websockets.serve(ws_handler, "0.0.0.0", WS_PORT):
-        print(f"[WS] WebSocket server listening on ws://localhost:{WS_PORT}")
+        print(f"[WS] WebSocket server listening on ws://localhost:{WS_PORT}", flush=True)
         await asyncio.Future()  # run forever
 
 # ---------------------------------------------------------
 # 3. Main Launch Event
 # ---------------------------------------------------------
 if __name__ == "__main__":
-    print("=== STARTING INTERFACE DISPLAY CLIENT SERVER ===")
-    
-if __name__ == '__main__':
+    print("=== STARTING INTERFACE DISPLAY CLIENT SERVER ===", flush=True)
     # Start HTTP server in a daemon thread (closes automatically when main script exits)
     http_thread = threading.Thread(target=start_http_server, daemon=True)
     http_thread.start()
@@ -4179,4 +5236,4 @@ if __name__ == '__main__':
     try:
         asyncio.run(start_ws_server())
     except KeyboardInterrupt:
-        print("\n[SYSTEM] Terminating display client servers. Exiting...")
+        print("\n[SYSTEM] Terminating display client servers. Exiting...", flush=True)

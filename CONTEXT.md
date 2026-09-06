@@ -144,6 +144,10 @@ graph TD
 *   **Identity Mapping**: All chatbot logs dynamic names (e.g. `Professor Evans` or `Allison`) and photo avatars mapped from the database based on the active lesson.
 *   **Mastery Gating Checkpoint**: Submit button grades MCQ questions. A score >= 85% logs a pass to the ledger and unlocks the next node in the curriculum tree. Scores < 85% trigger strict interlocks (disabling seeking/timeline clicks) and serve alternative module quizzes.
 *   **Socratic Quiz Helper**: Mic commands during quizzes pause the timer and invoke local Socratic hints on the orchestrator, resuming playback on close.
+*   **STEM Virtual Labs Suite (`antigravity_labs/web_labs_package/`)**: 100% offline interactive lab simulations for Chemistry (Acid-Base Titration with pH curves, Reaction Kinetics with Arrhenius curves, Buffer Solutions, Galvanic Cells) and Physics (Simple Pendulum, Young's Double-Slit Diffraction, 2D Projectile Motion).
+*   **Omni Graph Engine (`antigravity_labs/omni_graph_engine/`)**: Dedicated high-performance computational graphing microservice on port 8085 featuring 2D/3D calculus plotting, numerical derivatives, Riemann integration partitions, parametric curves, and ODE vector fields.
+*   **App Launcher Navigation Drawer**: Modern 4-tile Google-style app launcher menu organizing Dashboard, Virtual Labs, Graphs, Course Library, and Student Profile with click-outside dismissal and zero WebGL canvas teardown.
+*   **Hardened Video Startup Sequence & Auto-Load**: Event-driven `initClassroomBoot()` on `DOMContentLoaded`, T=0 synchronous video buffer initialization, `/get_active_session` state sync, redundant translation bypass, and instant seek time-label restoration (`05:03 / 12:39`).
 
 ### 🟡 Partially Built / Mocked
 *   **Hardware Bridge**: Physical GPIO is functional on a real Jetson (set `HARDWARE_TARGET=jetson`). Keyboard simulation is the default for development environments.

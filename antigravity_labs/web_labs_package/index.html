@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Antigravity STEM Virtual Labs (Standalone Preview)</title>
+  <link rel="stylesheet" href="./labs.css">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100%;
+      background-color: #09090b;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+    #standaloneLabsMount {
+      width: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+  <div id="standaloneLabsMount"></div>
+
+  <script type="module">
+    import { mountVirtualLabs } from "./src/virtual_labs.js";
+    const mountPoint = document.getElementById("standaloneLabsMount");
+    window.virtualLabsInstance = mountVirtualLabs(mountPoint);
+  </script>
+</body>
+</html>

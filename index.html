@@ -32,6 +32,8 @@
         }
       }
     </script>
+    <!-- Antigravity STEM Virtual Labs Stylesheet -->
+    <link rel="stylesheet" href="/antigravity_labs/web_labs_package/labs.css" />
     <style>
       /* Brute-force input spinner override */
       input::-webkit-outer-spin-button,
@@ -167,6 +169,252 @@
         height: 2px;
         background-color: var(--primary);
         box-shadow: 0 0 8px var(--primary);
+      }
+
+      /* App Launcher & Navigation Menu Redesign */
+      .app-launcher-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .app-launcher-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 9px;
+        cursor: pointer;
+        padding: 0;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      .app-launcher-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(56, 189, 248, 0.5);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(14, 165, 233, 0.3);
+      }
+
+      .app-launcher-btn:active {
+        transform: translateY(0);
+      }
+
+      .launcher-grid-icon {
+        width: 20px;
+        height: 20px;
+        display: block;
+      }
+
+      .header-view-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        user-select: none;
+        padding: 5px 12px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        transition: all 0.2s ease;
+      }
+
+      .header-view-breadcrumb:hover {
+        background: rgba(255, 255, 255, 0.09);
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+
+      .breadcrumb-sep {
+        color: #71717a;
+        font-size: 1.05rem;
+        font-weight: 300;
+      }
+
+      .breadcrumb-active-tag {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #f4f4f5;
+      }
+
+      .breadcrumb-chevron {
+        color: #a1a1aa;
+        transition: transform 0.2s ease;
+      }
+
+      .app-launcher-wrapper.menu-open .breadcrumb-chevron {
+        transform: rotate(180deg);
+      }
+
+      .app-launcher-menu {
+        position: absolute;
+        top: calc(100% + 14px);
+        left: 0;
+        width: 330px;
+        background: rgba(18, 18, 24, 0.97);
+        backdrop-filter: blur(28px) saturate(190%);
+        -webkit-backdrop-filter: blur(28px) saturate(190%);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        padding: 10px;
+        display: none;
+        flex-direction: column;
+        z-index: 99999;
+        transform-origin: top left;
+        animation: launcherMenuFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      .app-launcher-menu.open {
+        display: flex;
+      }
+
+      @keyframes launcherMenuFadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.96) translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      .launcher-menu-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 10px 10px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        margin-bottom: 6px;
+      }
+
+      .launcher-menu-header-title {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #a1a1aa;
+      }
+
+      .launcher-menu-badge {
+        font-size: 0.65rem;
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+        padding: 2px 7px;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+
+      .launcher-nav-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .launcher-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        position: relative;
+        text-decoration: none;
+        background: transparent;
+        border: 1px solid transparent;
+      }
+
+      .launcher-menu-item:hover {
+        background: rgba(255, 255, 255, 0.07);
+        border-color: rgba(255, 255, 255, 0.09);
+      }
+
+      .launcher-menu-item.active {
+        background: rgba(14, 165, 233, 0.14);
+        border-color: rgba(14, 165, 233, 0.35);
+      }
+
+      .launcher-menu-item.active::after {
+        display: none !important;
+      }
+
+      .launcher-item-icon-box {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: transform 0.15s ease;
+      }
+
+      .launcher-menu-item:hover .launcher-item-icon-box {
+        transform: scale(1.06);
+      }
+
+      .icon-box-dashboard {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: #ffffff;
+      }
+
+      .icon-box-revision {
+        background: linear-gradient(135deg, #a855f7, #7e22ce);
+        color: #ffffff;
+      }
+
+      .icon-box-labs {
+        background: linear-gradient(135deg, #10b981, #047857);
+        color: #ffffff;
+      }
+
+      .icon-box-graphs {
+        background: linear-gradient(135deg, #06b6d4, #0284c7);
+        color: #ffffff;
+      }
+
+      .launcher-item-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .launcher-item-title {
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: #f4f4f5;
+      }
+
+      .launcher-item-desc {
+        font-size: 0.72rem;
+        color: #71717a;
+        line-height: 1.2;
+      }
+
+      .launcher-menu-item.active .launcher-item-title {
+        color: #38bdf8;
+      }
+
+      .launcher-item-active-check {
+        font-size: 0.85rem;
+        color: #38bdf8;
+        font-weight: 700;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      }
+
+      .launcher-menu-item.active .launcher-item-active-check {
+        opacity: 1;
       }
 
       .header-right {
@@ -3657,28 +3905,84 @@
     <!-- 1. Header component -->
     <header class="main-header">
       <div class="header-left">
-        <div class="header-logo">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect width="20" height="12" x="2" y="6" rx="2" />
-            <path d="M12 12h.01" />
-            <path d="M17 12h.01" />
-            <path d="M7 12h.01" />
-          </svg>
-          Gandal AI
+        <!-- App Launcher Trigger & Brand -->
+        <div class="app-launcher-wrapper" id="appLauncherWrapper">
+          <div class="header-logo" style="display: flex; align-items: center; gap: 10px;">
+            <button 
+              type="button" 
+              class="app-launcher-btn" 
+              id="appLauncherBtn" 
+              onclick="toggleAppLauncherMenu(event)" 
+              title="Apps & Modules Menu"
+              aria-label="Apps Menu"
+              aria-expanded="false"
+            >
+              <!-- 4-Tile Windows-Style Blue Launcher Icon -->
+              <svg class="launcher-grid-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="8.2" height="8.2" rx="2.2" fill="#00a4ef" />
+                <rect x="12.8" y="3" width="8.2" height="8.2" rx="2.2" fill="#0078d4" />
+                <rect x="3" y="12.8" width="8.2" height="8.2" rx="2.2" fill="#0078d4" />
+                <rect x="12.8" y="12.8" width="8.2" height="8.2" rx="2.2" fill="#00a4ef" />
+              </svg>
+            </button>
+            <span onclick="switchView('dashboard', document.getElementById('navItemDashboard'))" style="cursor: pointer;" title="Go to Dashboard">Gandal AI</span>
+          </div>
+
+          <!-- App Launcher Dropdown Flyout Menu -->
+          <div class="app-launcher-menu" id="appLauncherDropdown" role="menu" aria-label="Applications Menu">
+            <div class="launcher-menu-header">
+              <div class="launcher-menu-header-title">APPS & STEM MODULES</div>
+              <span class="launcher-menu-badge">Menu</span>
+            </div>
+            
+            <nav class="launcher-nav-list">
+              <!-- 1. Révision & Cours -->
+              <div class="launcher-menu-item nav-item" role="menuitem" data-view="revision_library" onclick="selectLauncherTab('revision_library', this)">
+                <div class="launcher-item-icon-box icon-box-revision">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><circle cx="8" cy="12" r="2.5"></circle><circle cx="16" cy="12" r="2.5"></circle><path d="M8 14.5h8"></path></svg>
+                </div>
+                <div class="launcher-item-content">
+                  <div class="launcher-item-title">📼 Révision & Cours</div>
+                  <div class="launcher-item-desc">Interactive video lessons & textbook curriculum</div>
+                </div>
+                <div class="launcher-item-active-check">✓</div>
+              </div>
+
+              <!-- 2. Virtual Labs -->
+              <div class="launcher-menu-item nav-item" role="menuitem" data-view="virtual_labs" onclick="selectLauncherTab('virtual_labs', this)">
+                <div class="launcher-item-icon-box icon-box-labs">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 2v7.31L4.69 18.06A2 2 0 0 0 6.42 21h11.16a2 2 0 0 0 1.73-2.94L14 9.31V2"></path><line x1="8.5" y1="2" x2="15.5" y2="2"></line><line x1="7" y1="15" x2="17" y2="15"></line></svg>
+                </div>
+                <div class="launcher-item-content">
+                  <div class="launcher-item-title">🧪 Virtual Labs</div>
+                  <div class="launcher-item-desc">STEM Chemistry, Physics, RDKit & PubChem</div>
+                </div>
+                <div class="launcher-item-active-check">✓</div>
+              </div>
+
+              <!-- 3. STEM Graphs -->
+              <div class="launcher-menu-item nav-item" role="menuitem" data-view="stem_graphs" onclick="selectLauncherTab('stem_graphs', this)">
+                <div class="launcher-item-icon-box icon-box-graphs">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
+                </div>
+                <div class="launcher-item-content">
+                  <div class="launcher-item-title">📈 Graphs</div>
+                  <div class="launcher-item-desc">Dynamic multi-curve plotter, inequalities & OCR</div>
+                </div>
+                <div class="launcher-item-active-check">✓</div>
+              </div>
+            </nav>
+          </div>
         </div>
+
+        <!-- Horizontal Nav Links: Dashboard stays right here! -->
         <nav class="nav-links">
-          <div class="nav-item active" onclick="switchView('dashboard', this)">
+          <div class="nav-item active" id="navItemDashboard" onclick="switchView('dashboard', this)">
             Dashboard
           </div>
-          <div class="nav-item" onclick="switchView('revision_library', this)">
-            📼 Révision & Cours
+          <!-- Dynamic nav item for the active module selected from menu -->
+          <div class="nav-item" id="navItemActiveModule" style="display: none;">
+            <span id="navItemActiveModuleLabel"></span>
           </div>
         </nav>
       </div>
@@ -5346,6 +5650,16 @@
             </div>
           </div>
         </div>
+
+        <!-- VIEW 5: VIRTUAL LABS (STEM CHEMISTRY, PHYSICS, RDKIT & PUBCHEM) -->
+        <div class="view-pane" id="virtualLabsPane" style="padding: 0; overflow-y: auto; height: 100%; box-sizing: border-box; background: #09090b;">
+          <div id="virtualLabsMountPoint" style="width: 100%; min-height: 100%; display: flex; flex-direction: column;"></div>
+        </div>
+
+        <!-- VIEW 6: STEM GRAPHS (INTERACTIVE GRAPHING & SIMULATOR) -->
+        <div class="view-pane" id="stemGraphsPane" style="padding: 0; overflow: hidden; height: 100%; box-sizing: border-box; background: #09090b;">
+          <iframe id="stemGraphsIframe" src="/antigravity_labs/omni_graph_engine/index.html" style="width: 100%; height: 100%; border: none; display: block;" allow="microphone"></iframe>
+        </div>
       </div>
 
       <!-- Right Sidebar matrix columns -->
@@ -5382,7 +5696,7 @@
             class="sidebar-tab-btn"
             onclick="switchSidebarTab('timestamps', this)"
           >
-            Sommaire
+            Summary
           </button>
           <button
             class="sidebar-tab-btn"
@@ -8303,6 +8617,13 @@
             const payload = JSON.parse(evt.data);
             if (!payload) return;
 
+            if (payload.action === "DEPLOYMENT_MODE_CHANGED") {
+              console.log("[WS] Deployment mode changed to:", payload.mode);
+              showToastNotification("Room Mode Updated", `Deployment topology changed to ${payload.mode}. Reloading...`);
+              setTimeout(() => { window.location.reload(); }, 1200);
+              return;
+            }
+
             if (payload.action === "CHAT_RESPONSE" || (payload.a2ui_payload && payload.a2ui_payload.action === "CHAT_RESPONSE")) {
               const text = payload.text || (payload.a2ui_payload && payload.a2ui_payload.text);
               if (text) {
@@ -8319,6 +8640,17 @@
                 console.log(
                   "[WS] Discarding incoming voice response because conversation session is inactive.",
                 );
+                return;
+              }
+
+              // If user explicitly closed/dismissed the whiteboard, don't auto-reopen it from background sentry messages
+              if (window.isWhiteboardExplicitlyClosed && a2ui.mode !== "voice" && a2ui.mode !== "user_gesture" && !isConversationSessionActive) {
+                console.log(
+                  "[WS] Discarding auto whiteboard popup because user dismissed the workspace.",
+                );
+                if (a2ui.data && a2ui.data.socratic_text) {
+                  streamChatMessage("AI TUTOR", a2ui.data.socratic_text);
+                }
                 return;
               }
 
@@ -8432,7 +8764,13 @@
                 handleUnlockDevice();
               }
             } else if (payload && payload.action === "PAUSE_VIDEO") {
-              pauseVideoTimeline();
+              if (payload.reason === "no_face_present" && !window.ENABLE_SENTRY_AUTO_PAUSE) {
+                console.log("[SENTRY WS] Discarding background sentry pause event because Sentry auto-pause is disabled.");
+              } else if (payload.reason === "no_face_present") {
+                pauseVideoTimeline({ fromSentry: true });
+              } else {
+                pauseVideoTimeline();
+              }
             } else if (payload && payload.action === "PLAY_VIDEO") {
               playVideoTimeline();
             } else if (payload && payload.action === "PLAY_VIDEO_OVERRIDE") {
@@ -8540,26 +8878,142 @@
         };
       }
 
+      // App Launcher Dropdown Flyout Handlers
+      function toggleAppLauncherMenu(e) {
+        if (e) {
+          e.stopPropagation();
+          e.preventDefault();
+        }
+        const dropdown = document.getElementById("appLauncherDropdown");
+        const wrapper = document.getElementById("appLauncherWrapper");
+        const btn = document.getElementById("appLauncherBtn");
+        if (!dropdown) return;
+        const isOpen = dropdown.classList.toggle("open");
+        if (wrapper) wrapper.classList.toggle("menu-open", isOpen);
+        if (btn) btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      }
+
+      function closeAppLauncherMenu() {
+        const dropdown = document.getElementById("appLauncherDropdown");
+        const wrapper = document.getElementById("appLauncherWrapper");
+        const btn = document.getElementById("appLauncherBtn");
+        if (dropdown) dropdown.classList.remove("open");
+        if (wrapper) wrapper.classList.remove("menu-open");
+        if (btn) btn.setAttribute("aria-expanded", "false");
+      }
+
+      function selectLauncherTab(viewName, element) {
+        closeAppLauncherMenu();
+        switchView(viewName, element);
+      }
+
+      document.addEventListener("click", function (e) {
+        const wrapper = document.getElementById("appLauncherWrapper");
+        if (wrapper && !wrapper.contains(e.target)) {
+          closeAppLauncherMenu();
+        }
+      });
+
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          closeAppLauncherMenu();
+        }
+      });
+
       // View Toggling logic
       function switchView(viewName, element) {
         document
           .querySelectorAll(".nav-item")
-          .forEach((item) => item.classList.remove("active"));
-        if (element) element.classList.add("active");
+          .forEach((item) => {
+            if (item.getAttribute("data-view") === viewName || item === element) {
+              item.classList.add("active");
+            } else {
+              item.classList.remove("active");
+            }
+          });
+
+        // Sync Navbar items: Dashboard stays fixed in navbar, active module from menu displays when selected
+        const dashNav = document.getElementById("navItemDashboard");
+        const activeModNav = document.getElementById("navItemActiveModule");
+        const activeModLabel = document.getElementById("navItemActiveModuleLabel");
+
+        const viewMeta = {
+          dashboard: { icon: "📊", label: "Dashboard" },
+          revision_library: { icon: "📼", label: "Révision & Cours" },
+          virtual_labs: { icon: "🧪", label: "Virtual Labs" },
+          stem_graphs: { icon: "📈", label: "Graphs" }
+        };
+
+        if (viewName === "dashboard") {
+          if (dashNav) dashNav.classList.add("active");
+          if (activeModNav) {
+            activeModNav.style.display = "none";
+            activeModNav.classList.remove("active");
+          }
+        } else {
+          if (dashNav) dashNav.classList.remove("active");
+          if (activeModNav && viewMeta[viewName]) {
+            activeModNav.style.display = "flex";
+            activeModNav.classList.add("active");
+            if (activeModLabel) {
+              activeModLabel.innerText = `${viewMeta[viewName].icon} ${viewMeta[viewName].label}`;
+            }
+          }
+        }
 
         document
           .querySelectorAll(".view-pane")
           .forEach((pane) => pane.classList.remove("active"));
         if (viewName === "dashboard") {
+          document.body.classList.remove("full-width-labs");
+          window.isVirtualLabsActive = false;
+          window.isStemGraphsActive = false;
           document.getElementById("dashboardPane").classList.add("active");
+          if (typeof updateActiveViewState === "function") updateActiveViewState();
         } else if (viewName === "courses") {
+          document.body.classList.remove("full-width-labs");
+          window.isVirtualLabsActive = false;
+          window.isStemGraphsActive = false;
           document.getElementById("coursesPane").classList.add("active");
+          if (typeof updateActiveViewState === "function") updateActiveViewState();
         } else if (viewName === "library") {
+          document.body.classList.remove("full-width-labs");
+          window.isVirtualLabsActive = false;
+          window.isStemGraphsActive = false;
           document.getElementById("libraryPane").classList.add("active");
+          if (typeof updateActiveViewState === "function") updateActiveViewState();
         } else if (viewName === "revision_library") {
+          document.body.classList.remove("full-width-labs");
+          window.isVirtualLabsActive = false;
+          window.isStemGraphsActive = false;
           const revPane = document.getElementById("revisionLibraryPane");
           if (revPane) revPane.classList.add("active");
           renderRevisionLibraryGrid();
+          if (typeof updateActiveViewState === "function") updateActiveViewState();
+        } else if (viewName === "virtual_labs") {
+          document.body.classList.add("full-width-labs");
+          window.isVirtualLabsActive = true;
+          window.isStemGraphsActive = false;
+          const labsPane = document.getElementById("virtualLabsPane");
+          if (labsPane) labsPane.classList.add("active");
+          const mountPoint = document.getElementById("virtualLabsMountPoint");
+          if (mountPoint && !window.virtualLabsInstance) {
+            import("/antigravity_labs/web_labs_package/src/virtual_labs.js").then((mod) => {
+              if (!window.virtualLabsInstance) {
+                window.virtualLabsInstance = mod.mountVirtualLabs(mountPoint);
+              }
+            }).catch((err) => {
+              console.error("Failed to dynamically load Virtual Labs module:", err);
+            });
+          }
+          if (typeof updateActiveViewState === "function") updateActiveViewState();
+        } else if (viewName === "stem_graphs") {
+          document.body.classList.add("full-width-labs");
+          window.isVirtualLabsActive = false;
+          window.isStemGraphsActive = true;
+          const graphsPane = document.getElementById("stemGraphsPane");
+          if (graphsPane) graphsPane.classList.add("active");
+          if (typeof updateActiveViewState === "function") updateActiveViewState();
         }
       }
 
@@ -8783,7 +9237,7 @@
         });
       }
 
-      function renderVideoSummary(videoId) {
+      async function renderVideoSummary(videoId) {
         const container = document.getElementById("summaryDocumentContainer");
         if (!container) return;
 
@@ -8791,8 +9245,21 @@
         const activeVideo = videoId || window.ACTIVE_DATABASE_VIDEO_ID || activeVideoId || "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
         const instructor = activeInstructorName || "Prof. GANDHO";
 
-        let summaryData = {};
+        let summaryData = null;
+        try {
+          const loc = window.ACTIVE_DATABASE_LOCALE || "en_US";
+          const resp = await fetch(`/get_lesson_summary?video_id=${encodeURIComponent(activeVideo)}&locale=${encodeURIComponent(loc)}`);
+          if (resp.ok) {
+            const baked = await resp.json();
+            if (baked && baked.overview) {
+              summaryData = baked;
+            }
+          }
+        } catch (e) {
+          console.warn("[SUMMARY] Baked summary fetch failed, using fallback:", e);
+        }
 
+        if (!summaryData) {
         if (activeVideo.includes("sanitaire")) {
           summaryData = {
             title: isFrench ? "Économie : Les Problèmes Sanitaires du Développement" : "Economics: Health & Sanitary Challenges in Development",
@@ -8930,6 +9397,7 @@
             ]
           };
         }
+        }
 
         let formulasHtml = "";
         if (summaryData.formulas && summaryData.formulas.length > 0) {
@@ -9024,6 +9492,20 @@
           }
         }
 
+        const evalIncomplete = window.timelineLocked && !window.activeChapterMastered;
+        if (tabName !== "evaluation" && evalIncomplete) {
+          const allowedWhileLocked = tabName === "timestamps" || tabName === "tutor";
+          showToastNotification(
+            "Mastery Evaluation Incomplete",
+            allowedWhileLocked
+              ? "Timeline is locked until you score 85%+. You can review the lesson, then return to Evaluation."
+              : "Score 85%+ on the evaluation before switching to this pane.",
+          );
+          if (!allowedWhileLocked) {
+            return;
+          }
+        }
+
         document
           .querySelectorAll(".sidebar-tab-btn")
           .forEach((btn) => btn.classList.remove("active"));
@@ -9040,7 +9522,7 @@
         }
 
         // Automatically close evaluation split panel (Panels A & B) when switching to non-evaluation tabs
-        if (tabName !== "evaluation") {
+        if (tabName !== "evaluation" && !evalIncomplete) {
           if (typeof toggleQuizView === "function") {
             toggleQuizView(false);
           }
@@ -9157,23 +9639,24 @@
           state = "screen_share";
         } else if (window.isWorkspaceActive) {
           state = "split_workspace";
+        } else if (window.isVirtualLabsActive) {
+          state = "virtual_labs";
+        } else if (window.isStemGraphsActive) {
+          state = "stem_graphs";
         } else if (activeTabName === "evaluation") {
           state = "evaluation";
         }
 
         let extraContext = "";
-        if (activeTabName === "evaluation") {
+        if (window.isVirtualLabsActive) {
+          extraContext = window.currentSocraticLabContext
+            ? (typeof window.currentSocraticLabContext === "string" ? window.currentSocraticLabContext : JSON.stringify(window.currentSocraticLabContext))
+            : "Student is actively experimenting in STEM Virtual Labs (Chemistry & Physics)";
+        } else if (window.isStemGraphsActive) {
+          extraContext = "Student is actively working with mathematical equations, curves, and inequalities in STEM Graphs.";
+        } else if (activeTabName === "evaluation") {
           try {
-            const trackKey = getQuizTrackKey();
-            let questionsSet = isAlternativeQuizActive
-              ? QUIZ_QUESTIONS[trackKey].alternative
-              : QUIZ_QUESTIONS[trackKey].main;
-            if (window.isPracticeQuizActive) {
-              questionsSet = questionsSet.slice(3);
-            } else {
-              questionsSet = questionsSet.slice(0, 3);
-            }
-            extraContext = questionsSet
+            extraContext = getDisplayedQuizQuestions()
               .map((q, idx) => `Question ${idx + 1}: ${q.question}`)
               .join("\n");
           } catch (e) {}
@@ -10037,8 +10520,9 @@
           }
 
           // Fetch token from display_client /token endpoint
+          const currentStudent = window.ACTIVE_DATABASE_USER || activeStudentName || "Alseny";
           const tokenResp = await fetch(
-            `/token?room=socratic_tutor_room_${Math.floor(Math.random() * 1000)}&identity=student_01&video_id=${activeVideoId}`,
+            `/token?room=socratic_tutor_room_${Math.floor(Math.random() * 1000)}&identity=${encodeURIComponent(currentStudent)}&name=${encodeURIComponent(currentStudent)}&mode=SOLO&video_id=${encodeURIComponent(activeVideoId)}`,
           );
           const tokenData = await tokenResp.json();
           const token = tokenData.token;
@@ -10710,6 +11194,7 @@
         const video = document.getElementById("lectureVideoPlayer");
 
         if (isConversationSessionActive) {
+          window.isWhiteboardExplicitlyClosed = false;
           if (!prevSessionActive) {
             wasVideoPlayingBeforeSession = video ? !video.paused : false;
           }
@@ -10998,6 +11483,7 @@
       let deskCamStream = null;
       window.timelineLocked = false;
       let maxTimeWatched = 0;
+      let dynamicQuizBank = { main: [], alternative: [] };
 
       // Quiz Questions Dataset
             const QUIZ_QUESTIONS = {
@@ -11207,7 +11693,7 @@ function getQuizTrackKey() {
         const vid = (activeVideoId || "").toLowerCase();
         const track = (selectedGoalTrack || "").toLowerCase();
 
-        if (vid.includes("chem") || vid.includes("chemistry") || track.includes("chemistry")) {
+        if (vid.includes("chem") || vid.includes("chemistry") || vid.includes("chimie") || track.includes("chemistry")) {
           return "Chemistry";
         }
         if (vid.includes("sanitaire") || track.includes("sanitaire")) {
@@ -11216,17 +11702,61 @@ function getQuizTrackKey() {
         if (vid.includes("alimentaire") || track.includes("alimentaire")) {
           return "Economics";
         }
+        if (vid.includes("calculus") || vid.includes("math") || track.includes("math") || track.includes("calculus")) {
+          return "calculus";
+        }
+        if (vid.includes("phys") || vid.includes("physique") || track.includes("physics")) {
+          return "College";
+        }
         if (vid.includes("demographique") || vid.includes("economics") || track.includes("economics")) {
+          return "Demographics";
+        }
+        if (vid.includes("phil") || track.includes("philosophy")) {
           return "Demographics";
         }
         return "Demographics";
       }
 
-      function getActiveQuizQuestion() {
+      async function fetchQuizQuestionsForVideo(videoId) {
+        if (!videoId) return;
+        try {
+          const resp = await fetch(`/get_quiz_questions?video_id=${encodeURIComponent(videoId)}`);
+          if (!resp.ok) return;
+          const data = await resp.json();
+          const main = Array.isArray(data.main) ? data.main : [];
+          const alternative = Array.isArray(data.alternative) ? data.alternative : [];
+          dynamicQuizBank = { main, alternative };
+          if (isQuizActive) {
+            renderQuizQuestions();
+          }
+        } catch (e) {
+          console.warn("[QUIZ FETCH WARN]", e);
+        }
+      }
+
+      function getResolvedQuizBank() {
+        if ((dynamicQuizBank.main && dynamicQuizBank.main.length) || (dynamicQuizBank.alternative && dynamicQuizBank.alternative.length)) {
+          return dynamicQuizBank;
+        }
         const trackKey = getQuizTrackKey();
-        const questionsSet = isAlternativeQuizActive
-          ? QUIZ_QUESTIONS[trackKey].alternative
-          : QUIZ_QUESTIONS[trackKey].main;
+        return QUIZ_QUESTIONS[trackKey] || { main: [], alternative: [] };
+      }
+
+      function getDisplayedQuizQuestions() {
+        const bank = getResolvedQuizBank();
+        const main = bank.main || [];
+        const alternative = bank.alternative || [];
+        if (window.isPracticeQuizActive) {
+          return main.slice(3).concat(alternative).slice(0, 30);
+        }
+        if (isAlternativeQuizActive) {
+          return (alternative.length ? alternative : main).slice(0, 3);
+        }
+        return main.slice(0, 3);
+      }
+
+      function getActiveQuizQuestion() {
+        const questionsSet = getDisplayedQuizQuestions();
         let activeQ = null;
         for (let i = 0; i < questionsSet.length; i++) {
           if (!selectedAnswers[questionsSet[i].id]) {
@@ -11564,19 +12094,7 @@ function getQuizTrackKey() {
         if (!container) return;
         container.innerHTML = "";
 
-        const trackKey = getQuizTrackKey() || "k12/12th_SM/Economics";
-        const trackQuizData = QUIZ_QUESTIONS[trackKey] || QUIZ_QUESTIONS["k12/12th_SM/Economics"] || { main: [], alternative: [] };
-        let questionsSet = isAlternativeQuizActive
-          ? (trackQuizData.alternative || trackQuizData.main || [])
-          : (trackQuizData.main || trackQuizData.alternative || []);
-        if (!questionsSet) questionsSet = [];
-
-        // Slice questions depending on practice mode
-        if (window.isPracticeQuizActive) {
-          questionsSet = questionsSet.slice(3); // indices 3, 4
-        } else {
-          questionsSet = questionsSet.slice(0, 3); // indices 0, 1, 2
-        }
+        const questionsSet = getDisplayedQuizQuestions();
 
         const activeLoc = window.ACTIVE_DATABASE_LOCALE || "en_US";
         const locStrings =
@@ -11639,7 +12157,8 @@ function getQuizTrackKey() {
           title.innerText = `${questionNumber}. ${qText}`;
           card.appendChild(title);
 
-          if (activeLoc !== "en_US") {
+          const teacherLoc = window.ACTIVE_DATABASE_INSTRUCTOR_LOCALE || "en_US";
+          if (activeLoc !== teacherLoc) {
             fetch(
               `/api/translate?text=${encodeURIComponent(qText)}&locale=${encodeURIComponent(activeLoc)}`,
             )
@@ -11672,7 +12191,7 @@ function getQuizTrackKey() {
                         <span class="bubble-text" style="font-family:'Geist',sans-serif;">${text}</span>
                     `;
 
-            if (activeLoc !== "en_US") {
+            if (activeLoc !== teacherLoc) {
               fetch(
                 `/api/translate?text=${encodeURIComponent(text)}&locale=${encodeURIComponent(activeLoc)}`,
               )
@@ -11704,19 +12223,8 @@ function getQuizTrackKey() {
       }
 
       function submitQuizAnswers() {
-        const trackKey = getQuizTrackKey() || "k12/12th_SM/Economics";
-        const trackQuizData = QUIZ_QUESTIONS[trackKey] || QUIZ_QUESTIONS["k12/12th_SM/Economics"] || { main: [], alternative: [] };
-        let questionsSet = isAlternativeQuizActive
-          ? (trackQuizData.alternative || trackQuizData.main || [])
-          : (trackQuizData.main || trackQuizData.alternative || []);
-        if (!questionsSet) questionsSet = [];
-
-        // Slice questions depending on practice mode
-        if (window.isPracticeQuizActive) {
-          questionsSet = questionsSet.slice(3); // indices 3, 4
-        } else {
-          questionsSet = questionsSet.slice(0, 3); // indices 0, 1, 2
-        }
+        const trackKey = getQuizTrackKey();
+        const questionsSet = getDisplayedQuizQuestions();
 
         let answeredCount = 0;
         questionsSet.forEach((q) => {
@@ -11809,10 +12317,12 @@ function getQuizTrackKey() {
       }
 
       function openTeacherQuizKeyInspector() {
-        const trackKey = getQuizTrackKey();
-        const questions = QUIZ_QUESTIONS[trackKey] ? QUIZ_QUESTIONS[trackKey].main : [];
+        const bank = getResolvedQuizBank();
+        const questions = window.isPracticeQuizActive
+          ? getDisplayedQuizQuestions()
+          : (bank.main || []);
         let html = `<div style="padding: 20px; background: #0c0c0e; color: white; border-radius: 12px; max-width: 600px; margin: 40px auto; border: 1px solid #a855f7;">
-          <h3 style="color: #a855f7; margin-top: 0;">🔑 Teacher Answer Key: ${trackKey}</h3>
+          <h3 style="color: #a855f7; margin-top: 0;">🔑 Teacher Answer Key: ${getQuizTrackKey()}</h3>
           <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 14px; max-height: 400px; overflow-y: auto;">`;
 
         questions.forEach((q, idx) => {
@@ -11944,12 +12454,9 @@ function getQuizTrackKey() {
         if (payload.enforce_sentry && !payload.sentry_verified) {
           showToastNotification(
             "Sentry Work Verification Failed",
-            "Handwritten paper work missing under desk camera. Show your derivation under Panel B camera to earn credit.",
+            "Handwritten paper work missing under desk camera. Show your derivation under Panel B camera to earn credit. Score recorded without mastery.",
           );
-          return;
-        }
-
-        if (payload.enforce_sentry && payload.sentry_verified) {
+        } else if (payload.enforce_sentry && payload.sentry_verified) {
           showToastNotification(
             "Sentry Work Verified",
             "Handwritten derivation verified via Panel B camera & archived to Handwriting Notes Ledger.",
@@ -13214,7 +13721,7 @@ function getQuizTrackKey() {
           tab_tutor: "Tutor",
           tab_chat: "Chat",
           tab_flashcards: "Flashcards",
-          tab_timestamps: "Sommaire",
+          tab_timestamps: "Summary",
           tab_profile: "Profile",
           tab_evaluation: "Evaluation",
           welcome_msg:
@@ -14409,6 +14916,8 @@ function getQuizTrackKey() {
 
         if (pane) {
           if (show) {
+            window.isWhiteboardExplicitlyClosed = false;
+            pane.style.display = "";
             if (state === "B") {
               if (panelA) panelA.style.display = "flex";
               if (panelB) panelB.style.display = "none";
@@ -14427,7 +14936,9 @@ function getQuizTrackKey() {
             }
             pane.classList.add("active");
           } else {
+            window.isWhiteboardExplicitlyClosed = true;
             pane.classList.remove("active");
+            pane.style.display = "none";
             if (panelA) panelA.style.display = "none";
             if (panelB) panelB.style.display = "none";
             isSimulatorActive = false;
@@ -16361,6 +16872,7 @@ function getQuizTrackKey() {
         clickedItem = null,
         chapterTitle = "",
       ) {
+        console.log("[LOAD_TEXTBOOK] loadTextbookPDF called with:", videoId, "time:", time);
         const oldVideoId = window.lastLoadedVideoId;
         if (oldVideoId) {
           const video = document.getElementById("lectureVideoPlayer");
@@ -16376,13 +16888,14 @@ function getQuizTrackKey() {
           }
         }
         window.lastLoadedVideoId = videoId;
+        fetchQuizQuestionsForVideo(videoId);
         
         // Immediately log active video progress to localStorage the very first second it loads across any subject
         let currentSub = "Economics";
-        if (videoId.includes("chemistry")) currentSub = "Chemistry";
-        else if (videoId.includes("physics")) currentSub = "Physics";
+        if (videoId.includes("chemistry") || videoId.includes("chimie")) currentSub = "Chemistry";
+        else if (videoId.includes("physics") || videoId.includes("physique")) currentSub = "Physics";
         else if (videoId.includes("philosophy")) currentSub = "Philosophy";
-        else if (videoId.includes("math")) currentSub = "Mathematics";
+        else if (videoId.includes("math") || videoId.includes("calculus")) currentSub = "Mathematics";
 
         localStorage.setItem("lastActiveVideoId", videoId);
         localStorage.setItem("lastActiveVideo_" + currentSub, videoId);
@@ -16391,8 +16904,11 @@ function getQuizTrackKey() {
         }
 
         try {
+          console.log("[LOAD_TEXTBOOK] Fetching /api/lesson?video_id=" + videoId);
           const res = await fetch(`/api/lesson?video_id=${videoId}`);
+          console.log("[LOAD_TEXTBOOK] HTTP status:", res.status);
           const data = await res.json();
+          console.log("[LOAD_TEXTBOOK] Parsed data video_file_path:", data ? data.video_file_path : null);
           if (data) {
             if (data.blocked) {
               showDailyCapOverlay(data.reason);
@@ -16532,7 +17048,12 @@ function getQuizTrackKey() {
                 localStorage.setItem("lastActiveVideo_Chemistry", data.video_id);
               } else if (vLower.includes("philosophy")) {
                 localStorage.setItem("lastActiveVideo_Philosophy", data.video_id);
+              } else if (vLower.includes("physics") || vLower.includes("physique")) {
+                localStorage.setItem("lastActiveVideo_Physics", data.video_id);
+              } else if (vLower.includes("calculus") || vLower.includes("math")) {
+                localStorage.setItem("lastActiveVideo_Mathematics", data.video_id);
               }
+              fetchQuizQuestionsForVideo(data.video_id);
             }
             if (data.instructor_name) {
               activeInstructorName = data.instructor_name;
@@ -16773,14 +17294,27 @@ function getQuizTrackKey() {
                       }
                       video.currentTime = effectiveRestoreTime;
                     }
+                    if (typeof onVideoProgressUpdate === "function") {
+                      onVideoProgressUpdate();
+                    }
+                    video.addEventListener("seeked", () => {
+                      if (typeof onVideoProgressUpdate === "function") {
+                        onVideoProgressUpdate();
+                      }
+                    }, { once: true });
                     video
                       .play()
-                      .catch((e) =>
+                      .catch((e) => {
                         console.log(
                           "[PLAY_DEBUG] Autoplay prevented play:",
                           e,
-                        ),
-                      );
+                        );
+                        const playBtn = document.getElementById("playControlBtn");
+                        if (playBtn) {
+                          playBtn.innerHTML =
+                            '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+                        }
+                      });
                   } catch (e) {
                     console.warn("[SEEK_DEBUG] Seek restore failed:", e);
                   }
@@ -17638,9 +18172,9 @@ function getQuizTrackKey() {
 
           const oldTrack = window.currentTrack;
           window.currentTrack = selectedGoalTrack;
-          const trackChanged = !oldTrack || oldTrack !== selectedGoalTrack;
-          // Only initialize default video player source if track has changed or activeVideoId is not set
-          if (!activeVideoId || oldTrack !== selectedGoalTrack) {
+          const trackChanged = !!(oldTrack && oldTrack !== selectedGoalTrack);
+          // Only initialize default video player source if track has changed post-boot or activeVideoId is not set
+          if (!activeVideoId || (oldTrack && oldTrack !== selectedGoalTrack)) {
             let targetVideoId = selectedGoalTrack;
             if (
               selectedGoalTrack === "12th Grade" ||
@@ -17795,41 +18329,6 @@ function getQuizTrackKey() {
             }
             if (tutorContainer) {
               tutorContainer.innerHTML = "";
-            }
-
-            let targetVideoId = selectedGoalTrack;
-            if (
-              selectedGoalTrack === "12th Grade" ||
-              selectedGoalTrack === "calculus" ||
-              selectedGoalTrack === "k12/12th_SM/Economics"
-            ) {
-              targetVideoId = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
-            } else if (
-              selectedGoalTrack === "College" ||
-              selectedGoalTrack === "k12/12th_SM/physics"
-            ) {
-              targetVideoId = "vid_physics_01";
-            } else if (
-              selectedGoalTrack === "Chemistry" ||
-              selectedGoalTrack === "k12/12th_SM/chemistry"
-            ) {
-              targetVideoId = "vid_chemistry_organic_chemistry_chemistry";
-            } else if (
-              selectedGoalTrack === "Random Topics" ||
-              selectedGoalTrack === "Philosophy" ||
-              selectedGoalTrack ===
-                "independent_learner/philosophy/stoicism_and_ethics"
-            ) {
-              targetVideoId = "vid_philosophy_01";
-            } else if (
-              selectedGoalTrack === "5th Grade" ||
-              selectedGoalTrack === "Basic Science" ||
-              selectedGoalTrack === "k12/1st_grade/mathematics"
-            ) {
-              targetVideoId = "vid_physics_02";
-            }
-            if (targetVideoId) {
-              loadTextbookPDF(targetVideoId);
             }
           }
           renderCurriculumTimestamps(selectedGoalTrack, data.evaluations || []);
@@ -19319,7 +19818,7 @@ function getQuizTrackKey() {
       }
 
       // Attentional tracking timeline handlers with visual stutter elimination
-      function pauseVideoTimeline() {
+      function pauseVideoTimeline(options = {}) {
         const video = document.getElementById("lectureVideoPlayer");
         const btn = document.getElementById("playControlBtn");
         if (video) {
@@ -19327,9 +19826,8 @@ function getQuizTrackKey() {
           if (btn)
             btn.innerHTML =
               '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-          if (!isVideoPausedBySentry) {
+          if (options.fromSentry && !isVideoPausedBySentry) {
             isVideoPausedBySentry = true;
-            // Triggered instantly when face count registers 0 on the sentry service
             showToastNotification(
               "ATTENTION PAUSED",
               "No face present. Timeline paused.",
@@ -19370,10 +19868,17 @@ function getQuizTrackKey() {
           }
           video
             .play()
-            .catch((e) => console.log("Play interrupted or blocked:", e));
-          if (btn)
-            btn.innerHTML =
-              '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+            .then(() => {
+              if (btn)
+                btn.innerHTML =
+                  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+            })
+            .catch((e) => {
+              console.log("Play interrupted or blocked:", e);
+              if (btn)
+                btn.innerHTML =
+                  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+            });
           if (isVideoPausedBySentry) {
             isVideoPausedBySentry = false;
             // Instantly resumes play when verified face registers 1 or more
@@ -19751,10 +20256,10 @@ function getQuizTrackKey() {
                 consecutiveNoFaceCount++;
                 consecutiveFaceCount = 0;
 
-                if (consecutiveNoFaceCount >= 5) {
+                if (window.ENABLE_SENTRY_AUTO_PAUSE && consecutiveNoFaceCount >= 15) {
                   if (!isVideoPausedBySentry) {
                     console.log("[CAM] No real face detected. Pausing video.");
-                    pauseVideoTimeline();
+                    pauseVideoTimeline({ fromSentry: true });
                   }
                 }
               }
@@ -19823,7 +20328,10 @@ function getQuizTrackKey() {
         }
       });
 
-      window.onload = function () {
+      function initClassroomBoot() {
+        if (window.__classroomBootDone) return;
+        window.__classroomBootDone = true;
+
         // Strict Boot Visibility Reset
         const tutor = document.getElementById("tutor-pane");
         const chat = document.getElementById("chat-pane");
@@ -19837,11 +20345,24 @@ function getQuizTrackKey() {
         if (timestamps) timestamps.style.display = "none";
         if (profile) profile.style.display = "none";
 
+        // Reset and hide whiteboard/chalkboard overlay on boot
+        const wbPane = document.getElementById("whiteboardSplitPane");
+        if (wbPane) {
+          wbPane.classList.remove("active");
+          wbPane.style.display = "none";
+        }
+        const wbPanelA = document.getElementById("whiteboardPanelA");
+        const wbPanelB = document.getElementById("whiteboardPanelB");
+        if (wbPanelA) wbPanelA.style.display = "none";
+        if (wbPanelB) wbPanelB.style.display = "none";
+        window.isWhiteboardExplicitlyClosed = true;
+
         // Populate document camera source select options
         populateCameraSources();
 
         // Load active video's data, textbook, and preprocessed timestamps/flashcards
         (async function bootActiveSessionVideo() {
+          console.log("[BOOT] bootActiveSessionVideo starting...");
           // 1. Check global last active video ID
           let savedLocalVid = localStorage.getItem("lastActiveVideoId");
 
@@ -19854,33 +20375,36 @@ function getQuizTrackKey() {
               savedLocalVid = localStorage.getItem("lastActiveVideo_Physics");
             } else if (activeSub.includes("philosophy")) {
               savedLocalVid = localStorage.getItem("lastActiveVideo_Philosophy");
-            } else if (activeSub.includes("math")) {
+            } else if (activeSub.includes("math") || activeSub.includes("calculus")) {
               savedLocalVid = localStorage.getItem("lastActiveVideo_Mathematics");
             } else {
               savedLocalVid = localStorage.getItem("lastActiveVideo_Economics");
             }
           }
 
-          let serverVid = null;
+          let initialBootVid = window.ACTIVE_DATABASE_VIDEO_ID || savedLocalVid || "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires";
+          console.log("[BOOT] initialBootVid determined immediately:", initialBootVid);
+          activeVideoId = initialBootVid;
+          window.ACTIVE_DATABASE_VIDEO_ID = initialBootVid;
+
+          console.log("[BOOT] Immediate loadTextbookPDF:", activeVideoId);
+          loadTextbookPDF(activeVideoId);
+
+          // Asynchronously verify against server's active_session.json
           try {
             const sessionResp = await fetch('/get_active_session');
             if (sessionResp.ok) {
               const sessionData = await sessionResp.json();
-              if (sessionData && sessionData.active_video_id) {
-                serverVid = sessionData.active_video_id;
+              if (sessionData && sessionData.active_video_id && sessionData.active_video_id !== initialBootVid) {
+                console.log("[BOOT] Server session indicates different video:", sessionData.active_video_id);
+                activeVideoId = sessionData.active_video_id;
+                window.ACTIVE_DATABASE_VIDEO_ID = sessionData.active_video_id;
+                loadTextbookPDF(sessionData.active_video_id);
               }
             }
           } catch(e) {
             console.warn('[SESSION BOOT WARN]', e);
           }
-
-          // Prioritize active database/server video session, then local subject bookmark
-          let finalBootVid = window.ACTIVE_DATABASE_VIDEO_ID || serverVid || savedLocalVid || "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires";
-
-          activeVideoId = finalBootVid;
-          window.ACTIVE_DATABASE_VIDEO_ID = finalBootVid;
-
-          loadTextbookPDF(activeVideoId);
         })();
 
         // Hydrate dynamic names initially
@@ -19892,7 +20416,14 @@ function getQuizTrackKey() {
         document.querySelectorAll(".tutor-header-label").forEach((el) => {
           el.innerText = activeInstructorName;
         });
-      };
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initClassroomBoot);
+      } else {
+        initClassroomBoot();
+      }
+      window.addEventListener("load", initClassroomBoot);
     </script>
 
     <!-- Spatius Avatar Hybrid Connection Manager -->

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Offline PhET-Style Simulation: Gas Properties (PV = nRT)</title>
+  <style>
+    body {
+      margin: 0;
+      background: #09090b;
+      color: #f4f4f5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+    .header {
+      padding: 12px 20px;
+      background: #141418;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #27272a;
+      flex-shrink: 0;
+    }
+    .main-box {
+      flex: 1;
+      display: flex;
+      padding: 20px;
+      gap: 20px;
+      min-height: 0;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    .chamber-box {
+      flex: 1;
+      background: #101014;
+      border: 2px solid #3f3f46;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      min-height: 250px;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .controls-panel {
+      width: 300px;
+      background: #141418;
+      border: 1px solid #27272a;
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .gauge {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+    }
+    .gauge-val {
+      font-size: 2rem;
+      font-family: monospace;
+      font-weight: bold;
+      color: #06b6d4;
+    }
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.82rem;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: #06b6d4;
+    }
+    .action-btn {
+      padding: 10px;
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      color: white;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .action-btn:hover { background: #3f3f46; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <strong>⚗️ Offline Simulation: Gas Properties & Kinetic Theory (PV = nRT)</strong>
+    <span style="font-size: 0.8rem; color: #a1a1aa;">100% Offline Local Engine</span>
+  </div>
+
+  <div class="main-box">
+    <div class="chamber-box" id="chamber">
+      <canvas id="gasCanvas"></canvas>
+    </div>
+
+    <div class="controls-panel">
+      <div class="gauge">
+        <div style="font-size: 0.75rem; color: #a1a1aa;">CHAMBER PRESSURE (P)</div>
+        <div class="gauge-val" id="pressureVal">1.00 atm</div>
+        <div style="font-size: 0.75rem; color: #10b981;" id="tempVal">Temperature: 300 K (27°C)</div>
+      </div>
+
+      <div class="slider-row">
+        <label>Gas Molecules (n): <span id="molCount" style="color:#06b6d4; font-weight:bold;">50</span></label>
+        <input type="range" id="molSlider" min="10" max="150" value="50">
+      </div>
+
+      <div class="slider-row">
+        <label>Temperature (T): <span id="tempSliderVal" style="color:#f59e0b; font-weight:bold;">300 K</span></label>
+        <input type="range" id="tempSlider" min="100" max="600" value="300">
+      </div>
+
+      <div class="slider-row">
+        <label>Chamber Volume (V): <span id="volSliderVal" style="color:#818cf8; font-weight:bold;">1.0 L</span></label>
+        <input type="range" id="volSlider" min="50" max="100" value="100">
+      </div>
+
+      <button type="button" class="action-btn" id="btnPump">💨 Inject Heavy Molecules</button>
+      <button type="button" class="action-btn" id="btnReset">🗑️ Reset Chamber</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gasCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resize() {
+      if (!canvas || !canvas.parentElement) return;
+      canvas.width = canvas.parentElement.clientWidth || 600;
+      canvas.height = canvas.parentElement.clientHeight || 450;
+    }
+    window.addEventListener("resize", resize);
+    if (window.ResizeObserver) {
+      new ResizeObserver(() => resize()).observe(canvas.parentElement);
+    }
+    resize();
+
+    let particles = [];
+    let T = 300; // Kelvin
+    let volumeRatio = 1.0; // 0.5 to 1.0
+
+    function initParticles(count) {
+      particles = [];
+      const maxX = canvas.width * volumeRatio;
+      for (let i = 0; i < count; i++) {
+        const speed = Math.sqrt(T / 300) * 180;
+        const angle = Math.random() * Math.PI * 2;
+        particles.push({
+          x: Math.random() * (maxX - 40) + 20,
+          y: Math.random() * (canvas.height - 40) + 20,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          r: 5,
+          color: "#38bdf8"
+        });
+      }
+    }
+
+    initParticles(50);
+
+    document.getElementById("molSlider").oninput = (e) => {
+      const c = parseInt(e.target.value);
+      document.getElementById("molCount").innerText = c;
+      initParticles(c);
+    };
+
+    document.getElementById("tempSlider").oninput = (e) => {
+      T = parseInt(e.target.value);
+      document.getElementById("tempSliderVal").innerText = T + " K";
+      document.getElementById("tempVal").innerText = `Temperature: ${T} K (${T - 273}°C)`;
+      const mult = Math.sqrt(T / 300);
+      particles.forEach(p => {
+        const speed = Math.hypot(p.vx, p.vy);
+        if (speed > 0) {
+          const factor = (180 * mult) / speed;
+          p.vx *= factor;
+          p.vy *= factor;
+        }
+      });
+    };
+
+    document.getElementById("volSlider").oninput = (e) => {
+      const v = parseInt(e.target.value);
+      volumeRatio = v / 100;
+      document.getElementById("volSliderVal").innerText = (volumeRatio).toFixed(1) + " L";
+    };
+
+    document.getElementById("btnPump").onclick = () => {
+      const slider = document.getElementById("molSlider");
+      slider.value = Math.min(150, parseInt(slider.value) + 20);
+      slider.dispatchEvent(new Event("input"));
+    };
+
+    document.getElementById("btnReset").onclick = () => {
+      document.getElementById("molSlider").value = 50;
+      document.getElementById("molSlider").dispatchEvent(new Event("input"));
+      document.getElementById("tempSlider").value = 300;
+      document.getElementById("tempSlider").dispatchEvent(new Event("input"));
+      document.getElementById("volSlider").value = 100;
+      document.getElementById("volSlider").dispatchEvent(new Event("input"));
+    };
+
+    let lastT = performance.now();
+    function loop(now) {
+      const dt = Math.min((now - lastT) / 1000, 0.05);
+      lastT = now;
+
+      const rightWall = canvas.width * volumeRatio;
+
+      // Ideal Gas Law: P = nRT / V
+      const n = particles.length;
+      const P = (n * (T / 300)) / (volumeRatio * 50);
+      document.getElementById("pressureVal").innerText = P.toFixed(2) + " atm";
+
+      // Physics step
+      for (let p of particles) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+
+        if (p.x - p.r < 0) { p.x = p.r; p.vx *= -1; }
+        if (p.x + p.r > rightWall) { p.x = rightWall - p.r; p.vx *= -1; }
+        if (p.y - p.r < 0) { p.y = p.r; p.vy *= -1; }
+        if (p.y + p.r > canvas.height) { p.y = canvas.height - p.r; p.vy *= -1; }
+      }
+
+      // Draw
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Piston Wall
+      ctx.fillStyle = "#475569";
+      ctx.fillRect(rightWall, 0, 14, canvas.height);
+      ctx.fillStyle = "rgba(0,0,0,0.5)";
+      ctx.fillRect(rightWall + 14, 0, canvas.width - rightWall, canvas.height);
+
+      // Draw Particles
+      for (let p of particles) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = T > 380 ? "#ef4444" : (T < 200 ? "#06b6d4" : p.color);
+        ctx.fill();
+      }
+
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

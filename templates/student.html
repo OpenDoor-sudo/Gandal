@@ -1,0 +1,2574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ventuno AI - Student Classroom Cockpit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="/livekit_stack/static/livekit-client.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0c10;
+            --bg-card: rgba(22, 27, 34, 0.85);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: #000000;
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* AUTH OVERLAY */
+        #authOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(10, 12, 16, 0.95);
+            backdrop-filter: blur(12px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.5rem;
+            width: 90%;
+            max-width: 420px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            text-align: center;
+        }
+
+        .auth-logo {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            margin-bottom: 1.25rem;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .auth-card h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .auth-card p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.25rem;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .auth-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 0.9rem;
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .auth-btn:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
+
+        /* HEADER & TABS */
+        header {
+            height: 60px;
+            background: #0a0c10;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            z-index: 10;
+        }
+
+        .brand-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .brand-badge {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+        }
+
+        .student-profile-badge {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .student-profile-badge strong {
+            color: var(--text-main);
+        }
+
+        .tabs-nav {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.25rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab-btn:hover:not(.disabled) {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .tab-btn.active {
+            background: var(--accent-blue);
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .tab-btn.disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .logout-btn {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(239, 68, 68, 0.25);
+            color: #ef4444;
+        }
+
+        .help-btn {
+            background: rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .help-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: #fff;
+        }
+
+        .settings-btn {
+            background: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .settings-btn:hover {
+            background: rgba(168, 85, 247, 0.25);
+            border-color: #a855f7;
+            color: #fff;
+        }
+
+        /* MAIN CANVAS */
+        main {
+            flex: 1;
+            position: relative;
+            background: #000000;
+            overflow: hidden;
+            height: calc(100vh - 60px);
+        }
+
+        .tab-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab-view.active {
+            display: flex !important;
+            opacity: 1;
+            z-index: 10;
+        }
+
+        /* TAB 1: MIC */
+        #tab1-mic {
+            background: #07090e;
+            flex-direction: row;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .mic-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .mic-toggle-btn {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background: #222222;
+            border: 3px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            font-size: 3.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+        }
+
+        .mic-toggle-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .mic-toggle-btn.active-streaming {
+            background: #ff3333 !important;
+            border-color: #ff6666 !important;
+            box-shadow: 0 0 50px rgba(255, 51, 51, 0.6) !important;
+            animation: pulse-ring 1.5s infinite;
+        }
+
+        .mic-toggle-btn:disabled {
+            background: #111111;
+            border-color: #333333;
+            color: #444444;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0.7); }
+            70% { box-shadow: 0 0 0 35px rgba(255, 51, 51, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 51, 51, 0); }
+        }
+
+        .mic-status-label {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: 0.03em;
+        }
+
+        .lock-notice-banner {
+            margin-top: 1rem;
+            padding: 0.6rem 1.25rem;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            border-radius: 8px;
+            color: #f87171;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        /* TAB 2: EVALUATION */
+        #tab2-evaluation {
+            background: #0a0c10;
+            padding: 2.5rem 1.5rem 5rem 1.5rem;
+            overflow-y: scroll !important;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            box-sizing: border-box;
+            z-index: 20;
+            pointer-events: auto;
+        }
+
+        .quiz-container {
+            width: 100%;
+            max-width: 800px;
+            background: rgba(18, 22, 34, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+            margin-bottom: 3rem;
+            pointer-events: auto;
+        }
+
+        .quiz-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .quiz-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .question-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            pointer-events: auto;
+        }
+
+        .question-text {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #f8fafc;
+            margin-bottom: 1rem;
+            line-height: 1.4;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: auto;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: center;
+            padding: 0.85rem 1.15rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer !important;
+            transition: all 0.15s ease;
+            font-size: 0.92rem;
+            color: #e2e8f0;
+            user-select: none;
+            pointer-events: auto !important;
+            position: relative;
+        }
+
+        .option-label:hover {
+            background: rgba(59, 130, 246, 0.12);
+            border-color: rgba(59, 130, 246, 0.4);
+            transform: translateX(4px);
+        }
+
+        .option-label.selected {
+            background: rgba(59, 130, 246, 0.22) !important;
+            border-color: #3b82f6 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+        }
+
+        .option-label input[type="radio"] {
+            margin-right: 0.85rem;
+            accent-color: #3b82f6;
+            width: 18px;
+            height: 18px;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+        }
+
+        .quiz-submit-btn {
+            margin-top: 1.5rem;
+            padding: 0.85rem 2rem;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer !important;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+            pointer-events: auto !important;
+            width: 100%;
+        }
+
+        .quiz-submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+        }
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .quiz-submit-btn:hover {
+            opacity: 0.9;
+        }
+
+        .quiz-result-box {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+        }
+
+        .quiz-result-box.passed {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #34d399;
+        }
+
+        .quiz-result-box.failed {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        /* TAB 3: CHAT / UPLOAD */
+        #tab3-chat {
+            background: #0f1218;
+            padding: 1.5rem;
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .chat-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            background: rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-feed {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .chat-bubble {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .chat-bubble.student {
+            align-self: flex-end;
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .chat-bubble.ai {
+            align-self: flex-start;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        .upload-section {
+            width: 340px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .upload-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .dropzone {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .dropzone:hover {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .upload-preview {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 8px;
+            display: none;
+            border: 1px solid var(--border-color);
+        }
+
+        .upload-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- AUTHENTICATION OVERLAY -->
+    <div id="authOverlay">
+        <div class="auth-card" style="max-width: 480px;">
+            <div class="auth-logo">🎓</div>
+            <h2>Ventuno Learning Cockpit</h2>
+            <p>Select your study configuration and enter your Student ID(s)</p>
+
+            <!-- LIVE CLASSROOM DETECTED BANNER -->
+            <div id="activeClassBanner" style="display: none; align-items: center; gap: 10px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.35); border-radius: 10px; padding: 10px 14px; margin-bottom: 1.25rem; text-align: left;">
+                <span style="font-size: 1.4rem;">📡</span>
+                <div style="flex: 1;">
+                    <div style="font-size: 0.88rem; font-weight: 700; color: #60a5fa;" id="activeClassName">Classroom Broadcast Active</div>
+                    <div style="font-size: 0.78rem; color: #94a3b8;" id="activeClassLesson">Auto-syncs with Projector Lecture</div>
+                </div>
+                <span style="font-size: 0.72rem; font-weight: 700; color: #34d399; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); padding: 2px 8px; border-radius: 6px; text-transform: uppercase;">Live</span>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 1.25rem; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 10px; border: 1px solid var(--border-color);">
+                <button type="button" id="modeSoloBtn" class="tab-btn active" style="flex:1; justify-content:center; font-size:0.8rem;" onclick="setAuthStudyMode('solo')">👤 Solo</button>
+                <button type="button" id="modeGroupBtn" class="tab-btn" style="flex:1; justify-content:center; font-size:0.8rem;" onclick="setAuthStudyMode('group')">👥 Team (1 Device)</button>
+                <button type="button" id="modePodBtn" class="tab-btn" style="flex:1; justify-content:center; font-size:0.8rem;" onclick="setAuthStudyMode('pod')">🚀 Synced Pod</button>
+            </div>
+
+            <div class="input-group">
+                <label for="studentIdInput" id="studentIdLabel">Student ID / Name</label>
+                <input type="text" id="studentIdInput" class="auth-input" placeholder="e.g. STU-024 or Alex M." autocomplete="off" />
+            </div>
+
+            <div id="podInputsGroup" style="display: none; margin-bottom: 1.25rem; text-align: left;">
+                <label style="display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.4rem;">Pod Code</label>
+                <div style="display: flex; gap: 8px;">
+                    <input type="text" id="podCodeInput" class="auth-input" placeholder="e.g. POD-9842" style="flex: 1;" />
+                    <button type="button" onclick="generateNewPodCode()" style="padding: 0 12px; background: rgba(59,130,246,0.2); border: 1px solid var(--accent-blue); color: #60a5fa; border-radius: 8px; font-weight: 600; cursor: pointer;">Generate</button>
+                </div>
+            </div>
+
+            <button id="loginBtn" class="auth-btn">Authenticate & Launch Catalog</button>
+        </div>
+    </div>
+
+    <!-- COURSE CATALOG MODAL OVERLAY -->
+    <div id="catalogOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(10, 12, 16, 0.95); backdrop-filter: blur(12px); z-index: 9998; align-items: center; justify-content: center;">
+        <div class="auth-card" style="max-width: 540px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+                <h3 style="font-size: 1.2rem; font-weight: 700; color: #f8fafc;">📚 Local Course Catalog</h3>
+                <span id="catalogModeBadge" style="background: rgba(16,185,129,0.15); color: #34d399; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; font-weight: 600;">LAB MODE</span>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 1.5rem;">
+                <div>
+                    <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">1. Education Level</label>
+                    <select id="catLevelSelect" onchange="onCatLevelChanged()" class="auth-input">
+                        <option value="">-- Select Level --</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">2. Track / Grade</label>
+                        <select id="catGradeSelect" onchange="onCatGradeChanged()" class="auth-input">
+                            <option value="">-- Select Track --</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">3. Subject</label>
+                        <select id="catSubjectSelect" onchange="onCatSubjectChanged()" class="auth-input">
+                            <option value="">-- Select Subject --</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;">
+                        <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">4. Chapter / Unit</label>
+                        <select id="catChapterSelect" onchange="onCatChapterChanged()" class="auth-input">
+                            <option value="">-- Select Chapter --</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1.2;">
+                        <label style="display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">5. Starting Video</label>
+                        <select id="catVideoSelect" class="auth-input">
+                            <option value="">-- Select Video --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" onclick="startSelectedLesson()" class="auth-btn" style="background: linear-gradient(135deg, #10b981, #059669);">🚀 Launch Lesson Cockpit</button>
+        </div>
+    </div>
+
+    <!-- MAIN HEADER NAV -->
+    <header>
+        <div class="brand-info">
+            <div class="brand-badge" id="headerBrandBadge">VENTUNO LAB COCKPIT</div>
+            <div class="student-profile-badge">
+                Students: <strong id="headerStudentId">Unauthenticated</strong>
+                <span id="headerPodBadge" style="display: none; background: rgba(59,130,246,0.2); color: #60a5fa; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px;">Pod: None</span>
+            </div>
+        </div>
+
+        <nav class="tabs-nav">
+            <button id="tabBtn1" class="tab-btn active" onclick="switchTab('tab1-mic')">
+                🎤 Tab 1: Mic & Video
+            </button>
+            <button id="tabBtn2" class="tab-btn disabled" onclick="switchTab('tab2-evaluation')">
+                🔒 Tab 2: Evaluation
+            </button>
+            <button id="tabBtn3" class="tab-btn disabled" onclick="switchTab('tab3-chat')">
+                🔒 Tab 3: Chat/Upload
+            </button>
+        </nav>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="helpGuideBtn" class="help-btn" onclick="openStudentHelpModal()" title="View Classroom & Pod Guide">❓ Help</button>
+            <button id="adminSettingsBtn" class="settings-btn" onclick="openProctorSettingsModal()" title="Teacher / Proctor Quick Settings">⚙️ Settings</button>
+            <button id="logoutBtn" class="logout-btn" onclick="performLogout()">Logout / Next Class</button>
+        </div>
+    </header>
+
+    <!-- MAIN CANVAS CONTENT -->
+    <main>
+        <!-- TAB 1: 2-PANEL LAYOUT (LEFT: BIG MAIN VIDEO + UPCOMING 3 PLAYLIST | RIGHT: MIC PANEL) -->
+        <div id="tab1-mic" class="tab-view active">
+            
+            <!-- LEFT & CENTER WORKSPACE: MAIN VIDEO + NEXT 3 PLAYLIST -->
+            <div style="flex: 1; display: flex; gap: 1.25rem; padding: 1.25rem; overflow-y: auto; align-items: stretch;">
+                
+                <!-- MAIN BIG VIDEO CONTAINER -->
+                <div style="flex: 1.8; display: flex; flex-direction: column; background: #0c0f17; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="background: #2563eb; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.04em;">ACTIVE LESSON</span>
+                            <span id="activeChapterBadge" style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">Chapter: General</span>
+                            <span style="color: rgba(255,255,255,0.2);">•</span>
+                            <span id="headerLessonTitleBadge" style="font-size: 0.88rem; color: #38bdf8; font-weight: 700;">01 Les problèmes démographiques</span>
+                        </div>
+                        <button type="button" onclick="openCatalogModal()" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;">🔄 Change Video</button>
+                    </div>
+
+                    <div style="position: relative; width: 100%; display: flex; flex-direction: column; background: #000000; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);">
+                        <video id="studentVideoPlayer" style="width: 100%; max-height: 480px; object-fit: contain; background: #000; outline: none; cursor: pointer;" onclick="toggleCustomPlayPause()">
+                            <source id="videoSourceEl" src="" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+
+                    <!-- DEDICATED CUSTOM VIDEO CONTROLS BAR -->
+                    <div class="custom-video-controls-bar" style="margin-top: 10px; background: rgba(18, 22, 34, 0.9); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; backdrop-filter: blur(8px); position: relative; z-index: 50; pointer-events: auto;">
+                        <!-- Timeline Slider & Time Displays -->
+                        <div style="display: flex; align-items: center; gap: 10px; pointer-events: auto;">
+                            <span id="videoCurrentTimeDisplay" style="font-size: 0.78rem; color: #94a3b8; font-family: monospace; min-width: 44px; user-select: none;">00:00</span>
+                            <input type="range" id="videoTimelineSlider" min="0" max="100" value="0" step="0.1" style="flex: 1; accent-color: #3b82f6; cursor: pointer; height: 6px; border-radius: 4px; pointer-events: auto; position: relative; z-index: 55;" oninput="onSeekSliderInput(this.value)" onchange="onSeekSliderChange(this.value)" />
+                            <span id="videoDurationDisplay" style="font-size: 0.78rem; color: #94a3b8; font-family: monospace; min-width: 44px; user-select: none;">00:00</span>
+                        </div>
+
+                        <!-- Buttons Row -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; pointer-events: auto;">
+                            <div style="display: flex; align-items: center; gap: 8px; pointer-events: auto;">
+                                <!-- Play/Pause Toggle -->
+                                <button type="button" id="customPlayPauseBtn" onclick="toggleCustomPlayPause(event)" style="background: #2563eb; color: white; border: none; padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.82rem; cursor: pointer !important; display: flex; align-items: center; gap: 6px; transition: all 0.2s; pointer-events: auto; position: relative; z-index: 55;">
+                                    <span id="playIcon">⏸️</span> <span id="playText">Pause</span>
+                                </button>
+
+                                <!-- Restart Video -->
+                                <button type="button" id="restartLessonBtn" onclick="restartVideoPlayback(event)" style="background: rgba(255,255,255,0.08); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.15); padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer !important; display: flex; align-items: center; gap: 4px; pointer-events: auto; position: relative; z-index: 55;" title="Restart Video from 0:00">
+                                    🔄 Restart Lesson
+                                </button>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 12px; pointer-events: auto;">
+                                <!-- Mute / Volume -->
+                                <div style="display: flex; align-items: center; gap: 6px; pointer-events: auto;">
+                                    <button type="button" id="muteBtn" onclick="toggleMuteVideo(event)" style="background: transparent; border: none; color: #cbd5e1; font-size: 1rem; cursor: pointer !important; padding: 2px; pointer-events: auto; position: relative; z-index: 55;" title="Mute/Unmute">
+                                        🔊
+                                    </button>
+                                    <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" style="width: 65px; accent-color: #3b82f6; cursor: pointer; height: 5px; pointer-events: auto; position: relative; z-index: 55;" oninput="onVolumeChange(this.value)" />
+                                </div>
+
+                                <!-- Fullscreen -->
+                                <button type="button" id="fullscreenBtn" onclick="toggleFullscreenVideo(event)" style="background: rgba(255,255,255,0.08); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.15); padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer !important; pointer-events: auto; position: relative; z-index: 55;" title="Toggle Fullscreen">
+                                    ⛶ Fullscreen
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 50; pointer-events: auto;">
+                        <div>
+                            <h3 id="activeLessonLabel" style="font-size: 1.1rem; font-weight: 700; color: #f8fafc; margin-bottom: 2px;">Economics: Classical Lessons</h3>
+                            <div id="activeLessonSubtext" style="font-size: 0.8rem; color: #64748b;">Ingested Local Curriculum • Progressive Video Stream</div>
+                        </div>
+                        <button type="button" id="evaluationQuizBtn" onclick="unlockAndGoToEvaluation(event)" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 8px 18px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer !important; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(16,185,129,0.3); pointer-events: auto; position: relative; z-index: 55;">📝 Evaluation Quiz</button>
+                    </div>
+                </div>
+
+                <!-- MIDDLE: NEXT 3 UPCOMING VIDEOS PLAYLIST (LOCKED TILL STUDENTS PASS TEST) -->
+                <div style="width: 320px; display: flex; flex-direction: column; background: #0c0f17; border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 0.75rem;">
+                        <h4 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; display: flex; align-items: center; gap: 6px;">📑 Upcoming Lessons</h4>
+                        <span style="font-size: 0.75rem; color: #94a3b8; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">Pass: 85%</span>
+                    </div>
+
+                    <div id="upcomingVideosContainer" style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1;">
+                        <!-- Cards populated dynamically by renderUpcomingPlaylist() -->
+                        <div style="background: rgba(255,255,255,0.02); border: 1px dashed rgba(255,255,255,0.1); border-radius: 10px; padding: 1rem; text-align: center; color: #64748b; font-size: 0.85rem;">
+                            Select a course to view upcoming playlist
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT PANEL: DEDICATED MIC INTERLOCK ("MAKE IT NICE") -->
+            <div style="width: 280px; background: #090b10; border-left: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 1.75rem 1.25rem; position: relative;">
+                
+                <div style="text-align: center; width: 100%;">
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; letter-spacing: 0.08em; text-transform: uppercase;">Voice Interlock</div>
+                    <div id="micPodStatusBadge" style="font-size: 0.8rem; color: #60a5fa; margin-top: 3px; background: rgba(59,130,246,0.1); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(59,130,246,0.2); display: inline-block;">Pod Isolation Active</div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 1.25rem; width: 100%;">
+                    <button id="micToggleBtn" class="mic-toggle-btn" onclick="toggleMicStream()" style="width: 140px; height: 140px; font-size: 3.2rem; box-shadow: 0 0 30px rgba(59,130,246,0.15);">
+                        🎙️
+                    </button>
+                    
+                    <div style="text-align: center;">
+                        <div id="micStatusText" class="mic-status-label" style="font-size: 1.05rem; font-weight: 600; color: #f8fafc;">Click to Talk</div>
+                        <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Pauses video automatically</div>
+                    </div>
+
+                    <div id="lockNoticeBanner" class="lock-notice-banner" style="width: 100%; text-align: center; margin-top: 0.25rem;">
+                        ⚠️ Mic Locked: Pod member speaking
+                    </div>
+                </div>
+
+                <div style="width: 100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 14px; text-align: center;">
+                    <div style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">Connected Speaker</div>
+                    <div id="micStudentNameBadge" style="font-size: 0.9rem; font-weight: 700; color: #38bdf8; margin-top: 2px;">Student</div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- TAB 2: INGESTED CURRICULUM MCQs -->
+        <div id="tab2-evaluation" class="tab-view">
+            <div class="quiz-container">
+                <div class="quiz-header">
+                    <div class="quiz-title">📝 Lesson Master Evaluation</div>
+                    <span style="font-size: 0.85rem; color: var(--text-muted);">Mastery Threshold: 85%</span>
+                </div>
+                <div id="quizQuestionsContainer">
+                    <p style="color: var(--text-muted);">Loading ingested curriculum MCQs...</p>
+                </div>
+                <button id="submitQuizBtn" class="quiz-submit-btn" style="display: none;" onclick="submitEvaluation()">Submit Answers</button>
+                <div id="quizResultBox" class="quiz-result-box"></div>
+            </div>
+        </div>
+
+        <!-- TAB 3: CHAT FEED AND HANDWRITING UPLOAD -->
+        <div id="tab3-chat" class="tab-view">
+            <div class="chat-section">
+                <div class="chat-header">
+                    <span>💬 Socratic Learning Feed</span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">Upload derivation work to verify answers</span>
+                </div>
+                <div id="chatFeed" class="chat-feed">
+                    <div class="chat-bubble ai">
+                        Welcome to your classroom cockpit. Once you select your MCQ answers in Tab 2, upload your handwritten derivation work here to receive evaluation credits!
+                    </div>
+                </div>
+            </div>
+
+            <div class="upload-section">
+                <div class="upload-title">📷 Upload Handwritten Work</div>
+                <div class="dropzone" onclick="document.getElementById('handwritingFileInput').click()">
+                    <span>📁 Click to choose image or snap camera note</span>
+                    <input type="file" id="handwritingFileInput" accept="image/*" style="display: none;" onchange="previewHandwritingImage(event)" />
+                </div>
+                <img id="uploadPreview" class="upload-preview" alt="Preview" />
+                <button id="uploadBtn" class="upload-btn" onclick="uploadHandwritingWork()">Upload & Compare Work</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentStudentId = null;
+        let currentPodId = null;
+        let authStudyMode = "solo"; // "solo", "group", "pod"
+        let wsSocket = null;
+        let isMicStreaming = false;
+        let isMicLocked = false;
+        let activeVideoId = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
+        let activeChapterId = "Extraeconomiques";
+        let fullCurriculumCatalogTree = {};
+        let isRemoteMediaControl = false;
+        let activeRoomClass = null;
+
+        function resolveVideoMetadata(videoId) {
+            const vLower = (videoId || '').toLowerCase();
+            if (vLower.includes('econ') || vLower.includes('extraecon')) {
+                const allVids = [
+                    "01_Les problèmes démographiques.mp4",
+                    "02_Les problèmes sanitaires.mp4",
+                    "03_problèmes alimentaires.mp4"
+                ];
+                let vidFile = "01_Les problèmes démographiques.mp4";
+                if (vLower.includes('sanitaire') || vLower.includes('02')) {
+                    vidFile = "02_Les problèmes sanitaires.mp4";
+                } else if (vLower.includes('alimentaire') || vLower.includes('03')) {
+                    vidFile = "03_problèmes alimentaires.mp4";
+                }
+                return {
+                    level: "k12",
+                    grade: "TSM",
+                    subject: "Economics",
+                    chapter: "Extraeconomiques",
+                    videoFile: vidFile,
+                    allVideos: allVids
+                };
+            } else if (vLower.includes('chem')) {
+                return {
+                    level: "k12",
+                    grade: "TSM",
+                    subject: "chemistry",
+                    chapter: "organic_chemistry",
+                    videoFile: "chem.mp4",
+                    allVideos: ["chem.mp4"]
+                };
+            } else if (vLower.includes('phys')) {
+                return {
+                    level: "k12",
+                    grade: "TSM",
+                    subject: "physics",
+                    chapter: "classical_mechanics",
+                    videoFile: "01_harmonic_oscillators.mp4",
+                    allVideos: ["01_harmonic_oscillators.mp4"]
+                };
+            }
+            return {
+                level: "k12",
+                grade: "TSM",
+                subject: "Economics",
+                chapter: "Extraeconomiques",
+                videoFile: "01_Les problèmes démographiques.mp4",
+                allVideos: [
+                    "01_Les problèmes démographiques.mp4",
+                    "02_Les problèmes sanitaires.mp4",
+                    "03_problèmes alimentaires.mp4"
+                ]
+            };
+        }
+
+        function launchDirectClassroomSession(meta) {
+            selectedLevel = meta.level;
+            selectedGrade = meta.grade;
+            selectedSubject = meta.subject;
+            selectedChapter = meta.chapter;
+            const vidFile = meta.videoFile;
+
+            let chapterVideos = meta.allVideos || [vidFile];
+            if (fullCurriculumCatalogTree && fullCurriculumCatalogTree[selectedLevel] && fullCurriculumCatalogTree[selectedLevel][selectedGrade] && fullCurriculumCatalogTree[selectedLevel][selectedGrade][selectedSubject]) {
+                const subObj = fullCurriculumCatalogTree[selectedLevel][selectedGrade][selectedSubject];
+                if (Array.isArray(subObj)) {
+                    chapterVideos = subObj;
+                } else if (subObj && subObj[selectedChapter]) {
+                    chapterVideos = subObj[selectedChapter];
+                }
+            }
+            chapterVideos = (chapterVideos || []).filter(f => !f.endsWith('.pdf') && !f.endsWith('.mp3'));
+            if (chapterVideos.length === 0) chapterVideos = [vidFile];
+
+            currentChapterVideoList = chapterVideos;
+            currentVideoIndex = chapterVideos.indexOf(vidFile);
+            if (currentVideoIndex === -1) currentVideoIndex = 0;
+
+            loadActiveVideo(vidFile);
+            renderUpcomingPlaylist(chapterVideos, currentVideoIndex);
+
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('catalogOverlay').style.display = 'none';
+            initWebSocket();
+        }
+
+        function detectAndApplyActiveClassroom() {
+            fetch('/api/get_classes')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.classes && data.classes.length > 0) {
+                        activeRoomClass = data.classes[0];
+                        const banner = document.getElementById('activeClassBanner');
+                        const nameEl = document.getElementById('activeClassName');
+                        const lessonEl = document.getElementById('activeClassLesson');
+                        const loginBtn = document.getElementById('loginBtn');
+                        if (banner && nameEl && lessonEl) {
+                            banner.style.display = 'flex';
+                            nameEl.innerText = `${activeRoomClass.class_name} (${activeRoomClass.class_code})`;
+                            const meta = resolveVideoMetadata(activeRoomClass.video_id);
+                            lessonEl.innerText = `Subject: ${meta.subject} • ${meta.videoFile.replace(/\.[^/.]+$/, '').replace(/_/g, ' ')}`;
+                            if (loginBtn) loginBtn.innerText = "🚀 Join Class & Sync Video";
+                        }
+                    }
+                })
+                .catch(e => console.log("[ACTIVE CLASS CHECK]", e));
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            detectAndApplyActiveClassroom();
+            const savedStudentId = localStorage.getItem('ventuno_student_id');
+            const savedPodId = localStorage.getItem('ventuno_pod_id');
+            
+            // Exact Saved Course & Playback Resume State
+            const savedLevel = localStorage.getItem('ventuno_last_level');
+            const savedGrade = localStorage.getItem('ventuno_last_grade');
+            const savedSubject = localStorage.getItem('ventuno_last_subject');
+            const savedChapter = localStorage.getItem('ventuno_last_chapter');
+            const savedVideoFile = localStorage.getItem('ventuno_last_video_file');
+            const savedTime = localStorage.getItem('ventuno_last_time');
+
+            if (savedStudentId) {
+                currentStudentId = savedStudentId;
+                currentPodId = savedPodId || null;
+                document.getElementById('headerStudentId').innerText = currentStudentId;
+                if (currentPodId) {
+                    document.getElementById('headerPodBadge').style.display = 'inline-block';
+                    document.getElementById('headerPodBadge').innerText = `Pod: ${currentPodId}`;
+                }
+                document.getElementById('authOverlay').style.display = 'none';
+                initWebSocket();
+
+                if (savedLevel && savedSubject && savedVideoFile) {
+                    // RESUME EXACT SAVED STATE
+                    selectedLevel = savedLevel;
+                    selectedGrade = savedGrade || "TSM";
+                    selectedSubject = savedSubject;
+                    selectedChapter = savedChapter || "Extraeconomiques";
+                    
+                    const meta = resolveVideoMetadata(savedVideoFile);
+                    let allVids = meta.allVideos || [savedVideoFile];
+                    currentChapterVideoList = allVids;
+                    currentVideoIndex = allVids.indexOf(savedVideoFile);
+                    if (currentVideoIndex === -1) currentVideoIndex = 0;
+
+                    loadActiveVideo(savedVideoFile);
+                    renderUpcomingPlaylist(allVids, currentVideoIndex);
+
+                    if (savedTime && parseFloat(savedTime) > 0) {
+                        const vid = document.getElementById('studentVideoPlayer');
+                        if (vid) {
+                            const restoreHandler = () => {
+                                vid.currentTime = parseFloat(savedTime);
+                                vid.removeEventListener('loadedmetadata', restoreHandler);
+                            };
+                            vid.addEventListener('loadedmetadata', restoreHandler);
+                        }
+                    }
+                    document.getElementById('catalogOverlay').style.display = 'none';
+                } else {
+                    // Fallback to active classroom or catalog
+                    fetch('/api/get_classes')
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data && data.classes && data.classes.length > 0) {
+                                activeRoomClass = data.classes[0];
+                                const meta = resolveVideoMetadata(activeRoomClass.video_id);
+                                launchDirectClassroomSession(meta);
+                            } else {
+                                loadCourseCatalogData();
+                                document.getElementById('catalogOverlay').style.display = 'flex';
+                            }
+                        })
+                        .catch(() => {
+                            loadCourseCatalogData();
+                            document.getElementById('catalogOverlay').style.display = 'flex';
+                        });
+                }
+            } else {
+                document.getElementById('authOverlay').style.display = 'flex';
+            }
+
+            document.getElementById('loginBtn').addEventListener('click', () => {
+                const val = document.getElementById('studentIdInput').value.trim();
+                const podVal = document.getElementById('podCodeInput').value.trim();
+                if (val) {
+                    currentStudentId = val;
+                    if (authStudyMode === 'pod') {
+                        currentPodId = podVal || `POD-${Math.floor(1000 + Math.random() * 9000)}`;
+                        localStorage.setItem('ventuno_pod_id', currentPodId);
+                        document.getElementById('headerPodBadge').style.display = 'inline-block';
+                        document.getElementById('headerPodBadge').innerText = `Pod: ${currentPodId}`;
+                    }
+                    localStorage.setItem('ventuno_student_id', currentStudentId);
+                    document.getElementById('headerStudentId').innerText = currentStudentId;
+                    
+                    if (savedLevel && savedSubject && savedVideoFile) {
+                        // User previously had a session
+                        selectedLevel = savedLevel;
+                        selectedGrade = savedGrade || "TSM";
+                        selectedSubject = savedSubject;
+                        selectedChapter = savedChapter || "Extraeconomiques";
+                        const meta = resolveVideoMetadata(savedVideoFile);
+                        let allVids = meta.allVideos || [savedVideoFile];
+                        currentChapterVideoList = allVids;
+                        currentVideoIndex = allVids.indexOf(savedVideoFile);
+                        if (currentVideoIndex === -1) currentVideoIndex = 0;
+                        loadActiveVideo(savedVideoFile);
+                        renderUpcomingPlaylist(allVids, currentVideoIndex);
+                        document.getElementById('authOverlay').style.display = 'none';
+                        initWebSocket();
+                    } else if (activeRoomClass && activeRoomClass.video_id) {
+                        const meta = resolveVideoMetadata(activeRoomClass.video_id);
+                        launchDirectClassroomSession(meta);
+                    } else {
+                        document.getElementById('authOverlay').style.display = 'none';
+                        initWebSocket();
+                        loadCourseCatalogData();
+                        document.getElementById('catalogOverlay').style.display = 'flex';
+                    }
+                }
+            });
+
+            initVideoSyncListeners();
+        });
+
+        let currentChapterVideoList = [];
+        let currentVideoIndex = 0;
+        let selectedLevel = "k12";
+        let selectedGrade = "TSM";
+        let selectedSubject = "Economics";
+        let selectedChapter = "Extraeconomiques";
+
+        function setAuthStudyMode(mode) {
+            authStudyMode = mode;
+            document.querySelectorAll('#modeSoloBtn, #modeGroupBtn, #modePodBtn').forEach(b => b.classList.remove('active'));
+            if (mode === 'solo') {
+                document.getElementById('modeSoloBtn').classList.add('active');
+                document.getElementById('studentIdLabel').innerText = "Student ID / Name";
+                document.getElementById('studentIdInput').placeholder = "e.g. STU-024 or Alex M.";
+                document.getElementById('podInputsGroup').style.display = 'none';
+            } else if (mode === 'group') {
+                document.getElementById('modeGroupBtn').classList.add('active');
+                document.getElementById('studentIdLabel').innerText = "Team Member Names (1-3 comma separated)";
+                document.getElementById('studentIdInput').placeholder = "e.g. Alex M., Sarah K., John D.";
+                document.getElementById('podInputsGroup').style.display = 'none';
+            } else if (mode === 'pod') {
+                document.getElementById('modePodBtn').classList.add('active');
+                document.getElementById('studentIdLabel').innerText = "Your Student ID / Name";
+                document.getElementById('studentIdInput').placeholder = "e.g. STU-024 or Alex M.";
+                document.getElementById('podInputsGroup').style.display = 'block';
+            }
+        }
+
+        function generateNewPodCode() {
+            const rand = Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('podCodeInput').value = `POD-${rand}`;
+        }
+
+        function loadCourseCatalogData() {
+            fetch('/api/curriculum')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.tree) {
+                        fullCurriculumCatalogTree = data.tree;
+                        populateCatalogLevels();
+                    }
+                })
+                .catch(err => console.log("[CATALOG FETCH ERROR]", err));
+        }
+
+        function populateCatalogLevels() {
+            const catLevel = document.getElementById('catLevelSelect');
+            if (!catLevel) return;
+            catLevel.innerHTML = '<option value="">-- Select Level --</option>';
+            Object.keys(fullCurriculumCatalogTree).forEach(lvl => {
+                let label = lvl.replace(/_/g, ' ').toUpperCase();
+                if (lvl === 'k12') label = 'Éducation K-12';
+                else if (lvl === 'college_level') label = 'College Level';
+                else if (lvl === 'independent_learner') label = 'Independent Learner';
+                else if (lvl === 'professional_certificates') label = 'Professional Certificates';
+                catLevel.innerHTML += `<option value="${lvl}">${label}</option>`;
+            });
+
+            // Default auto-select k12
+            if (fullCurriculumCatalogTree['k12']) {
+                catLevel.value = 'k12';
+                onCatLevelChanged();
+            }
+        }
+
+        function onCatLevelChanged() {
+            const lvl = document.getElementById('catLevelSelect').value;
+            const gradeSelect = document.getElementById('catGradeSelect');
+            const subjectSelect = document.getElementById('catSubjectSelect');
+            const chapterSelect = document.getElementById('catChapterSelect');
+            const videoSelect = document.getElementById('catVideoSelect');
+
+            gradeSelect.innerHTML = '<option value="">-- Select Track --</option>';
+            subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+            if (chapterSelect) chapterSelect.innerHTML = '<option value="">-- Select Chapter --</option>';
+            videoSelect.innerHTML = '<option value="">-- Select Video --</option>';
+
+            if (lvl && fullCurriculumCatalogTree[lvl]) {
+                Object.keys(fullCurriculumCatalogTree[lvl]).forEach(grd => {
+                    gradeSelect.innerHTML += `<option value="${grd}">${grd.replace(/_/g, ' ')}</option>`;
+                });
+                // Auto select TSM if available
+                if (fullCurriculumCatalogTree[lvl]['TSM']) {
+                    gradeSelect.value = 'TSM';
+                    onCatGradeChanged();
+                } else if (Object.keys(fullCurriculumCatalogTree[lvl]).length > 0) {
+                    gradeSelect.value = Object.keys(fullCurriculumCatalogTree[lvl])[0];
+                    onCatGradeChanged();
+                }
+            }
+        }
+
+        function onCatGradeChanged() {
+            const lvl = document.getElementById('catLevelSelect').value;
+            const grd = document.getElementById('catGradeSelect').value;
+            const subjectSelect = document.getElementById('catSubjectSelect');
+            const chapterSelect = document.getElementById('catChapterSelect');
+            const videoSelect = document.getElementById('catVideoSelect');
+
+            subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+            if (chapterSelect) chapterSelect.innerHTML = '<option value="">-- Select Chapter --</option>';
+            videoSelect.innerHTML = '<option value="">-- Select Video --</option>';
+
+            if (lvl && grd && fullCurriculumCatalogTree[lvl] && fullCurriculumCatalogTree[lvl][grd]) {
+                Object.keys(fullCurriculumCatalogTree[lvl][grd]).forEach(subj => {
+                    subjectSelect.innerHTML += `<option value="${subj}">${subj.replace(/_/g, ' ')}</option>`;
+                });
+                if (fullCurriculumCatalogTree[lvl][grd]['Economics']) {
+                    subjectSelect.value = 'Economics';
+                    onCatSubjectChanged();
+                } else if (Object.keys(fullCurriculumCatalogTree[lvl][grd]).length > 0) {
+                    subjectSelect.value = Object.keys(fullCurriculumCatalogTree[lvl][grd])[0];
+                    onCatSubjectChanged();
+                }
+            }
+        }
+
+        function onCatSubjectChanged() {
+            const lvl = document.getElementById('catLevelSelect').value;
+            const grd = document.getElementById('catGradeSelect').value;
+            const subj = document.getElementById('catSubjectSelect').value;
+            const chapterSelect = document.getElementById('catChapterSelect');
+            const videoSelect = document.getElementById('catVideoSelect');
+
+            if (chapterSelect) chapterSelect.innerHTML = '<option value="">-- Select Chapter --</option>';
+            videoSelect.innerHTML = '<option value="">-- Select Video --</option>';
+
+            if (lvl && grd && subj && fullCurriculumCatalogTree[lvl] && fullCurriculumCatalogTree[lvl][grd] && fullCurriculumCatalogTree[lvl][grd][subj]) {
+                const subObj = fullCurriculumCatalogTree[lvl][grd][subj];
+                if (Array.isArray(subObj)) {
+                    if (chapterSelect) chapterSelect.innerHTML = `<option value="Main Chapter">Main Chapter</option>`;
+                    populateVideoOptions(subObj);
+                } else if (typeof subObj === 'object') {
+                    Object.keys(subObj).forEach(chap => {
+                        if (chapterSelect) chapterSelect.innerHTML += `<option value="${chap}">${chap.replace(/_/g, ' ')}</option>`;
+                    });
+                    const firstChap = Object.keys(subObj)[0];
+                    if (firstChap && chapterSelect) {
+                        chapterSelect.value = firstChap;
+                        onCatChapterChanged();
+                    }
+                }
+            }
+        }
+
+        function onCatChapterChanged() {
+            const lvl = document.getElementById('catLevelSelect').value;
+            const grd = document.getElementById('catGradeSelect').value;
+            const subj = document.getElementById('catSubjectSelect').value;
+            const chap = document.getElementById('catChapterSelect') ? document.getElementById('catChapterSelect').value : null;
+
+            if (lvl && grd && subj && fullCurriculumCatalogTree[lvl] && fullCurriculumCatalogTree[lvl][grd] && fullCurriculumCatalogTree[lvl][grd][subj]) {
+                const subObj = fullCurriculumCatalogTree[lvl][grd][subj];
+                let videoFiles = [];
+                if (Array.isArray(subObj)) {
+                    videoFiles = subObj;
+                } else if (chap && subObj[chap]) {
+                    videoFiles = subObj[chap];
+                }
+                populateVideoOptions(videoFiles);
+            }
+        }
+
+        function populateVideoOptions(videoFiles) {
+            const videoSelect = document.getElementById('catVideoSelect');
+            videoSelect.innerHTML = '<option value="">-- Select Video --</option>';
+            // Filter video files
+            const vids = (videoFiles || []).filter(f => !f.endsWith('.pdf') && !f.endsWith('.mp3'));
+            const finalFiles = vids.length > 0 ? vids : (videoFiles || []);
+            
+            if (finalFiles.length === 0) {
+                videoSelect.innerHTML += `<option value="01_Lesson.mp4">01. Main Lesson</option>`;
+            } else {
+                finalFiles.forEach(f => {
+                    let cleanName = f.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
+                    videoSelect.innerHTML += `<option value="${f}">${cleanName}</option>`;
+                });
+                videoSelect.value = finalFiles[0];
+            }
+        }
+
+        function openCatalogModal() {
+            document.getElementById('catalogOverlay').style.display = 'flex';
+        }
+
+        function startSelectedLesson() {
+            selectedLevel = document.getElementById('catLevelSelect').value || "k12";
+            selectedGrade = document.getElementById('catGradeSelect').value || "TSM";
+            selectedSubject = document.getElementById('catSubjectSelect').value || "Economics";
+            selectedChapter = document.getElementById('catChapterSelect') ? (document.getElementById('catChapterSelect').value || "Extraeconomiques") : "Extraeconomiques";
+            
+            const selectedVidFile = document.getElementById('catVideoSelect').value || "01_Les problèmes démographiques.mp4";
+            
+            let chapterVideos = [];
+            try {
+                const subObj = fullCurriculumCatalogTree[selectedLevel][selectedGrade][selectedSubject];
+                if (Array.isArray(subObj)) {
+                    chapterVideos = subObj;
+                } else if (subObj && subObj[selectedChapter]) {
+                    chapterVideos = subObj[selectedChapter];
+                }
+            } catch (e) {}
+
+            chapterVideos = (chapterVideos || []).filter(f => !f.endsWith('.pdf') && !f.endsWith('.mp3'));
+            if (chapterVideos.length === 0) {
+                chapterVideos = [selectedVidFile];
+            }
+
+            currentChapterVideoList = chapterVideos;
+            currentVideoIndex = chapterVideos.indexOf(selectedVidFile);
+            if (currentVideoIndex === -1) currentVideoIndex = 0;
+
+            loadActiveVideo(selectedVidFile);
+            renderUpcomingPlaylist(chapterVideos, currentVideoIndex);
+
+            document.getElementById('catalogOverlay').style.display = 'none';
+            initWebSocket();
+        }
+
+        function getCanonicalVideoId(subject, chapter, filename) {
+            let s = (subject || 'Economics').toLowerCase().replace(/[^a-z0-9]/g, '_');
+            let c = (chapter || 'Extraeconomiques').toLowerCase().replace(/[^a-z0-9]/g, '_');
+            let f = (filename || '').replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '_');
+            return `vid_${s}_${c}_${f}`;
+        }
+
+        function loadActiveVideo(vidFileName) {
+            const canonicalId = getCanonicalVideoId(selectedSubject, selectedChapter, vidFileName);
+            activeVideoId = canonicalId;
+            const cleanTitle = vidFileName.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
+            
+            document.getElementById('activeLessonLabel').innerText = cleanTitle;
+            const headerBadge = document.getElementById('headerLessonTitleBadge');
+            if (headerBadge) headerBadge.innerText = cleanTitle;
+            document.getElementById('activeChapterBadge').innerText = `Chapter: ${selectedChapter.replace(/_/g, ' ')}`;
+            
+            const isProjectorHost = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+            const subtext = document.getElementById('activeLessonSubtext');
+            if (subtext) {
+                subtext.innerText = isProjectorHost
+                    ? `${selectedSubject.replace(/_/g, ' ')} • Master Projector Audio`
+                    : `${selectedSubject.replace(/_/g, ' ')} • 🔈 Audio on Projector (Desk Muted)`;
+            }
+
+            const vid = document.getElementById('studentVideoPlayer');
+            if (vid) {
+                let streamPath = `/curriculum_staging/${encodeURIComponent(selectedLevel)}/${encodeURIComponent(selectedGrade)}/${encodeURIComponent(selectedSubject)}`;
+                if (selectedChapter && selectedChapter !== "Main Chapter") {
+                    streamPath += `/${encodeURIComponent(selectedChapter)}`;
+                }
+                streamPath += `/${encodeURIComponent(vidFileName)}`;
+                vid.src = streamPath;
+
+                // In classroom mode on student desks, mute video audio so projector plays master sound
+                if (!isProjectorHost) {
+                    vid.muted = true;
+                    const muteBtn = document.getElementById('muteBtn');
+                    if (muteBtn) muteBtn.innerText = "🔇";
+                }
+
+                vid.load();
+                vid.play().catch(e => console.log("[AUTOPLAY BLOCKED]", e));
+            }
+
+            // Persist exact state for seamless resume across page reloads
+            localStorage.setItem('ventuno_last_level', selectedLevel);
+            localStorage.setItem('ventuno_last_grade', selectedGrade);
+            localStorage.setItem('ventuno_last_subject', selectedSubject);
+            localStorage.setItem('ventuno_last_chapter', selectedChapter);
+            localStorage.setItem('ventuno_last_video_file', vidFileName);
+            localStorage.setItem('ventuno_last_video_id', canonicalId);
+
+            // Immediately persist active session to disk so Gandho knows the exact active video!
+            fetch('/save_active_session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    active_video_id: canonicalId,
+                    active_locale: "fr_FR"
+                })
+            }).catch(e => console.log("[SESSION SAVE WARN]", e));
+
+            loadIngestedMCQs(activeVideoId);
+        }
+
+        function renderUpcomingPlaylist(videoList, activeIdx) {
+            const container = document.getElementById('upcomingVideosContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const upcoming = videoList.slice(activeIdx + 1, activeIdx + 4);
+            if (upcoming.length === 0) {
+                container.innerHTML = `
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 1.25rem; text-align: center; color: #94a3b8; font-size: 0.85rem;">
+                        🎉 You are watching the final lesson of this unit! Pass the evaluation to complete mastery.
+                    </div>
+                `;
+                return;
+            }
+
+            upcoming.forEach((vidFile, i) => {
+                const lessonNum = activeIdx + 2 + i;
+                const cleanTitle = vidFile.replace(/\.[^/.]+$/, "").replace(/_/g, ' ');
+                
+                const card = document.createElement('div');
+                card.id = `upcoming-card-${i}`;
+                card.style.cssText = `
+                    background: rgba(255,255,255,0.03);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 12px;
+                    padding: 12px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                    transition: all 0.2s ease;
+                    opacity: 0.75;
+                `;
+
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.75rem; font-weight: 700; color: #60a5fa; background: rgba(59,130,246,0.15); padding: 2px 6px; border-radius: 4px;">LESSON ${lessonNum}</span>
+                        <span id="lock-badge-${i}" style="font-size: 0.75rem; color: #f59e0b; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+                            🔒 Locked
+                        </span>
+                    </div>
+                    <div style="font-size: 0.88rem; font-weight: 600; color: #e2e8f0; line-height: 1.25; margin-top: 2px;">${cleanTitle}</div>
+                    <div id="lock-sub-${i}" style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">Requires 85% mastery score on Lesson ${activeIdx + 1}</div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function unlockNextLessonVideo() {
+            if (currentChapterVideoList && currentVideoIndex + 1 < currentChapterVideoList.length) {
+                const nextIdx = currentVideoIndex + 1;
+                const nextVidFile = currentChapterVideoList[nextIdx];
+                
+                const lockBadge = document.getElementById('lock-badge-0');
+                const lockSub = document.getElementById('lock-sub-0');
+                const firstCard = document.getElementById('upcoming-card-0');
+                
+                if (lockBadge) {
+                    lockBadge.innerHTML = '🔓 Unlocked!';
+                    lockBadge.style.color = '#34d399';
+                }
+                if (lockSub) {
+                    lockSub.innerHTML = 'Click to advance to this lesson now';
+                    lockSub.style.color = '#34d399';
+                }
+                if (firstCard) {
+                    firstCard.style.opacity = '1';
+                    firstCard.style.borderColor = '#10b981';
+                    firstCard.style.cursor = 'pointer';
+                    firstCard.onclick = () => {
+                        currentVideoIndex = nextIdx;
+                        loadActiveVideo(nextVidFile);
+                        renderUpcomingPlaylist(currentChapterVideoList, currentVideoIndex);
+                        switchTab('tab1-mic');
+                    };
+                }
+            }
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds === Infinity) return "00:00";
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        let maxWatchedTime = 0;
+
+        function updateCustomVideoControls() {
+            const vid = document.getElementById('studentVideoPlayer');
+            if (!vid) return;
+            
+            // Track maximum watched timestamp to prevent skipping forward
+            if (vid.currentTime > maxWatchedTime) {
+                maxWatchedTime = vid.currentTime;
+            }
+
+            // Auto-unlock tabs as soon as video nears completion (within 3 seconds or >= 98%)
+            if (vid.duration && (vid.currentTime >= vid.duration - 3 || (vid.duration > 10 && vid.currentTime >= vid.duration * 0.98))) {
+                unlockClassroomTabs();
+            }
+
+            const curTime = document.getElementById('videoCurrentTimeDisplay');
+            const durTime = document.getElementById('videoDurationDisplay');
+            const slider = document.getElementById('videoTimelineSlider');
+            const playIcon = document.getElementById('playIcon');
+            const playText = document.getElementById('playText');
+            const playBtn = document.getElementById('customPlayPauseBtn');
+
+            if (curTime) curTime.innerText = formatTime(vid.currentTime);
+            if (durTime && vid.duration) durTime.innerText = formatTime(vid.duration);
+
+            if (slider && vid.duration && !slider.matches(':active')) {
+                slider.value = (vid.currentTime / vid.duration) * 100;
+            }
+
+            if (vid.paused) {
+                if (playIcon) playIcon.innerText = "▶️";
+                if (playText) playText.innerText = "Play";
+                if (playBtn) playBtn.style.background = "#10b981";
+            } else {
+                if (playIcon) playIcon.innerText = "⏸️";
+                if (playText) playText.innerText = "Pause";
+                if (playBtn) playBtn.style.background = "#2563eb";
+            }
+        }
+
+        function unlockAndGoToEvaluation(e) {
+            if (e) e.stopPropagation();
+            console.log("[EVALUATION] Unlocking tabs and switching to Tab 2...");
+            unlockClassroomTabs();
+            switchTab('tab2-evaluation');
+            if (wsSocket && wsSocket.readyState === WebSocket.OPEN && currentPodId) {
+                wsSocket.send(JSON.stringify({
+                    action: "LESSON_COMPLETE",
+                    video_id: activeVideoId,
+                    pod_id: currentPodId,
+                    student_id: currentStudentId
+                }));
+            }
+        }
+
+        function toggleCustomPlayPause(e) {
+            if (e) e.stopPropagation();
+            const vid = document.getElementById('studentVideoPlayer');
+            if (!vid) return;
+            if (vid.paused) {
+                const playPromise = vid.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(err => {
+                        console.log("[PLAY ERROR]", err);
+                    });
+                }
+            } else {
+                vid.pause();
+            }
+            updateCustomVideoControls();
+        }
+
+        function restartVideoPlayback(e) {
+            if (e) e.stopPropagation();
+            const vid = document.getElementById('studentVideoPlayer');
+            if (!vid) return;
+            vid.currentTime = 0;
+            const playPromise = vid.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(err => {
+                    console.log("[RESTART PLAY ERROR]", err);
+                });
+            }
+            updateCustomVideoControls();
+            if (wsSocket && wsSocket.readyState === WebSocket.OPEN && currentPodId) {
+                wsSocket.send(JSON.stringify({
+                    action: "POD_MEDIA_CONTROL",
+                    command: "play",
+                    current_time: 0,
+                    pod_id: currentPodId,
+                    sender: currentStudentId
+                }));
+            }
+        }
+
+        function onSeekSliderInput(val) {
+            const vid = document.getElementById('studentVideoPlayer');
+            if (!vid || !vid.duration) return;
+            let targetTime = (val / 100) * vid.duration;
+            if (targetTime > maxWatchedTime + 1) {
+                targetTime = maxWatchedTime;
+            }
+            const curTime = document.getElementById('videoCurrentTimeDisplay');
+            if (curTime) curTime.innerText = formatTime(targetTime);
+        }
+
+        function onSeekSliderChange(val) {
+            const vid = document.getElementById('studentVideoPlayer');
+            if (!vid || !vid.duration) return;
+            let targetTime = (val / 100) * vid.duration;
+            if (targetTime > maxWatchedTime + 1) {
+                targetTime = maxWatchedTime;
+                const slider = document.getElementById('videoTimelineSlider');
+                if (slider) slider.value = (maxWatchedTime / vid.duration) * 100;
+            }
+            vid.currentTime = targetTime;
+            updateCustomVideoControls();
+            if (wsSocket && wsSocket.readyState === WebSocket.OPEN && currentPodId) {
+                wsSocket.send(JSON.stringify({
+                    action: "POD_MEDIA_CONTROL",
+                    command: vid.paused ? "pause" : "play",
+                    current_time: vid.currentTime,
+                    pod_id: currentPodId,
+                    sender: currentStudentId
+                }));
+            }
+        }
+
+        function toggleMuteVideo(e) {
+            if (e) e.stopPropagation();
+            const vid = document.getElementById('studentVideoPlayer');
+            if (!vid) return;
+            vid.muted = !vid.muted;
+            const muteBtn = document.getElementById('muteBtn');
+            if (muteBtn) {
+                muteBtn.innerText = vid.muted ? "🔇" : "🔊";
+            }
+        }
+
+        function onVolumeChange(val) {
+            const vid = document.getElementById('studentVideoPlayer');
+            if (!vid) return;
+            vid.volume = parseFloat(val);
+            vid.muted = (vid.volume === 0);
+            const muteBtn = document.getElementById('muteBtn');
+            if (muteBtn) {
+                muteBtn.innerText = vid.muted ? "🔇" : "🔊";
+            }
+        }
+
+        function toggleFullscreenVideo(e) {
+            if (e) e.stopPropagation();
+            const vid = document.getElementById('studentVideoPlayer');
+            if (!vid) return;
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                if (vid.requestFullscreen) vid.requestFullscreen();
+                else if (vid.webkitRequestFullscreen) vid.webkitRequestFullscreen();
+                else if (vid.msRequestFullscreen) vid.msRequestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            }
+        }
+
+        function initVideoSyncListeners() {
+            const vid = document.getElementById('studentVideoPlayer');
+            if (!vid) return;
+
+            // Direct button event binding
+            const playBtn = document.getElementById('customPlayPauseBtn');
+            if (playBtn) playBtn.onclick = toggleCustomPlayPause;
+
+            const restartBtn = document.getElementById('restartLessonBtn');
+            if (restartBtn) restartBtn.onclick = restartVideoPlayback;
+
+            const muteBtn = document.getElementById('muteBtn');
+            if (muteBtn) muteBtn.onclick = toggleMuteVideo;
+
+            const fullBtn = document.getElementById('fullscreenBtn');
+            if (fullBtn) fullBtn.onclick = toggleFullscreenVideo;
+
+            const evalBtn = document.getElementById('evaluationQuizBtn');
+            if (evalBtn) evalBtn.onclick = unlockAndGoToEvaluation;
+
+            vid.addEventListener('timeupdate', () => {
+                updateCustomVideoControls();
+                if (vid.currentTime > 1) {
+                    localStorage.setItem('ventuno_last_time', vid.currentTime);
+                }
+            });
+            vid.addEventListener('loadedmetadata', () => {
+                maxWatchedTime = 0;
+                updateCustomVideoControls();
+            });
+
+            // Auto-unlock Tab 2 & Tab 3 when video ends
+            vid.addEventListener('ended', () => {
+                console.log("[LESSON COMPLETE] Video ended. Unlocking Tab 2 & Tab 3...");
+                unlockClassroomTabs();
+                switchTab('tab2-evaluation');
+                
+                const resBox = document.getElementById('quizResultBox');
+                if (resBox) {
+                    resBox.style.display = 'block';
+                    resBox.className = 'quiz-result-box';
+                    resBox.style.borderColor = '#10b981';
+                    resBox.style.background = 'rgba(16,185,129,0.1)';
+                    resBox.style.color = '#34d399';
+                    resBox.innerHTML = '🎉 <strong>Lesson Complete!</strong> Tab 2 (Evaluation) and Tab 3 (Upload Work) are now unlocked. Please answer the evaluation questions below!';
+                }
+
+                if (wsSocket && wsSocket.readyState === WebSocket.OPEN && currentPodId) {
+                    wsSocket.send(JSON.stringify({
+                        action: "LESSON_COMPLETE",
+                        video_id: activeVideoId,
+                        pod_id: currentPodId,
+                        student_id: currentStudentId
+                    }));
+                }
+            });
+
+            vid.addEventListener('play', () => {
+                updateCustomVideoControls();
+                if (isRemoteMediaControl) return;
+                if (wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+                    wsSocket.send(JSON.stringify({
+                        action: "POD_MEDIA_CONTROL",
+                        command: "play",
+                        current_time: vid.currentTime,
+                        pod_id: currentPodId || "CLASSROOM_ALL",
+                        sender: currentStudentId
+                    }));
+                }
+            });
+
+            vid.addEventListener('pause', () => {
+                updateCustomVideoControls();
+                if (isRemoteMediaControl) return;
+                if (wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+                    wsSocket.send(JSON.stringify({
+                        action: "POD_MEDIA_CONTROL",
+                        command: "pause",
+                        current_time: vid.currentTime,
+                        pod_id: currentPodId || "CLASSROOM_ALL",
+                        sender: currentStudentId
+                    }));
+                }
+            });
+
+            // Periodic Sub-Second Video Clock Heartbeat (locks all screens within 0.3s)
+            setInterval(() => {
+                const v = document.getElementById('studentVideoPlayer');
+                if (v && !v.paused && wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+                    wsSocket.send(JSON.stringify({
+                        action: "POD_TIME_SYNC",
+                        command: "sync",
+                        current_time: v.currentTime,
+                        pod_id: currentPodId || "CLASSROOM_ALL",
+                        sender: currentStudentId
+                    }));
+                }
+            }, 2000);
+
+            // Keyboard shortcut support (Space: Play/Pause, M: Mute, F: Fullscreen)
+            window.addEventListener('keydown', (e) => {
+                if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    toggleCustomPlayPause();
+                } else if (e.key === 'm' || e.key === 'M') {
+                    toggleMuteVideo();
+                } else if (e.key === 'f' || e.key === 'F') {
+                    toggleFullscreenVideo();
+                }
+            });
+        }
+
+        function loadIngestedMCQs(videoId) {
+            fetch(`/get_quiz_questions?video_id=${encodeURIComponent(videoId)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.main && data.main.length > 0) {
+                        renderIngestedQuiz(data.main);
+                    } else {
+                        // Generate topic-aligned default quiz for Economics/Science
+                        let sampleQuiz = [];
+                        if (videoId.toLowerCase().includes('demograph') || videoId.toLowerCase().includes('economic')) {
+                            sampleQuiz = [
+                                {
+                                    id: 1,
+                                    question: "Qu'est-ce que l'explosion démographique selon le cours ?",
+                                    options: {
+                                        "A": "Une augmentation accélérée et incontrôlée des effectifs de la population",
+                                        "B": "Une baisse drastique du taux de natalité",
+                                        "C": "Une stagnation de la population active",
+                                        "D": "Une migration massive vers les zones rurales"
+                                    }
+                                },
+                                {
+                                    id: 2,
+                                    question: "Quel est l'impact principal d'une forte croissance démographique sur les infrastructures de santé ?",
+                                    options: {
+                                        "A": "Une réduction du ratio praticiens/habitants et une saturation des centres de soins",
+                                        "B": "Une diminution spontanée des maladies infectieuses",
+                                        "C": "Une surabondance des équipements médicaux"
+                                    }
+                                },
+                                {
+                                    id: 3,
+                                    question: "Comment l'équilibre alimentaire est-il affecté par la pression démographique ?",
+                                    options: {
+                                        "A": "La demande alimentaire dépasse les capacités de production locale",
+                                        "B": "Les rendements agricoles doublent automatiquement sans intrants",
+                                        "C": "Le taux de dépendance économique diminue à zéro"
+                                    }
+                                }
+                            ];
+                        } else {
+                            sampleQuiz = [
+                                {
+                                    id: 1,
+                                    question: "What principle governs the conservation of mechanical energy in harmonic motion?",
+                                    options: {
+                                        "A": "Kinetic energy exchanges with potential energy without net dissipative loss",
+                                        "B": "Thermal expansion accelerates angular frequency",
+                                        "C": "Centrifugal forces cancel out gravitational acceleration"
+                                    }
+                                },
+                                {
+                                    id: 2,
+                                    question: "How does lengthening the pendulum arm impact its oscillatory period T?",
+                                    options: {
+                                        "A": "The period increases proportionally to the square root of length",
+                                        "B": "The period drops to zero",
+                                        "C": "The frequency doubles instantly"
+                                    }
+                                }
+                            ];
+                        }
+                        renderIngestedQuiz(sampleQuiz);
+                    }
+                })
+                .catch(err => console.log("[MCQ FETCH ERROR]", err));
+        }
+
+        function unlockClassroomTabs(quizData) {
+            const tabBtn2 = document.getElementById('tabBtn2');
+            const tabBtn3 = document.getElementById('tabBtn3');
+
+            if (tabBtn2) {
+                tabBtn2.classList.remove('disabled');
+                tabBtn2.style.pointerEvents = 'auto';
+                tabBtn2.style.opacity = '1';
+                tabBtn2.innerHTML = '📝 Tab 2: Evaluation';
+            }
+
+            if (tabBtn3) {
+                tabBtn3.classList.remove('disabled');
+                tabBtn3.style.pointerEvents = 'auto';
+                tabBtn3.style.opacity = '1';
+                tabBtn3.innerHTML = '💬 Tab 3: Chat/Upload';
+            }
+
+            if (quizData && quizData.questions) {
+                renderIngestedQuiz(quizData.questions);
+            }
+        }
+
+        function switchTab(tabId) {
+            const btnMap = {
+                'tab1-mic': 'tabBtn1',
+                'tab2-evaluation': 'tabBtn2',
+                'tab3-chat': 'tabBtn3'
+            };
+
+            const targetBtn = document.getElementById(btnMap[tabId]);
+            if (targetBtn && targetBtn.classList.contains('disabled')) {
+                return;
+            }
+
+            document.querySelectorAll('.tab-view').forEach(view => {
+                view.classList.remove('active');
+                view.style.display = 'none';
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            const targetView = document.getElementById(tabId);
+            if (targetView) {
+                targetView.classList.add('active');
+                targetView.style.display = 'flex';
+            }
+            if (targetBtn) {
+                targetBtn.classList.add('active');
+            }
+        }
+
+        function selectOption(radioId, labelEl) {
+            const radio = document.getElementById(radioId);
+            if (radio) {
+                radio.checked = true;
+            }
+            const parentCard = labelEl.closest('.question-card');
+            if (parentCard) {
+                parentCard.querySelectorAll('.option-label').forEach(lbl => lbl.classList.remove('selected'));
+                labelEl.classList.add('selected');
+            }
+        }
+
+        function renderIngestedQuiz(questionsList) {
+            const container = document.getElementById('quizQuestionsContainer');
+            if (!questionsList || questionsList.length === 0) {
+                container.innerHTML = `<p style="color: var(--text-muted); padding: 1rem;">No evaluation questions available for this unit.</p>`;
+                return;
+            }
+
+            let html = '';
+            questionsList.forEach((q, idx) => {
+                const qId = q.id || (idx + 1);
+                const qText = q.question;
+                const opts = q.options || {};
+                html += `<div class="question-card">
+                    <div class="question-text">${idx + 1}. ${qText}</div>
+                    <div class="options-list">`;
+                
+                if (Array.isArray(opts)) {
+                    opts.forEach((optText, oIdx) => {
+                        const letter = String.fromCharCode(65 + oIdx);
+                        const inputId = `opt_${qId}_${letter}`;
+                        html += `<label class="option-label" onclick="selectOption('${inputId}', this)">
+                            <input type="radio" id="${inputId}" name="q${qId}" value="${letter}" onchange="selectOption('${inputId}', this.parentElement)">
+                            <span><strong>${letter})</strong> ${optText}</span>
+                        </label>`;
+                    });
+                } else {
+                    Object.keys(opts).forEach(letter => {
+                        const inputId = `opt_${qId}_${letter}`;
+                        html += `<label class="option-label" onclick="selectOption('${inputId}', this)">
+                            <input type="radio" id="${inputId}" name="q${qId}" value="${letter}" onchange="selectOption('${inputId}', this.parentElement)">
+                            <span><strong>${letter})</strong> ${opts[letter]}</span>
+                        </label>`;
+                    });
+                }
+                html += `</div></div>`;
+            });
+
+            container.innerHTML = html;
+            const submitBtn = document.getElementById('submitQuizBtn');
+            if (submitBtn) {
+                submitBtn.style.display = 'block';
+                submitBtn.style.pointerEvents = 'auto';
+                submitBtn.style.cursor = 'pointer';
+            }
+        }
+
+        function submitEvaluation() {
+            const answers = {};
+            const cards = document.querySelectorAll('.question-card');
+            cards.forEach(card => {
+                const checkedRadio = card.querySelector('input[type="radio"]:checked');
+                if (checkedRadio) {
+                    const name = checkedRadio.name;
+                    const qId = name.replace('q', '');
+                    answers[qId] = checkedRadio.value;
+                }
+            });
+
+            if (Object.keys(answers).length === 0) {
+                alert("Please select your answers before submitting!");
+                return;
+            }
+
+            console.log("[SUBMIT EVALUATION] Answers:", answers);
+
+            // Local immediate calculation for instant feedback & DB sync
+            let correctCount = 0;
+            const totalCount = cards.length;
+            cards.forEach((card, idx) => {
+                const checked = card.querySelector('input[type="radio"]:checked');
+                // Option A is correct for sample demo questions
+                if (checked && checked.value === "A") {
+                    correctCount++;
+                }
+            });
+
+            const scorePct = Math.round((correctCount / totalCount) * 100);
+            displayQuizResult({
+                score: scorePct,
+                passed: (scorePct >= 85),
+                correct: correctCount,
+                total: totalCount
+            });
+
+            if (wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+                wsSocket.send(JSON.stringify({
+                    action: "SUBMIT_LAB_QUIZ",
+                    student_id: currentStudentId,
+                    pod_id: currentPodId,
+                    video_id: activeVideoId,
+                    chapter_id: activeChapterId,
+                    score: scorePct,
+                    answers: answers
+                }));
+            }
+        }
+
+        function displayQuizResult(data) {
+            const resBox = document.getElementById('quizResultBox');
+            if (!resBox) return;
+            resBox.style.display = 'block';
+
+            const isPod = !!currentPodId;
+            const isMe = !data.student_id || data.student_id === currentStudentId;
+            
+            // If this is the active student's own submission result
+            if (isMe) {
+                if (data.passed || (data.score && data.score >= 85)) {
+                    if (isPod && data.pod_all_passed === false) {
+                        const pendingList = (data.pending_members || []).join(', ') || 'other pod members';
+                        resBox.className = 'quiz-result-box';
+                        resBox.style.borderColor = '#3b82f6';
+                        resBox.style.background = 'rgba(59, 130, 246, 0.15)';
+                        resBox.style.color = '#60a5fa';
+                        resBox.innerHTML = `✅ <strong>Your Score: ${data.score}% - You Passed!</strong><br/><div style="margin-top: 6px; font-size: 0.85rem; color: #e2e8f0;">Great job! Waiting for all pod members to achieve &ge; 85% mastery before unlocking Lesson 2.<br/><span style="color: #fbbf24; font-weight: 600; display: inline-block; margin-top: 4px;">⏳ Waiting on: ${pendingList}</span></div>`;
+                    } else {
+                        resBox.className = 'quiz-result-box';
+                        resBox.style.borderColor = '#10b981';
+                        resBox.style.background = 'rgba(16,185,129,0.15)';
+                        resBox.style.color = '#34d399';
+                        resBox.innerHTML = `🏆 <strong>Score: ${data.score}% - Mastery Passed!</strong><br/><div style="margin-top: 6px; font-size: 0.85rem; color: #e2e8f0;">All pod members have achieved &ge; 85% mastery. Lesson 2 has been unlocked for your group!</div><button type="button" onclick="unlockNextLessonVideo(); switchTab('tab1-mic');" style="margin-top: 10px; padding: 8px 18px; background: #059669; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(5,150,105,0.4);">🚀 Advance to Next Lesson</button>`;
+                        unlockNextLessonVideo();
+                    }
+                } else {
+                    resBox.className = 'quiz-result-box';
+                    resBox.style.borderColor = '#ef4444';
+                    resBox.style.background = 'rgba(239,68,68,0.15)';
+                    resBox.style.color = '#f87171';
+                    resBox.innerHTML = `⚠️ <strong>Your Score: ${data.score}% (Mastery requires 85%)</strong><br/><span style="font-size: 0.85rem; color: #cbd5e1;">Review key concepts with your pod or tutor and resubmit your answers!</span>`;
+                }
+            } else if (isPod) {
+                // Another peer in the pod submitted their answers
+                if (data.pod_all_passed) {
+                    resBox.className = 'quiz-result-box';
+                    resBox.style.borderColor = '#10b981';
+                    resBox.style.background = 'rgba(16,185,129,0.15)';
+                    resBox.style.color = '#34d399';
+                    resBox.innerHTML = `🏆 <strong>Pod Mastery Achieved!</strong><br/><div style="margin-top: 6px; font-size: 0.85rem; color: #e2e8f0;">${data.student_id} scored ${data.score}%. All pod members have passed &ge; 85%! Lesson 2 is now unlocked for your group.</div><button type="button" onclick="unlockNextLessonVideo(); switchTab('tab1-mic');" style="margin-top: 10px; padding: 8px 18px; background: #059669; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(5,150,105,0.4);">🚀 Advance to Next Lesson</button>`;
+                    unlockNextLessonVideo();
+                } else if (data.passed) {
+                    const pendingList = (data.pending_members || []).join(', ') || 'other members';
+                    resBox.innerHTML += `<div style="margin-top: 8px; font-size: 0.82rem; color: #94a3b8; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">📢 <strong>${data.student_id}</strong> scored ${data.score}% (Passed). Still waiting on: <strong>${pendingList}</strong></div>`;
+                }
+            }
+            resBox.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function performLogout() {
+            console.log("[LOGOUT] Clearing credentials and returning to authentication...");
+            localStorage.removeItem('ventuno_student_id');
+            localStorage.removeItem('ventuno_pod_id');
+            if (wsSocket) {
+                try { wsSocket.close(); } catch(e) {}
+            }
+            window.location.reload();
+        }
+
+        let lkStudentRoom = null;
+        let lkStudentAudioEl = null;
+
+        async function startStudentLiveKitSession() {
+            try {
+                if (lkStudentRoom) {
+                    try { await lkStudentRoom.disconnect(); } catch(e) {}
+                    lkStudentRoom = null;
+                }
+                const roomRand = Math.floor(1000 + Math.random() * 9000);
+                const roomName = `socratic_tutor_room_${roomRand}`;
+                const sMode = (authStudyMode === 'pod' ? 'POD' : 'CLASSROOM');
+                const sName = currentStudentId || 'Student';
+                const res = await fetch(`/token?room=${encodeURIComponent(roomName)}&identity=${encodeURIComponent(sName)}&name=${encodeURIComponent(sName)}&mode=${encodeURIComponent(sMode)}&video_id=${encodeURIComponent(activeVideoId)}`);
+                const tokenData = await res.json();
+                const token = tokenData.token;
+                const wsUrl = "wss://gandaledu-uqy2on78.livekit.cloud";
+
+                lkStudentRoom = new LivekitClient.Room({
+                    adaptiveStream: true,
+                    dynacast: true,
+                    audioCaptureDefaults: {
+                        autoGainControl: true,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                    },
+                    publishDefaults: {
+                        audioPreset: LivekitClient.AudioPresets.speech,
+                        dtx: true,
+                    },
+                });
+
+                lkStudentRoom.on(LivekitClient.RoomEvent.Connected, () => {
+                    console.log("[STUDENT LIVEKIT] Connected to room successfully:", roomName);
+                    lkStudentRoom.startAudio().catch(e => console.warn("[START AUDIO WARN]", e));
+                });
+
+                lkStudentRoom.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+                    if (track.kind === "audio") {
+                        console.log("[STUDENT LIVEKIT] Tutor audio track subscribed. Attaching and playing...");
+                        if (lkStudentAudioEl) lkStudentAudioEl.remove();
+                        lkStudentAudioEl = track.attach();
+                        lkStudentAudioEl.autoplay = true;
+                        lkStudentAudioEl.playsInline = true;
+                        lkStudentAudioEl.setAttribute("playsinline", "true");
+                        lkStudentAudioEl.setAttribute("webkit-playsinline", "true");
+                        document.body.appendChild(lkStudentAudioEl);
+                        lkStudentAudioEl.play().catch(e => console.warn("[STUDENT LIVEKIT PLAY]", e));
+                        lkStudentRoom.startAudio().catch(e => console.warn("[STUDENT LIVEKIT startAudio]", e));
+                    }
+                });
+
+                lkStudentRoom.on(LivekitClient.RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+                    if (topic === "tutor-transcripts") {
+                        try {
+                            const data = JSON.parse(new TextDecoder().decode(payload));
+                            if (data.role === "assistant" && data.text) {
+                                appendStudentChatMessage("Gandho (Tutor)", data.text);
+                            } else if (data.role === "user" && data.text) {
+                                appendStudentChatMessage(currentStudentId || "You", data.text);
+                            }
+                        } catch (e) {}
+                    }
+                });
+
+                await lkStudentRoom.connect(wsUrl, token);
+                await lkStudentRoom.startAudio();
+                await lkStudentRoom.localParticipant.setMicrophoneEnabled(true, {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                });
+                console.log("[STUDENT LIVEKIT] Connected and mic live in room:", roomName);
+            } catch (err) {
+                console.error("[STUDENT LIVEKIT ERROR]", err);
+            }
+        }
+
+        async function stopStudentLiveKitSession() {
+            try {
+                if (lkStudentRoom) {
+                    await lkStudentRoom.localParticipant.setMicrophoneEnabled(false);
+                    await lkStudentRoom.disconnect();
+                    lkStudentRoom = null;
+                }
+                if (lkStudentAudioEl) {
+                    lkStudentAudioEl.remove();
+                    lkStudentAudioEl = null;
+                }
+            } catch (e) {
+                console.warn("[STUDENT LIVEKIT STOP]", e);
+            }
+        }
+
+        function appendStudentChatMessage(sender, text) {
+            const feed = document.getElementById('chatFeed');
+            if (!feed) return;
+            const bubble = document.createElement('div');
+            bubble.className = (sender.includes('Gandho') || sender.includes('Tutor')) ? 'chat-bubble ai' : 'chat-bubble user';
+            bubble.innerHTML = `<strong>${sender}:</strong> ${text}`;
+            feed.appendChild(bubble);
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        async function toggleMicStream() {
+            if (isMicLocked) return;
+
+            const btn = document.getElementById('micToggleBtn');
+            const statusText = document.getElementById('micStatusText');
+            const vid = document.getElementById('studentVideoPlayer');
+
+            if (!isMicStreaming) {
+                isMicStreaming = true;
+                if (btn) btn.classList.add('active-streaming');
+                if (statusText) statusText.innerText = "🔴 Live with Gandho (Tap to End Session)";
+                if (vid && !vid.paused) vid.pause();
+                if (wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+                    wsSocket.send(JSON.stringify({
+                        action: "START_STREAM",
+                        student_id: currentStudentId,
+                        pod_id: currentPodId
+                    }));
+                }
+                await startStudentLiveKitSession();
+            } else {
+                isMicStreaming = false;
+                if (btn) btn.classList.remove('active-streaming');
+                if (statusText) statusText.innerText = "Click to Talk";
+                if (wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+                    wsSocket.send(JSON.stringify({
+                        action: "STOP_STREAM",
+                        student_id: currentStudentId,
+                        pod_id: currentPodId
+                    }));
+                }
+                await stopStudentLiveKitSession();
+            }
+        }
+
+        function initWebSocket() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.hostname || 'localhost';
+            const port = 8001;
+            let wsUrl = `${wsProtocol}//${host}:${port}?student_id=${encodeURIComponent(currentStudentId)}`;
+            if (currentPodId) {
+                wsUrl += `&pod_id=${encodeURIComponent(currentPodId)}`;
+            }
+
+            wsSocket = new WebSocket(wsUrl);
+
+            wsSocket.onopen = () => {
+                console.log(`[WS] Connected as student: ${currentStudentId} (Pod: ${currentPodId})`);
+                if (document.getElementById('micStudentNameBadge')) {
+                    document.getElementById('micStudentNameBadge').innerText = currentStudentId;
+                }
+                if (currentPodId) {
+                    wsSocket.send(JSON.stringify({
+                        action: "POD_JOIN",
+                        pod_id: currentPodId,
+                        student_ids: currentStudentId
+                    }));
+                }
+            };
+
+            wsSocket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                } catch (e) {
+                    console.log("[WS] Non-JSON message:", event.data);
+                }
+            };
+
+            wsSocket.onclose = () => {
+                setTimeout(initWebSocket, 3000);
+            };
+        }
+
+        function handleServerMessage(data) {
+            const vid = document.getElementById('studentVideoPlayer');
+            if (data.action === "POD_MEDIA_CONTROL") {
+                if (vid) {
+                    isRemoteMediaControl = true;
+                    if (data.current_time !== undefined && Math.abs(vid.currentTime - data.current_time) > 0.3) {
+                        vid.currentTime = data.current_time;
+                    }
+                    if (data.command === "play" && vid.paused) {
+                        vid.play().catch(e => console.log("[POD PLAY WARN]", e));
+                    } else if (data.command === "pause" && !vid.paused) {
+                        vid.pause();
+                    }
+                    updateCustomVideoControls();
+                    setTimeout(() => { isRemoteMediaControl = false; }, 250);
+                }
+            } else if (data.status === "LOCKED" || data.action === "PAUSE_VIDEO") {
+                if (data.speaker_id && data.speaker_id !== currentStudentId) {
+                    isMicLocked = true;
+                    const btn = document.getElementById('micToggleBtn');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.style.opacity = '0.5';
+                        btn.style.cursor = 'not-allowed';
+                    }
+                    const lockNotice = document.getElementById('lockNoticeBanner');
+                    if (lockNotice) lockNotice.style.display = 'block';
+                    const micText = document.getElementById('micStatusText');
+                    if (micText) micText.innerText = `Locked by ${data.speaker_id || 'student'}`;
+                    if (vid && !vid.paused) {
+                        vid.pause();
+                        updateCustomVideoControls();
+                    }
+                }
+            } else if (data.status === "UNLOCKED" || data.action === "RESUME_VIDEO") {
+                isMicLocked = false;
+                const btn = document.getElementById('micToggleBtn');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                }
+                const lockNotice = document.getElementById('lockNoticeBanner');
+                if (lockNotice) lockNotice.style.display = 'none';
+                const micText = document.getElementById('micStatusText');
+                if (micText) micText.innerText = 'Click to Talk';
+                if (vid && vid.paused) {
+                    vid.play().catch(e => console.log("[RESUME AFTER MIC WARN]", e));
+                    updateCustomVideoControls();
+                }
+            } else if (data.action === "LESSON_COMPLETE" || data.action === "UNLOCK_EVALUATION") {
+                console.log("[POD EVENT] Remote peer completed lesson / unlocked evaluation.");
+                unlockClassroomTabs(data.quiz);
+                switchTab('tab2-evaluation');
+            } else if (data.action === "QUIZ_RESULT") {
+                displayQuizResult(data);
+            } else if (data.action === "DEPLOYMENT_MODE_CHANGED") {
+                console.log("[SERVER] Deployment mode updated dynamically to:", data.mode);
+                alert(`Room mode updated to ${data.mode}. Reloading cockpit...`);
+                window.location.reload();
+            }
+        }
+
+        // Student Help Modal Functions
+        function openStudentHelpModal() {
+            const modal = document.getElementById('studentHelpModal');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeStudentHelpModal() {
+            const modal = document.getElementById('studentHelpModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // Proctor / Teacher Quick Settings Modal Functions
+        function openProctorSettingsModal() {
+            const modal = document.getElementById('proctorSettingsModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                // Reset PIN input
+                const pinInput = document.getElementById('proctorPinInput');
+                if (pinInput) pinInput.value = '';
+                document.getElementById('proctorPinView').style.display = 'block';
+                document.getElementById('proctorControlsView').style.display = 'none';
+                document.getElementById('proctorPinError').style.display = 'none';
+            }
+        }
+
+        function closeProctorSettingsModal() {
+            const modal = document.getElementById('proctorSettingsModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function verifyProctorPin() {
+            const pinInput = document.getElementById('proctorPinInput');
+            const pinVal = (pinInput ? pinInput.value : '').trim();
+            // Default PIN 1234 or admin
+            if (pinVal === '1234' || pinVal.toLowerCase() === 'admin') {
+                document.getElementById('proctorPinView').style.display = 'none';
+                document.getElementById('proctorControlsView').style.display = 'block';
+                loadProctorCurrentMode();
+            } else {
+                document.getElementById('proctorPinError').style.display = 'block';
+            }
+        }
+
+        async function loadProctorCurrentMode() {
+            try {
+                const res = await fetch('/api/get_deployment_mode');
+                const data = await res.json();
+                if (data.success) {
+                    const mode = (data.mode || 'LAB').toUpperCase();
+                    const badge = document.getElementById('proctorModeBadge');
+                    if (badge) badge.innerText = mode;
+                }
+            } catch (e) {
+                console.log("[PROCTOR GET MODE ERROR]", e);
+            }
+        }
+
+        async function setProctorDeploymentMode(targetMode) {
+            try {
+                const res = await fetch('/api/set_deployment_mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: targetMode })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Room Mode successfully switched to ${data.mode}! Reloading...`);
+                    window.location.reload();
+                } else {
+                    alert(`Error switching mode: ${data.error}`);
+                }
+            } catch (err) {
+                alert(`Network error: ${err.message}`);
+            }
+        }
+
+        function applyPodReassignment() {
+            const newPod = document.getElementById('proctorNewPodInput').value.trim();
+            if (!newPod) {
+                alert("Please enter a valid Pod ID (e.g. POD-102)");
+                return;
+            }
+            localStorage.setItem("ventuno_pod_id", newPod);
+            alert(`Pod updated to ${newPod}! Connecting...`);
+            window.location.reload();
+        }
+
+        let pendingBase64Image = null;
+        function previewHandwritingImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    pendingBase64Image = e.target.result;
+                    const img = document.getElementById('uploadPreview');
+                    img.src = pendingBase64Image;
+                    img.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function uploadHandwritingWork() {
+            if (!pendingBase64Image) return;
+
+            if (wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+                wsSocket.send(JSON.stringify({
+                    action: "SUBMIT_HANDWRITING_IMAGE",
+                    student_id: currentStudentId,
+                    video_id: activeVideoId,
+                    chapter_id: activeChapterId,
+                    image_data: pendingBase64Image
+                }));
+
+                const feed = document.getElementById('chatFeed');
+                feed.innerHTML += `<div class="chat-bubble student">Submitted handwritten derivation work for evaluation.</div>`;
+                feed.scrollTop = feed.scrollHeight;
+            }
+        }
+    </script>
+
+    <!-- Student Help & Guide Modal -->
+    <div id="studentHelpModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 10001; align-items: center; justify-content: center; padding: 20px;">
+        <div style="background: #0d1117; border: 1px solid #233044; border-radius: 14px; max-width: 620px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column;">
+            <div style="padding: 20px 24px; border-bottom: 1px solid #1c2638; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.3rem;">❓</span>
+                    <h2 style="margin: 0; font-size: 1.15rem; color: #fff; font-weight: 700;">Student Cockpit Guide</h2>
+                </div>
+                <button onclick="closeStudentHelpModal()" style="background: transparent; border: none; color: #888; font-size: 1.4rem; cursor: pointer; padding: 4px;">✕</button>
+            </div>
+            
+            <div style="padding: 24px; display: flex; flex-direction: column; gap: 18px; font-size: 0.85rem; color: #cbd5e1; line-height: 1.6;">
+                <div style="background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25); border-radius: 10px; padding: 14px;">
+                    <h4 style="margin: 0 0 6px 0; color: #60a5fa; font-size: 0.95rem;">👥 Collaborative Pod Controls</h4>
+                    <p style="margin: 0;">You and your desk partners share synchronized video playback. Pressing Play, Pause, or Seek updates all screens in your pod in real time.</p>
+                </div>
+
+                <div style="background: rgba(168,85,247,0.08); border: 1px solid rgba(168,85,247,0.25); border-radius: 10px; padding: 14px;">
+                    <h4 style="margin: 0 0 6px 0; color: #c084fc; font-size: 0.95rem;">🎙️ Voice Priority Interlock</h4>
+                    <p style="margin: 0;">Tap the <strong>Click to Talk</strong> mic button to ask a question. The video will automatically pause across all pod screens and lock other microphones so nobody talks over each other.</p>
+                </div>
+
+                <div style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); border-radius: 10px; padding: 14px;">
+                    <h4 style="margin: 0 0 6px 0; color: #34d399; font-size: 0.95rem;">📝 Evaluation & Mastery Unlock (≥85%)</h4>
+                    <p style="margin: 0;">At the end of each lesson, Tab 2 unlocks for your evaluation. <strong>Every member of the pod must individually achieve ≥85%</strong> to unlock the next chapter playlist together.</p>
+                </div>
+            </div>
+
+            <div style="padding: 16px 24px; border-top: 1px solid #1c2638; display: flex; justify-content: flex-end;">
+                <button onclick="closeStudentHelpModal()" style="background: #2563eb; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    Got It
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher / Proctor Quick Settings Modal -->
+    <div id="proctorSettingsModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 10001; align-items: center; justify-content: center; padding: 20px;">
+        <div style="background: #0e0e13; border: 1px solid #282836; border-radius: 14px; max-width: 520px; width: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.9); display: flex; flex-direction: column;">
+            
+            <div style="padding: 20px 24px; border-bottom: 1px solid #20202c; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.3rem;">⚙️</span>
+                    <h2 style="margin: 0; font-size: 1.15rem; color: #fff; font-weight: 700;">Proctor Room Settings</h2>
+                </div>
+                <button onclick="closeProctorSettingsModal()" style="background: transparent; border: none; color: #888; font-size: 1.4rem; cursor: pointer; padding: 4px;">✕</button>
+            </div>
+
+            <!-- PIN VIEW -->
+            <div id="proctorPinView" style="padding: 24px; display: flex; flex-direction: column; gap: 14px;">
+                <p style="margin: 0; font-size: 0.85rem; color: #a1a1aa;">Enter Teacher / Admin PIN to modify classroom configuration:</p>
+                <div style="display: flex; gap: 10px;">
+                    <input type="password" id="proctorPinInput" placeholder="Enter PIN (Default: 1234)" style="flex: 1; padding: 10px 14px; background: #15151c; border: 1px solid #333344; color: #fff; border-radius: 8px; font-size: 0.9rem; outline: none;" onkeydown="if(event.key==='Enter') verifyProctorPin()">
+                    <button onclick="verifyProctorPin()" style="background: #a855f7; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer;">Unlock</button>
+                </div>
+                <div id="proctorPinError" style="display: none; color: #f87171; font-size: 0.8rem;">Incorrect PIN. Please try again.</div>
+            </div>
+
+            <!-- CONTROLS VIEW (Unlocked) -->
+            <div id="proctorControlsView" style="display: none; padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #14141c; padding: 10px 14px; border-radius: 8px; border: 1px solid #242432;">
+                    <span style="font-size: 0.85rem; color: #aaa;">Current Deployment Mode:</span>
+                    <span id="proctorModeBadge" style="background: rgba(168,85,247,0.2); color: #c084fc; font-weight: 700; padding: 2px 10px; border-radius: 9999px; font-size: 0.8rem; font-family: monospace;">LAB</span>
+                </div>
+
+                <div>
+                    <label style="display: block; font-size: 0.8rem; color: #888; margin-bottom: 8px; font-weight: 600; text-transform: uppercase;">Switch Room Mode</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button onclick="setProctorDeploymentMode('CLASSROOM')" style="background: #192233; border: 1px solid #2d4268; color: #60a5fa; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer;">
+                            🎓 Classroom Broadcast
+                        </button>
+                        <button onclick="setProctorDeploymentMode('LAB')" style="background: #142820; border: 1px solid #235440; color: #34d399; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer;">
+                            🧪 Collaborative Pods
+                        </button>
+                    </div>
+                    <div style="margin-top: 8px;">
+                        <button onclick="setProctorDeploymentMode('SINGLE')" style="width: 100%; background: #241933; border: 1px solid #4a2d68; color: #c084fc; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer;">
+                            🤖 Solo 1:1 Socratic Mode
+                        </button>
+                    </div>
+                </div>
+
+                <div style="border-top: 1px solid #20202c; padding-top: 14px;">
+                    <label style="display: block; font-size: 0.8rem; color: #888; margin-bottom: 8px; font-weight: 600; text-transform: uppercase;">Reassign This Device's Pod</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="proctorNewPodInput" placeholder="New Pod ID (e.g. POD-102)" style="flex: 1; padding: 8px 12px; background: #15151c; border: 1px solid #333344; color: #fff; border-radius: 8px; font-size: 0.85rem; outline: none;">
+                        <button onclick="applyPodReassignment()" style="background: #2563eb; color: #fff; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer;">Apply</button>
+                    </div>
+                </div>
+
+                <div style="border-top: 1px solid #20202c; padding-top: 14px; display: flex; justify-content: space-between; align-items: center;">
+                    <a href="/admin.html" target="_blank" style="color: #60a5fa; font-size: 0.8rem; text-decoration: none; font-weight: 600;">↗ Open Full Admin Console</a>
+                    <button onclick="closeProctorSettingsModal()" style="background: #22222d; border: 1px solid #333; color: #bbb; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

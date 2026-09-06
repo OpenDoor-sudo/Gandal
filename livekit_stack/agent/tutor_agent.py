@@ -26,7 +26,7 @@ import lancedb
 import asyncio
 from livekit import rtc
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm
-from livekit.agents.voice import AgentSession, Agent, ConversationItemAddedEvent
+from livekit.agents.voice import AgentSession, Agent, ConversationItemAddedEvent, UserInputTranscribedEvent
 from livekit.agents.voice.room_io import RoomOptions
 from livekit.plugins.google.realtime import RealtimeModel
 
@@ -123,22 +123,48 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"Connecting to room: {ctx.room.name}")
     await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
 
-    # 1. Resolve active student, video, title, and locale dynamically from SQLite
-    active_video_id = None
-    student_name = "student_01"
-    video_title = "Les Problèmes Sanitaires"
-    locale = "en_US"
+    # 1. Dynamically resolve active student, video, title, locale, and deployment mode
+    active_video_id = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques"
+    student_name = "Student"
+    video_title = "Les Problèmes Démographiques"
+    locale = "fr_FR"
+    active_mode = "CLASSROOM"
+    active_pdf_path = None
     
     session_json_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "active_session.json"))
-    active_pdf_path = None
     if os.path.exists(session_json_path):
         try:
             with open(session_json_path, "r", encoding="utf-8") as f:
                 s_data = json.load(f)
-                active_video_id = s_data.get("active_video_id")
+                active_video_id = s_data.get("active_video_id", active_video_id)
                 active_pdf_path = s_data.get("active_pdf_path")
+                locale = s_data.get("active_locale", locale)
+                if s_data.get("active_student_name"):
+                    student_name = s_data.get("active_student_name")
+                elif s_data.get("active_student_id"):
+                    student_name = s_data.get("active_student_id")
+                if s_data.get("active_mode"):
+                    active_mode = s_data.get("active_mode")
         except Exception as e:
             logger.warning(f"Failed to read active_session.json: {e}")
+
+    # Check connected remote participants for dynamic student name and mode metadata
+    for p in ctx.room.remote_participants.values():
+        if p.name and p.name not in ["student_01", "student"]:
+            student_name = p.name
+        elif p.identity and p.identity not in ["student_01", "student"]:
+            student_name = p.identity
+        if p.metadata:
+            try:
+                p_meta = json.loads(p.metadata)
+                if p_meta.get("student_name"):
+                    student_name = p_meta.get("student_name")
+                if p_meta.get("mode"):
+                    active_mode = p_meta.get("mode")
+                if p_meta.get("video_id"):
+                    active_video_id = p_meta.get("video_id")
+            except Exception:
+                pass
             
     db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "vault.db"))
     video_timeline_context = ""
@@ -146,32 +172,24 @@ async def entrypoint(ctx: JobContext):
         try:
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
-            # Resolve student name
-            cursor.execute("SELECT user_id FROM user_profiles ORDER BY ROWID DESC LIMIT 1")
-            user_row = cursor.fetchone()
-            if user_row:
-                student_name = user_row[0]
-                # Resolve locale
-                cursor.execute("SELECT locale FROM language_localization WHERE user_id = ?", (student_name,))
-                loc_row = cursor.fetchone()
-                if loc_row:
-                    locale = loc_row[0]
-            # Resolve active video title
+            
+            # Resolve video title
             if active_video_id:
                 cursor.execute("SELECT title FROM curriculum_tree WHERE video_id = ?", (active_video_id,))
                 title_row = cursor.fetchone()
                 if title_row and title_row[0]:
                     video_title = title_row[0]
+                elif "demographique" in active_video_id.lower():
+                    video_title = "Les Problèmes Démographiques"
                 elif "sanitaire" in active_video_id.lower():
                     video_title = "Les Problèmes Sanitaires"
                 elif "alimentaire" in active_video_id.lower():
                     video_title = "Les Problèmes Alimentaires"
-                elif "demographique" in active_video_id.lower():
-                    video_title = "Les Problèmes Démographiques"
                 elif "chem" in active_video_id.lower():
                     video_title = "Chimie Organique"
                 else:
-                    video_title = active_video_id.replace("vid_", "").replace("_", " ").title()
+                    video_title = active_video_id.replace("vid_", "").replace("economics_extraeconomiques_", "").replace("_", " ").title()
+
             # Query and append chapters to ground the tutoring context directly in the system prompt
             if active_video_id:
                 cursor.execute("""
@@ -182,16 +200,16 @@ async def entrypoint(ctx: JobContext):
                 """, (active_video_id,))
                 rows = cursor.fetchall()
                 if rows:
-                    video_timeline_context = "\nVideo Chapters & Content summaries you taught:\n"
+                    video_timeline_context = f"\nVideo Chapters & Content summaries for '{video_title}':\n"
                     for ts, title, desc in rows:
                         video_timeline_context += f"- [{ts}] {title}: {desc}\n"
             conn.close()
-            logger.info(f"[DYNAMIC BOOT] Resolved student: '{student_name}' | Locale: '{locale}' | Video ID: '{active_video_id}' | Title: '{video_title}'")
+            logger.info(f"[DYNAMIC BOOT] Resolved student: '{student_name}' | Mode: '{active_mode}' | Locale: '{locale}' | Video: '{video_title}' ({active_video_id})")
         except Exception as e:
             logger.warning(f"Failed to query SQLite for dynamic instructions: {e}")
 
     # Resolve active subject
-    active_subject = "General"
+    active_subject = "Economics"
     if active_video_id:
         try:
             parent_parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -202,35 +220,34 @@ async def entrypoint(ctx: JobContext):
         except Exception as e:
             logger.warning(f"Failed to resolve subject: {e}")
 
-    # Read student memory from OKF files
+    # Read student memory from OKF files if in Solo mode
     student_style = "Visual & Step-by-Step"
     student_excels_str = ""
     student_struggles_str = ""
     
-    try:
-        import student_memory
-        import re
-        prof_meta, prof_body = student_memory.load_or_create_subject_profile(student_name, active_subject)
-        student_style = prof_meta.get("learning_style", "Visual & Step-by-Step")
-        
-        # Parse excels and struggles sections from markdown body
-        def extract_bullets_section(body, heading):
-            pattern = rf"## {re.escape(heading)}[^\n]*\n(.*?)(?=\n## |\Z)"
-            match = re.search(pattern, body, re.DOTALL)
-            if match:
-                bullets = []
-                for line in match.group(1).strip().splitlines():
-                    line_strip = line.strip().lstrip("*-").strip()
-                    if line_strip:
-                        bullets.append(f"- {line_strip}")
-                return "\n".join(bullets)
-            return ""
+    if active_mode == "SOLO":
+        try:
+            import student_memory
+            import re
+            prof_meta, prof_body = student_memory.load_or_create_subject_profile(student_name, active_subject)
+            student_style = prof_meta.get("learning_style", "Visual & Step-by-Step")
             
-        student_excels_str = extract_bullets_section(prof_body, "Where They Excel")
-        student_struggles_str = extract_bullets_section(prof_body, "Where They Struggle")
-        logger.info(f"[OKF MEMORY LOADED] learning_style={student_style} | excels_count={len(student_excels_str.splitlines())} | struggles_count={len(student_struggles_str.splitlines())}")
-    except Exception as mem_err:
-        logger.warning(f"Failed to load OKF student memory: {mem_err}")
+            def extract_bullets_section(body, heading):
+                pattern = rf"## {re.escape(heading)}[^\n]*\n(.*?)(?=\n## |\Z)"
+                match = re.search(pattern, body, re.DOTALL)
+                if match:
+                    bullets = []
+                    for line in match.group(1).strip().splitlines():
+                        line_strip = line.strip().lstrip("*-").strip()
+                        if line_strip:
+                            bullets.append(f"- {line_strip}")
+                    return "\n".join(bullets)
+                return ""
+                
+            student_excels_str = extract_bullets_section(prof_body, "Where They Excel")
+            student_struggles_str = extract_bullets_section(prof_body, "Where They Struggle")
+        except Exception as mem_err:
+            logger.warning(f"Failed to load OKF student memory: {mem_err}")
 
     # Helper to rebuild dynamic instructions based on client view state (dashboard, split_workspace, evaluation, screen_share)
     def rebuild_dynamic_instructions(view_state: str, pdf_path: str, pdf_name: str, view_context: str = "") -> str:
@@ -244,16 +261,38 @@ async def entrypoint(ctx: JobContext):
             lang_instruction = "Respond in English."
             role_instruction = "You are GANDHO, the Socratic Tutor. Be warm, chatty, explanatory, and intellectually engaging."
 
+        # Dynamic Mode Description
+        if active_mode == "CLASSROOM":
+            mode_guideline = (
+                f"### MODE: CLASSROOM FLEET (Interactive Lecture)\n"
+                f"- The classroom is watching the master lesson '{video_title}'.\n"
+                f"- The student asking you a question right now is {student_name} from their desk tablet/laptop.\n"
+                f"- Address {student_name} warmly by name ({student_name}), answer their specific question about '{video_title}' clearly in 2-3 sentences, and provide a helpful Socratic guiding thought.\n"
+            )
+        elif active_mode == "POD":
+            mode_guideline = (
+                f"### MODE: STUDY POD (Collaborative Table Group)\n"
+                f"- Students are collaborating at a table group on '{video_title}'.\n"
+                f"- The student speaking right now is {student_name}.\n"
+                f"- Address {student_name} warmly and guide the group's collaborative reasoning.\n"
+            )
+        else:
+            mode_guideline = (
+                f"### MODE: SOLO OWNER (1-on-1 Personalized Tutoring)\n"
+                f"- You are in a 1-on-1 private tutoring session with {student_name}.\n"
+                f"- You are studying the video lesson '{video_title}'.\n"
+                f"- Address {student_name} warmly by name and personalize your Socratic dialogue to their pace.\n"
+            )
+
         chatty_socratic_guidelines = (
             "STYLE & SOCRATIC PEDAGOGICAL GUIDELINES:\n"
+            f"- {mode_guideline}"
             "- Adapt greetings to local system time (Bonjour / Bon après-midi / Bonsoir in French; Good morning / Good afternoon / Good evening in English).\n"
-            "- DO NOT introduce yourself as 'GANDHO, the Socratic tutor' again if you have already introduced yourself for the current session. Treat continuing interactions as an ongoing classroom dialogue.\n"
-            "- OKF MEMORY RECALL: Always use your OKF student memory graph and session bookmarks to warmly remind Alseny where you left off in previous sessions! (e.g. 'La dernière fois, nous nous étions arrêtés à 08:31 sur les problèmes sanitaires...'). Pick up smoothly right where you left off.\n"
-            "- PERSONAL BONDING: Ask warm, supportive, gentle personal questions (e.g. 'How are you feeling today?', 'Ready to study?', 'How is your family doing?') to build a strong personal rapport before or during study.\n"
+            "- Always call the student by their logged-in name: " + student_name + ".\n"
             "- EXPLANATION FIRST: Always provide a clear, thorough explanation or conceptual breakdown FIRST (2-3 structured sentences explaining the core idea clearly) before asking follow-up questions.\n"
-            "- LISTEN & FOLLOW USER INTENT IN TEXTBOOKS/PDFs: When the student opens or navigates a textbook, PDF, or audiobook (whether page 1 or page 100), acknowledge their exact location. Ask if they want a conceptual explanation first, or if they prefer to jump straight into questions or debate. Follow their preference!\n"
-            "- INTELLECTUAL DEBATE & RESPECTFUL PUSHBACK (Philosophy, Ethics, Literature, History): For debate-oriented subjects, act as a real Socratic debate partner! Do NOT just passively agree with everything the student says. If the student makes an assertion, interpretation, or philosophical argument, respectfully push back with counter-arguments, test their logic, present alternative perspectives ('Mais qu'en serait-il si...?', 'Certains philosophes rétorqueront que...'), and foster a vibrant back-and-forth intellectual dialogue!\n"
-            "- VIDEO LESSON MODE & HAND-RAISE: When watching a video lesson or when the student raises their hand/asks a question, greet them warmly, reference where you left off, wait for their instruction, provide a clear explanation first, and then guide them with a Socratic question.\n"
+            "- LISTEN & FOLLOW USER INTENT IN TEXTBOOKS/PDFs: When the student opens or navigates a textbook, PDF, or audiobook, acknowledge their exact location. Ask if they want a conceptual explanation first, or if they prefer to jump straight into questions or debate. Follow their preference!\n"
+            "- INTELLECTUAL DEBATE & RESPECTFUL PUSHBACK (Philosophy, Ethics, Literature, History): For debate-oriented subjects, act as a real Socratic debate partner! Do NOT just passively agree with everything the student says. If the student makes an assertion or argument, respectfully push back with counter-arguments, test their logic, and foster a vibrant back-and-forth intellectual dialogue!\n"
+            "- VIDEO LESSON MODE & HAND-RAISE: When watching a video lesson or when the student raises their hand/asks a question, answer their specific question about '" + video_title + "' directly and guide them with a Socratic question.\n"
             "- Do NOT give away direct numerical answers, final option letters (A, B, C, D) on quizzes, or formulas directly without guiding the student to reason through the steps."
         )
 
@@ -305,6 +344,34 @@ async def entrypoint(ctx: JobContext):
                 f"DO NOT give direct answers, final option letters (A, B, C, D), or numerical formulas directly. DO NOT relate back to the main video unless asked.\n"
                 f"{chatty_socratic_guidelines}"
             )
+        elif view_state == "virtual_labs":
+            telemetry_detail = ""
+            if view_context:
+                try:
+                    parsed = json.loads(view_context) if isinstance(view_context, str) and view_context.strip().startswith("{") else view_context
+                    if isinstance(parsed, dict):
+                        telemetry_detail = "\nCURRENT EXPERIMENT LIVE TELEMETRY & MEASUREMENTS:\n"
+                        for k, v in parsed.items():
+                            telemetry_detail += f"- {k}: {v}\n"
+                    else:
+                        telemetry_detail = f"\nCURRENT EXPERIMENT CONTEXT:\n{view_context}\n"
+                except Exception:
+                    telemetry_detail = f"\nCURRENT EXPERIMENT CONTEXT:\n{view_context}\n"
+
+            instructions = (
+                f"Role:\n"
+                f"{role_instruction}\n"
+                f"{lang_instruction}\n"
+                f"The student's name is {student_name}.\n"
+                f"IMPORTANT: The student is actively working inside the STEM VIRTUAL LABS (Chemistry Titration & Dilution, Physics Mechanics & Free Fall, RDKit Organic Molecules, SymPy Wave Calculus, or PubChem Database).\n"
+                f"{telemetry_detail}\n"
+                f"CRITICAL SOCRATIC LAB INSTRUCTIONS:\n"
+                f"- You have DIRECT REAL-TIME VISION of the student's lab bench through the telemetry above and via the get_virtual_lab_status() tool.\n"
+                f"- Always address {student_name} warmly, acknowledge the exact experiment they are running, and refer to their real measurements (pH, mL volume, reagents, gravity, speed, formula, or molecule name).\n"
+                f"- Act as an encouraging, inspiring Socratic science professor: ask what they predict will happen, guide them to interpret their readings, and help them achieve the lab mission step-by-step.\n"
+                f"- NEVER give direct numerical answers immediately; encourage hypotheses, observation, and reasoning.\n"
+                f"{chatty_socratic_guidelines}"
+            )
         else:
             instructions = (
                 f"Role:\n"
@@ -317,29 +384,30 @@ async def entrypoint(ctx: JobContext):
                 f"{chatty_socratic_guidelines}"
             )
 
-        # Read OKF Session State Bookmark for memory recall continuity
+        # Read OKF Session State Bookmark for memory recall continuity in Solo mode
         last_bookmark_str = ""
-        sess_state_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "student_profiles", student_name, "session_state.md"))
-        if os.path.exists(sess_state_file):
-            try:
-                with open(sess_state_file, "r", encoding="utf-8") as sf:
-                    last_bookmark_str = sf.read()
-            except Exception:
-                pass
+        if active_mode == "SOLO":
+            sess_state_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "student_profiles", student_name, "session_state.md"))
+            if os.path.exists(sess_state_file):
+                try:
+                    with open(sess_state_file, "r", encoding="utf-8") as sf:
+                        last_bookmark_str = sf.read()
+                except Exception:
+                    pass
 
         # Append Student Memory Context to instructions
         memory_context = (
-            f"\n\n## STUDENT PERSONALIZATION, OKF MEMORY & PROGRESS (STRICTLY CONFIDENTIAL)\n"
+            f"\n\n## STUDENT PERSONALIZATION & PROGRESS (STRICTLY CONFIDENTIAL)\n"
             f"- Student Name: {student_name}\n"
+            f"- Deployment Mode: {active_mode}\n"
             f"- Learning Style: {student_style}\n"
         )
         if student_excels_str:
             memory_context += f"- Excel Areas in {active_subject}:\n{student_excels_str}\n"
         if student_struggles_str:
             memory_context += f"- Struggle Areas in {active_subject} (Adapt your Socratic guidance to address these!):\n{student_struggles_str}\n"
-        if last_bookmark_str:
+        if last_bookmark_str and active_mode == "SOLO":
             memory_context += f"- OKF PREVIOUS SESSION BOOKMARK & RECALL:\n{last_bookmark_str}\n"
-            memory_context += "CRITICAL MEMORY RECALL RULE: Use this OKF memory to warmly remind Alseny where you both left off in previous sessions! (e.g. 'Ravi de te retrouver Alseny ! La dernière fois, nous nous étions arrêtés à...').\n"
 
         # Resolve Savant & Interdisciplinary Connections Matrix
         savant_context = ""
@@ -639,19 +707,36 @@ async def entrypoint(ctx: JobContext):
             
         return "No matching curriculum guidelines or video transcript sections found for this topic."
 
+    async def get_virtual_lab_status() -> str:
+        """Returns the real-time live telemetry and state of the student's active STEM Virtual Lab experiment (current chemistry pH, volume, reagents in beaker, physics velocity, gravity, masses, organic molecule SMILES, standing waves). Call this tool whenever the student asks about their lab, experiment, or measurements."""
+        try:
+            session_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "active_session.json"))
+            if os.path.exists(session_path):
+                with open(session_path, "r", encoding="utf-8") as sf:
+                    sdata = json.load(sf)
+                ctx = sdata.get("active_view_context", "")
+                if ctx:
+                    try:
+                        parsed = json.loads(ctx) if isinstance(ctx, str) and ctx.strip().startswith("{") else ctx
+                        logger.info(f"[TOOL USE SUCCESS] Retrieved live virtual lab telemetry: {parsed}")
+                        return f"Current Student Lab Telemetry & Active Experiment:\n{json.dumps(parsed, indent=2, ensure_ascii=False)}"
+                    except Exception:
+                        return f"Current Student Lab State:\n{ctx}"
+            return "The student is currently in the Virtual Lab, but has not yet selected an experiment or added reagents."
+        except Exception as e:
+            logger.error(f"[TOOL USE ERROR] Failed to fetch lab telemetry: {e}")
+            return f"Error reading lab telemetry: {e}"
+
     # Instantiate Agent Session and Configuration
     session = AgentSession(
         llm=gemini_live,
-        tools=[search_curriculum],
-        allow_interruptions=True,
-        min_interruption_duration=0.8,
-        min_interruption_words=3
+        tools=[search_curriculum, get_virtual_lab_status]
     )
     
     agent = Agent(
         instructions=dynamic_instructions,
         llm=gemini_live,
-        tools=[search_curriculum]
+        tools=[search_curriculum, get_virtual_lab_status]
     )
 
     session_transcripts = []
@@ -698,7 +783,7 @@ async def entrypoint(ctx: JobContext):
     @ctx.room.on("track_subscribed")
     def on_track_subscribed(track, publication, participant):
         if track.kind == "audio":
-            logger.info(f"[AUDIO TRACK SUBSCRIBED] Student '{participant.identity}' connected audio track. Triggering immediate greeting!")
+            logger.info(f"[AUDIO TRACK SUBSCRIBED] Student '{participant.identity}' audio track active.")
             asyncio.create_task(send_greeting())
         elif track.kind == "video":
             logger.info(f"[VIDEO TRACK SUBSCRIBED] Subscribed to video track {track.sid} from participant {participant.identity}")
@@ -720,6 +805,26 @@ async def entrypoint(ctx: JobContext):
                     await video_stream.aclose()
             
             asyncio.create_task(forward_video())
+
+    @session.on("user_started_speaking")
+    def on_user_speaking():
+        logger.info(f"[TURN DETECTION] Student '{student_name}' started speaking into microphone.")
+
+    @session.on("user_stopped_speaking")
+    def on_user_stopped():
+        logger.info(f"[TURN DETECTION] Student '{student_name}' stopped speaking. Waiting for Gemini response...")
+
+    @session.on("agent_started_speaking")
+    def on_agent_speaking():
+        logger.info("[TURN DETECTION] Gandho started speaking audio response.")
+
+    @session.on("agent_stopped_speaking")
+    def on_agent_stopped():
+        logger.info("[TURN DETECTION] Gandho finished speaking audio response. Listening for student reply...")
+
+    @session.on("user_input_transcribed")
+    def on_user_transcribed(ev: UserInputTranscribedEvent):
+        logger.info(f"[USER TRANSCRIPTION] Student said: '{ev.transcript}' (is_final={ev.is_final})")
 
     @session.on("error")
     def on_session_error(err):
@@ -835,6 +940,27 @@ async def entrypoint(ctx: JobContext):
                             except Exception as update_err:
                                 logger.warning(f"Failed to update active session instructions: {update_err}")
                             
+                        def parse_lab_info(ctx):
+                            lab_t = "Laboratoire STEM"
+                            lab_telemetry = ""
+                            if ctx:
+                                try:
+                                    p = json.loads(ctx) if isinstance(ctx, str) and ctx.strip().startswith("{") else ctx
+                                    if isinstance(p, dict):
+                                        lab_t = p.get("title", lab_t)
+                                        parts = []
+                                        if "current_ph" in p: parts.append(f"pH {p['current_ph']}")
+                                        if "total_volume_ml" in p: parts.append(f"{p['total_volume_ml']} mL")
+                                        if "gravity" in p: parts.append(f"g = {p['gravity']}")
+                                        if "formula" in p: parts.append(f"formule {p['formula']}")
+                                        if "smiles" in p: parts.append(f"SMILES {p['smiles']}")
+                                        if "parameters" in p: parts.append(str(p["parameters"]))
+                                        if parts: lab_telemetry = ", ".join(parts)
+                                        elif "status" in p: lab_telemetry = p["status"]
+                                except Exception:
+                                    pass
+                            return lab_t, lab_telemetry
+
                         # Proactively greet the user on view state changes
                         if view_state_changed:
                             if locale == "fr_FR":
@@ -844,6 +970,10 @@ async def entrypoint(ctx: JobContext):
                                     transition_prompt = f"Dis à l'étudiant en français : 'Nous sommes dans l'espace de travail partagé pour le manuel \"{pdf_name}\". Discutons de cette section !'"
                                 elif view_state == "evaluation":
                                     transition_prompt = "Dis à l'étudiant en français : 'Je vois que vous êtes sur l'évaluation. Lisons les questions à choix multiples ensemble et résolvons-les étape par étape !'"
+                                elif view_state == "virtual_labs":
+                                    lab_t, lab_tel = parse_lab_info(view_context)
+                                    tel_clause = f" avec vos mesures en direct ({lab_tel})" if lab_tel else ""
+                                    transition_prompt = f"Dis à l'étudiant en français : 'Bienvenue dans le laboratoire virtuel STEM ! Je vois votre manipulation \"{lab_t}\"{tel_clause}. Que souhaitez-vous tester ou mesurer en premier ?'"
                                 else:
                                     transition_prompt = "Dis à l'étudiant en français : 'De retour sur le tableau de bord ! Comment puis-je vous aider maintenant ?'"
                             else:
@@ -853,10 +983,24 @@ async def entrypoint(ctx: JobContext):
                                     transition_prompt = f"Tell the student: 'We are in the split-screen workspace reviewing the textbook \"{pdf_name}\". What section or concept would you like to explore?'"
                                 elif view_state == "evaluation":
                                     transition_prompt = "Tell the student: 'I see you are on the Evaluation quiz! Let's read through the multiple choice questions together and work through them step-by-step.'"
+                                elif view_state == "virtual_labs":
+                                    lab_t, lab_tel = parse_lab_info(view_context)
+                                    tel_clause = f" with your live measurements ({lab_tel})" if lab_tel else ""
+                                    transition_prompt = f"Tell the student: 'Welcome to the STEM Virtual Lab! I can see you are on \"{lab_t}\"{tel_clause}. What would you like us to test or observe first?'"
                                 else:
                                     transition_prompt = "Tell the student: 'Back on the main screen! What would you like to explore or discuss next?'"
                             
                             session.generate_reply(user_input=transition_prompt)
+                        elif view_state == "virtual_labs" and view_context_changed and not view_state_changed:
+                            # Student switched experiment while inside Virtual Labs
+                            lab_t, lab_tel = parse_lab_info(view_context)
+                            last_t, _ = parse_lab_info(last_view_context)
+                            if lab_t != last_t and "Catalog" not in lab_t and "Hub" not in lab_t:
+                                if locale == "fr_FR":
+                                    transition_prompt = f"Dis à l'étudiant en français : 'Je vois que vous venez d'ouvrir l'expérience \"{lab_t}\" ! Je surveille vos mesures en direct. Quelle est votre première hypothèse ?'"
+                                else:
+                                    transition_prompt = f"Tell the student: 'I see you just opened the \"{lab_t}\" experiment! I am tracking your live telemetry. What is your initial hypothesis?'"
+                                session.generate_reply(user_input=transition_prompt)
             except Exception as monitor_err:
                 logger.warning(f"Error in monitor_session_changes loop: {monitor_err}")
 
@@ -897,61 +1041,53 @@ async def entrypoint(ctx: JobContext):
             if locale == "fr_FR":
                 if v_state == "screen_share":
                     greeting_instruction = (
-                        f"{time_salutation} ! Présentez-vous brièvement à {student_name}. Confirmez que le partage d'écran est actif "
-                        "et demandez quel document ou sujet vous allez examiner ensemble."
+                        f"Dis à {student_name} en français : '{time_salutation} {student_name} ! Je regarde votre partage d'écran — quel document ou concept souhaitez-vous analyser ensemble ?'"
                     )
                 elif v_state == "split_workspace":
                     greeting_instruction = (
-                        f"{time_salutation} {student_name} ! Confirmez que vous examinez le document/manuel '{p_name}' ensemble dans l'espace de travail. "
-                        "Dites que vous avez accès à l'intégralité du contenu via la base de données, puis demandez poliment : "
-                        "'Souhaitez-vous que je vous fasse d'abord une explication des points clés de cette partie, ou préférez-vous que l'on passe directement aux questions ou au débat ?'"
+                        f"Dis à {student_name} en français : '{time_salutation} {student_name} ! Nous sommes sur le document \"{p_name}\". Souhaitez-vous une explication des points clés ou passons-nous directement à vos questions ?'"
                     )
                 elif v_state == "evaluation":
                     greeting_instruction = (
-                        f"{time_salutation} ! Confirmez à {student_name} que vous les voyez travailler sur l'évaluation, "
-                        "et proposez de les aider à y réfléchir étape par étape."
+                        f"Dis à {student_name} en français : '{time_salutation} {student_name} ! Je vois que vous êtes sur l'évaluation. Lisons les questions ensemble et résolvons-les pas à pas.'"
+                    )
+                elif active_mode == "CLASSROOM":
+                    greeting_instruction = (
+                        f"Dis brièvement à {student_name} en français : '{time_salutation} {student_name} ! Je t'écoute, quelle est ta question sur la leçon \"{video_title}\" ?'"
+                    )
+                elif active_mode == "POD":
+                    greeting_instruction = (
+                        f"Dis brièvement à {student_name} en français : '{time_salutation} {student_name} ! Comment puis-je vous aider, toi et ton groupe, sur la leçon \"{video_title}\" ?'"
                     )
                 else:
-                    if is_new_video:
-                        greeting_instruction = (
-                            f"{time_salutation} {student_name} ! Présentez-vous en tant que GANDHO, le tuteur socratique. "
-                            f"Ravi de démarrer la leçon '{video_title}' avec vous ! Posez une brève question amicale de prise de contact (ex. 'Comment vas-tu aujourd'hui ? Prêt à étudier ?') "
-                            "puis demandez comment vous pouvez l'aider."
-                        )
-                    else:
-                        greeting_instruction = (
-                            f"{time_salutation} {student_name} ! NE VOUS PRÉSENTEZ PAS À NOUVEAU (ne dites PAS 'Je suis GANDHO le tuteur socratique'). "
-                            f"Dites simplement que vous êtes toujours là à ses côtés pour la leçon '{video_title}', et demandez ce qu'il aimerait aborder maintenant."
-                        )
+                    greeting_instruction = (
+                        f"Dis chaleureusement à {student_name} en français : '{time_salutation} {student_name} ! Ravi d'étudier la leçon \"{video_title}\" avec toi. Quelle question as-tu ?'"
+                    )
             else:
                 if v_state == "screen_share":
                     greeting_instruction = (
-                        f"{time_salutation}! Acknowledge screen sharing with {student_name}, "
-                        "and ask how you can help them with the shared content or slide."
+                        f"Say to {student_name}: '{time_salutation} {student_name}! I see your screen stream now — what document or problem would you like to review together?'"
                     )
                 elif v_state == "split_workspace":
                     greeting_instruction = (
-                        f"{time_salutation} {student_name}! Acknowledge that you are reviewing textbook '{p_name}' together in the split-screen workspace. "
-                        "State that you have full database access to the document, and ask: "
-                        "'Would you like me to explain the key concepts of this section first, or would you prefer to jump straight into questions and debate?'"
+                        f"Say to {student_name}: '{time_salutation} {student_name}! We are in the workspace for \"{p_name}\". Would you like a key concept overview first or jump straight into questions?'"
                     )
                 elif v_state == "evaluation":
                     greeting_instruction = (
-                        f"{time_salutation}! Acknowledge that {student_name} is working on their evaluation quiz, "
-                        "and offer to help work through the questions step-by-step!"
+                        f"Say to {student_name}: '{time_salutation} {student_name}! I see you are on the Evaluation quiz. Let's work through the questions step-by-step!'"
+                    )
+                elif active_mode == "CLASSROOM":
+                    greeting_instruction = (
+                        f"Say concisely to {student_name}: '{time_salutation} {student_name}! I am listening, what is your question about the lesson \"{video_title}\"?'"
+                    )
+                elif active_mode == "POD":
+                    greeting_instruction = (
+                        f"Say concisely to {student_name}: '{time_salutation} {student_name}! How can I assist your group with \"{video_title}\"?'"
                     )
                 else:
-                    if is_new_video:
-                        greeting_instruction = (
-                            f"{time_salutation} {student_name}! Introduce yourself as GANDHO, the Socratic Tutor. "
-                            f"Excited to start the lesson '{video_title}' with you! Ask a quick friendly rapport question (e.g. 'How are you doing today? Ready to study?') "
-                            "and ask what questions they have."
-                        )
-                    else:
-                        greeting_instruction = (
-                            f"{time_salutation} {student_name}! DO NOT introduce yourself again or say 'I am GANDHO, the Socratic tutor'. "
-                            f"Simply state that you are right here with them on '{video_title}', and ask what they'd like to explore next."
-                        )
+                    greeting_instruction = (
+                        f"Say warmly to {student_name}: '{time_salutation} {student_name}! Great to study \"{video_title}\" together. What would you like to explore?'"
+                    )
 
             # Retry waiting for session._activity to become ready after session.start connects
             for _ in range(12):

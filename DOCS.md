@@ -25,6 +25,11 @@
    - [6.8 Evaluation & Mastery Quiz Engine](#68-evaluation--mastery-quiz-engine)
    - [6.9 Revision & Course Library with Batch Pagination](#69-revision--course-library-with-batch-pagination)
    - [6.10 Universal Subject Switching & Progression Persistence](#610-universal-subject-switching--progression-persistence)
+   - [6.11 Historical Savants & Interdisciplinary Connections Matrix](#611-historical-savants--interdisciplinary-connections-matrix-savant_curriculum_matrixpy)
+   - [6.12 STEM Virtual Labs Suite (Chemistry & Physics Simulations)](#612-stem-virtual-labs-suite-antigravity_labsweb_labs_package)
+   - [6.13 Omni Graph Engine (Calculus & Mathematical Function Grapher)](#613-omni-graph-engine-calculus--mathematical-function-grapher---port-8085)
+   - [6.14 App Launcher Menu & Streamlined Top Navigation](#614-app-launcher-menu--streamlined-top-navigation)
+   - [6.15 Hardened Video Startup Sequence & Performance Architecture](#615-hardened-video-startup-sequence--performance-architecture)
 7. [Offline Pre-Processing & Device Ingestion Pipeline](#7-offline-pre-processing--device-ingestion-pipeline)
 8. [Setup, Execution & Maintenance Commands](#8-setup-execution--maintenance-commands)
 
@@ -63,17 +68,22 @@ The production system targets the **Arduino Ventuno Q** edge AI compute board wi
 
 ### **Frontend**:
 - **Core Technology**: HTML5, Vanilla JavaScript (ES6+), Vanilla CSS Token System (Glassmorphism & Neon Dark Palette).
-- **Typography & Math Rendering**: Google Fonts (`Outfit`, `Geist`), KaTeX LaTeX Math Engine.
+- **Typography & Math Rendering**: Google Fonts (`Outfit`, `Geist`, `Hanken Grotesk`), KaTeX LaTeX Math Engine.
 - **Document & PDF Viewer**: PDF.js for synced textbook drawer rendering.
 - **3D Avatar Engine**: Spatius 3D WebGL Manager (`window.spatiusAvatarManager`).
 - **Webcam & Vision**: TensorFlow.js BlazeFace model for local face presence detection.
 - **Real-Time Communication**: LiveKit WebRTC Client SDK (`livekit-client`).
+- **STEM Virtual Labs Suite (`antigravity_labs/web_labs_package/`)**: Fully offline, interactive canvas & SVG experimental simulators for Chemistry (Titration, Kinetics, Buffers, Galvanic Cells) and Physics (Pendulums, Wave Interference, 2D Projectiles).
+- **Omni Graph Engine (`antigravity_labs/omni_graph_engine/`)**: Dedicated high-performance computational graphing suite for analytical/numerical calculus, derivatives, Riemann sums, differential equation vector fields, and 3D parametric surfaces.
+- **Navigation & App Launcher**: Glassmorphic 4-tile launcher drawer organizing Dashboard, Virtual Labs, Graphs, Course Library, Profile Modal, and Settings without DOM teardown.
 
-### **Backend Server (`display_client.py`)**:
-- **Framework**: Python 3.14+ web server running on `http://127.0.0.1:8000`.
-- **Session Synchronization**: Writes and syncs active lesson state to absolute path `c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json`.
-- **Telemetry Bridge**: UDP Socket Receiver on port `9999` for hardware hand-raise signals.
-- **AI Orchestration**: `orchestrator.py` & `qwen_omni_client.py` for local LLM health checks and fallback hint generation.
+### **Backend Server (`display_client.py` & Auxiliary Daemons)**:
+- **Framework**: Python 3.14+ web server running on `http://127.0.0.1:8000` (WebSocket coordinator on port `8001`).
+- **Session Synchronization**: Synchronizes active lesson state bidirectionally via `/get_active_session`, `/save_active_session`, and absolute path `c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json`.
+- **Media Delivery**: Threaded HTTP server supporting RFC 7233 byte-range streaming (`206 Partial Content`) for high-bitrate MP4 lecture playback and seek restoration.
+- **Telemetry Bridge**: UDP Socket Receiver on port `9999` for hardware hand-raise signals; forwarder on port `8002` to orchestrator.
+- **AI Orchestration & Translation**: `orchestrator.py` & `qwen_omni_client.py` for local LLM health checks; Gemma 4 translation proxy with locale-equality bypass (`active_locale == instructor_locale`).
+- **Graphing Microservice**: `server.py` inside `antigravity_labs/omni_graph_engine/` running on `http://127.0.0.1:8085`.
 
 ### **LiveKit Voice Agent Stack (`livekit_stack/agent/`)**:
 - **Online Agent (`tutor_agent.py`)**: `gemini-3.1-flash-live-preview` via `livekit.plugins.google.realtime` (`mutable = True` hotpatch applied).
@@ -94,21 +104,25 @@ flowchart TB
     end
 
     subgraph Client ["Frontend Web UI (index.html)"]
+        Launcher["4-Tile App Launcher Menu"]
         Dash["Interactive Video Dashboard"]
         Split["Split Study Workspace"]
+        Labs["STEM Virtual Labs (Web Labs Package)"]
+        Graphs["Omni Graph Engine (Calculus / Port 8085)"]
         Avatar["Spatius 3D WebGL Avatar"]
         FaceDetect["BlazeFace / Sentry Vision"]
         LKClient["LiveKit WebRTC Client"]
     end
 
-    subgraph Server ["Python Backend Server (display_client.py)"]
-        FastAPI["HTTP Server (Port 8000)"]
-        UDP["UDP Listener (Port 9999)"]
+    subgraph Server ["Python Backend Services"]
+        DisplayClient["display_client.py (HTTP 8000 / WS 8001)"]
+        GraphServer["omni_graph_engine (HTTP 8085)"]
+        UDP["UDP Listener (Port 9999 / 8002)"]
         SessionManager["Session Sync (active_session.json)"]
     end
 
     subgraph DB ["Local Pre-Baked Storage & OKF Memory"]
-        SQLite[("vault.db (SQLite)\n- curriculum_tree\n- video_transcripts\n- video_timestamps\n- user_mastery_ledger")]
+        SQLite[("vault.db (SQLite)\n- curriculum_tree\n- video_transcripts\n- video_timestamps\n- user_mastery_ledger\n- video_quiz_mcqs")]
         Lance[("LanceDB Vector DB\n(768-dim Embeddings)")]
         OKF["OKF Memory Graph\n(student_profiles/alseny/)"]
     end
@@ -120,9 +134,13 @@ flowchart TB
 
     Sensor -->|UDP Signal| UDP
     UDP -->|Broadcast| Client
-    Client <-->|HTTP REST / WebSockets| FastAPI
-    FastAPI <-->|Read / Write| SQLite
-    FastAPI <-->|Write State| SessionManager
+    Launcher -->|Route Switch| Dash
+    Launcher -->|Mount Sim| Labs
+    Launcher -->|Embed Canvas| Graphs
+    Client <-->|HTTP REST / WebSockets| DisplayClient
+    Graphs <-->|HTTP REST| GraphServer
+    DisplayClient <-->|Read / Write| SQLite
+    DisplayClient <-->|Write State| SessionManager
     SessionManager <-->|Read State| AgentStack
     LKClient <-->|WebRTC Audio/Video| OnlineAgent
     LKClient <-->|Local WebSockets| OfflineAgent
@@ -217,20 +235,75 @@ The system relies on **SQLite (`vault.db`)** for relational metadata, **LanceDB*
 - **Interdisciplinary Cross-Chapter Connections**: Dynamically bridges topics across chapters and subjects (e.g. linking Derivatives $\leftrightarrow$ Integrals, Demographics $\leftrightarrow$ Health & Food Security, Oscillation $\leftrightarrow$ Energy Conservation).
 - **Inspirational Real-World Applications**: Highlights modern, high-impact applications (AI circuit design, epidemiology models, space exploration) during Socratic dialogues to ignite student curiosity.
 
+### 6.12 STEM Virtual Labs Suite (`antigravity_labs/web_labs_package/`)
+- **Offline Interactive Simulations**: Comprehensive laboratory simulation engine executing 100% locally in the browser with zero cloud dependencies.
+- **Chemistry Virtual Experiments**:
+  - **Acid-Base Titration**: Dynamic stopcock burette dispensing titrant into an analyte flask; real-time sigmoidal pH curve plotting with equivalence point detection ($pH = 7.00$), indicator color shifts (Phenolphthalein / Bromothymol Blue), and live stoichiometric readout.
+  - **Reaction Kinetics**: Simulation of reaction rates across reactant concentrations and temperatures following the Arrhenius rate law ($k = A e^{-E_a/(RT)}$), with concentration vs. time decay curves.
+  - **Buffer Solutions**: Interactive Henderson-Hasselbalch calculator ($pH = pK_a + \log \frac{[A^-]}{[HA]}$) with buffer capacity stress-testing against strong acid/base additions.
+  - **Electrochemistry / Galvanic Cell**: Anode/cathode half-cell selection ($Zn/Cu$, etc.), live salt bridge electron transport animation, standard reduction potential calculations ($E^\circ_{\text{cell}}$), and dynamic Nernst voltage under non-standard conditions.
+- **Physics Virtual Experiments**:
+  - **Simple Harmonic Motion (Pendulum)**: Real-time pendulum bob physics with gravitational acceleration ($g$), string length ($L$), air drag damping, and live kinetic vs. potential energy trade-off bar graphs.
+  - **Wave Interference (Double-Slit Diffraction)**: Young's double-slit experiment featuring variable laser wavelength ($\lambda$), slit spacing ($d$), and screen distance ($L$), rendering both the spatial fringe interference pattern and the intensity distribution profile $I(\theta)$.
+  - **2D Projectile Motion**: Parabolic trajectory arc with angle, muzzle velocity, launch height, and optional atmospheric drag, displaying instantaneous range, maximum altitude, and flight time.
+- **Seamless Container Mounting**: Mounted via `#tabVirtualLabs` with responsive layout and state preservation across tab switches.
+
+### 6.13 Omni Graph Engine (Calculus & Mathematical Function Grapher - Port 8085)
+- **Architecture**: Specialized computational graphing service located in `antigravity_labs/omni_graph_engine/`, served locally on port `8085` and integrated via iframe/tab routing (`#tabGraphs`).
+- **Calculus & Function Capabilities**:
+  - **Multi-Function Plotting**: Concurrent Cartesian curves $f(x)$, $g(x)$ with dynamic domain scaling and auto-framing.
+  - **Differential Calculus**: Instantaneous tangent line tracking and analytical/numerical derivative curves ($f'(x)$, $f''(x)$).
+  - **Integral Calculus & Riemann Sums**: Visual definite integration $\int_a^b f(x)dx$ with interactive Riemann rectangle partitions (Left, Right, Midpoint, and Trapezoidal rules) illustrating area convergence.
+  - **Parametric Curves & Polar Coordinates**: Parametric evaluation $(x(t), y(t))$ and polar equations $r(\theta)$.
+  - **Differential Equation Vector Fields**: First-order ODE slope fields $dy/dx = g(x,y)$ with interactive initial-condition solution trajectory tracing.
+  - **3D Surface Visualization**: Interactive 3D WebGL surface rendering $z = f(x,y)$ with orbital drag controls.
+
+### 6.14 App Launcher Menu & Streamlined Top Navigation
+- **4-Tile Launcher Drawer**: Replaced horizontal tab clutter with a unified, Google-style 4-tile App Launcher icon adjacent to "Gandal AI".
+- **Primary Pinned Route**: "Dashboard" remains prominently pinned on the top navigation bar for one-click return to the active lecture and Socratic tutor.
+- **Modern Glassmorphic Drawer**: Clicking the launcher button toggles a glassmorphic dropdown presenting clear destinations:
+  - 📊 **Dashboard** (Main lecture video, Spatius 3D tutor, synchronized transcripts)
+  - 🧪 **Virtual Labs** (Interactive STEM experiments for physics and chemistry)
+  - 📈 **Graphs** (Omni Graph Engine for calculus and functions)
+  - 📚 **Révision & Cours** (Course library and curriculum browser)
+  - 👤 **Profil Étudiant** (Student mastery, progress tracking, interest tracks)
+  - ⚙️ **Paramètres** (Classroom preferences and settings)
+- **Zero-Flicker Architecture**: Implements click-outside dismissal and keyboard Escape handling while maintaining DOM container isolation so WebGL avatar contexts and running video buffers remain unbroken.
+
+### 6.15 Hardened Video Startup Sequence & Performance Architecture
+- **Event-Driven Initialization (`initClassroomBoot`)**: Replaced fragile `window.onload` with `initClassroomBoot()` bound to `DOMContentLoaded` and guarded with `document.readyState !== 'loading'`. Eliminates previous cold-boot hangs caused by delayed external CDN scripts and iframe completions.
+- **Synchronous T=0 Video Booting**: `bootActiveSessionVideo()` immediately resolves `initialBootVid` from local bookmarks, initiating video buffering without waiting sequentially for server roundtrips.
+- **Session State API (`/get_active_session`)**: Implemented `/get_active_session` and `/api/get_active_session` in `display_client.py` for persistent, bi-directional state synchronization with `active_session.json`.
+- **Locale Translation Optimization**:
+  - In `display_client.py`, conditioned metadata translation to `if active_locale != instructor_locale:`.
+  - In `index.html`, added `activeLoc !== teacherLoc` guards on MCQ translation fetches.
+  - Skips redundant French-to-French LLM translations on startup, reducing initial boot latency by over 10 seconds.
+- **Seek Restoration & Progress Synchronization**:
+  - `performSeekRestore()` invokes `onVideoProgressUpdate()` and listens to the `seeked` event, immediately rendering the progress slider fill and time label (`05:03 / 12:39`) as soon as metadata is parsed.
+- **Autoplay Resilience**:
+  - Catches browser autoplay restrictions (`NotAllowedError`) without throwing unhandled exceptions, cleanly restoring the Play icon `▶` state instead of leaving frozen pause bars.
+
 ---
 
 ## 7. Offline Pre-Processing & Device Ingestion Pipeline
 
+One command bakes each staged lesson (and standalone books/audiobooks) until **all** classroom caches exist. The Summary tab is filled from `lesson_summaries` (executive overview, formulas, concepts, takeaways)—not a raw timestamp list. Chapter outlines still go to `video_timestamps` for seek/RAG.
+
 ```
-[Raw MP4 Video & PDF Files] 
+[Raw MP4 / PDF / audiobook]
        ↓
-[ingest_curriculum.py / preprocess_curriculum.py]
-       ↓ (Extract Transcripts, Vector Embeddings & Socratic Matrices via Gemini/Qwen)
-[vault.db (SQLite) & LanceDB Vector Store]
-       ↓ (Pre-bake database & media onto device image)
-[Arduino Ventuno Q NVMe / MicroSD Storage]
-       ↓
-[Instant 100% Offline Socratic Tutor Device]
+python ingest_curriculum.py
+       ↓  transcripts, locale translation, Summary doc, flashcards, MCQs, RAG
+[vault.db + LanceDB]  — lesson marked ready only when every required cache exists
+```
+
+Standalone books and audiobooks use the same engine:
+
+```bash
+python ingest_curriculum.py
+python ingest_curriculum.py --force --locale fr_FR
+python ingest_pdf.py --pdf "path/to/Professor_Book.pdf" --title "Advanced Cell Biology" --subject "Biology" --author "Prof. Smith"
+python ingest_curriculum.py --path "audiobooks/stoicism.mp3" --kind audiobook --title "Meditations"
 ```
 
 ---
@@ -242,6 +315,11 @@ The system relies on **SQLite (`vault.db`)** for relational metadata, **LanceDB*
 python display_client.py
 ```
 
+### **Start Omni Graph Engine Microservice (Calculus & Function Grapher - Port 8085)**:
+```bash
+python antigravity_labs/omni_graph_engine/server.py 8085
+```
+
 ### **Start LiveKit Voice Agent (Online Mode - Gemini 3.1 Flash Live)**:
 ```bash
 python livekit_stack/agent/run_agent.py start
@@ -249,13 +327,11 @@ python livekit_stack/agent/run_agent.py start
 python livekit_stack/agent/run_agent.py dev
 ```
 
-### **Ingest Standalone PDF Textbooks (e.g. Professor's Books - No Video Needed)**:
+### **Ingest Curriculum, Books, and Audiobooks (one-shot bake)**:
 ```bash
-# Ingest single PDF textbook:
+python ingest_curriculum.py
+# or a single professor PDF:
 python ingest_pdf.py --pdf "path/to/Professor_Book.pdf" --title "Advanced Cell Biology" --subject "Biology" --author "Prof. Smith"
-
-# OR place all PDF files in 'professor_books/' directory and run:
-python ingest_pdf.py
 ```
 
 ### **Start LiveKit Voice Agent (Offline Mode - Local Gemma 4 NPU + Kokoro)**:

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Offline PhET-Style Simulation: Balancing Chemical Equations</title>
+  <style>
+    body {
+      margin: 0;
+      background: #09090b;
+      color: #f4f4f5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      user-select: none;
+      box-sizing: border-box;
+    }
+    .header {
+      padding: 14px 24px;
+      background: #141418;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #27272a;
+      flex-shrink: 0;
+    }
+    .main-box {
+      flex: 1;
+      padding: 40px 20px 80px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      box-sizing: border-box;
+    }
+    .equation-card {
+      background: #141418;
+      border: 1px solid #27272a;
+      border-radius: 20px;
+      padding: 30px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 1.8rem;
+      font-weight: bold;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .coeff-stepper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-step {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid #3f3f46;
+      background: #27272a;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-step:hover { background: #3f3f46; }
+    .coeff-num {
+      width: 40px;
+      text-align: center;
+      color: #06b6d4;
+      font-family: monospace;
+    }
+    .balance-status-card {
+      width: 420px;
+      background: #141418;
+      border: 2px solid #27272a;
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+    .balance-status-card.balanced {
+      border-color: #10b981;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+    .atom-tally {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 10px;
+      font-size: 0.9rem;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <strong>⚖️ Offline Simulation: Balancing Chemical Equations</strong>
+    <span style="font-size: 0.8rem; color: #a1a1aa;">100% Offline Local Engine</span>
+  </div>
+
+  <div class="main-box">
+    <div style="font-size: 1.1rem; color: #a1a1aa;">
+      Synthesize Water: Balance the chemical reaction by changing the stoichiometric coefficients!
+    </div>
+
+    <div class="equation-card">
+      <!-- Coeff 1 (H2) -->
+      <div class="coeff-stepper">
+        <button class="btn-step" onclick="changeCoeff('h2', 1)">▲</button>
+        <span class="coeff-num" id="coeffH2">1</span>
+        <button class="btn-step" onclick="changeCoeff('h2', -1)">▼</button>
+      </div>
+      <span>H₂</span>
+
+      <span style="color: #a1a1aa;">+</span>
+
+      <!-- Coeff 2 (O2) -->
+      <div class="coeff-stepper">
+        <button class="btn-step" onclick="changeCoeff('o2', 1)">▲</button>
+        <span class="coeff-num" id="coeffO2">1</span>
+        <button class="btn-step" onclick="changeCoeff('o2', -1)">▼</button>
+      </div>
+      <span>O₂</span>
+
+      <span style="color: #38bdf8; margin: 0 10px;">➔</span>
+
+      <!-- Coeff 3 (H2O) -->
+      <div class="coeff-stepper">
+        <button class="btn-step" onclick="changeCoeff('h2o', 1)">▲</button>
+        <span class="coeff-num" id="coeffH2O">1</span>
+        <button class="btn-step" onclick="changeCoeff('h2o', -1)">▼</button>
+      </div>
+      <span>H₂O</span>
+    </div>
+
+    <!-- Balance Status Card -->
+    <div class="balance-status-card" id="statusCard">
+      <div id="statusText" style="font-weight: bold; font-size: 1.1rem; color: #f59e0b;">
+        ⚠️ Unbalanced Equation
+      </div>
+      <div class="atom-tally">
+        <div>Reactant H: <span id="reactH" style="color:#38bdf8;">2</span> | Product H: <span id="prodH" style="color:#38bdf8;">2</span></div>
+        <div>Reactant O: <span id="reactO" style="color:#f43f5e;">2</span> | Product O: <span id="prodO" style="color:#f43f5e;">1</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let c = { h2: 1, o2: 1, h2o: 1 };
+
+    function changeCoeff(id, delta) {
+      c[id] = Math.max(1, Math.min(8, c[id] + delta));
+      document.getElementById("coeffH2").innerText = c.h2;
+      document.getElementById("coeffO2").innerText = c.o2;
+      document.getElementById("coeffH2O").innerText = c.h2o;
+      updateTally();
+    }
+
+    function updateTally() {
+      const rH = c.h2 * 2;
+      const rO = c.o2 * 2;
+      const pH = c.h2o * 2;
+      const pO = c.h2o * 1;
+
+      document.getElementById("reactH").innerText = rH;
+      document.getElementById("prodH").innerText = pH;
+      document.getElementById("reactO").innerText = rO;
+      document.getElementById("prodO").innerText = pO;
+
+      const card = document.getElementById("statusCard");
+      const text = document.getElementById("statusText");
+
+      if (rH === pH && rO === pO) {
+        card.classList.add("balanced");
+        text.style.color = "#10b981";
+        text.innerHTML = "🎉 Balanced! 2 H₂ + 1 O₂ ➔ 2 H₂O";
+      } else {
+        card.classList.remove("balanced");
+        text.style.color = "#f59e0b";
+        text.innerHTML = "⚠️ Unbalanced Equation (Law of Conservation of Mass)";
+      }
+    }
+  </script>
+</body>
+</html>

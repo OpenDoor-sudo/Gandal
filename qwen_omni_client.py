@@ -99,7 +99,7 @@ def extract_audio_from_video(video_path, output_audio_path=None):
         return None
 
 # Generate Video Timestamps via Qwen 3.5 Omni
-def generate_video_timestamps(video_path, video_id):
+def generate_video_timestamps(video_path, video_id, fallback_mock=True):
     """
     Extracts audio from video and uploads it to Qwen 3.5 Omni via DashScope
     to automatically generate structured timestamps / chapters.
@@ -107,8 +107,8 @@ def generate_video_timestamps(video_path, video_id):
     # 1. Extract audio file
     audio_path = extract_audio_from_video(video_path)
     if not audio_path:
-        print("[QWEN OMNI] Audio extraction failed. Shifting to mock timestamps.")
-        return get_mock_timestamps(video_id)
+        print("[QWEN OMNI] Audio extraction failed.")
+        return get_mock_timestamps(video_id) if fallback_mock else []
 
     prompt_text = (
         "Please listen to this audio and segment it into logical chapters or timestamps. "
@@ -272,7 +272,9 @@ def generate_video_timestamps(video_path, video_id):
 
     # --- TIER 4: Mock Fallback ---
     print("[QWEN OMNI] All audio processing pipelines failed. Shifting to mock timestamps.")
-    return get_mock_timestamps(video_id)
+    if fallback_mock:
+        return get_mock_timestamps(video_id)
+    return []
 
 # Grounded Multimodal Socratic Query Routing
 def query_qwen_omni_tutoring(user_question, context_text, locale, video_id=None):
@@ -588,7 +590,7 @@ def get_mock_flashcards(video_id, locale):
             {"front": "What represents the restoring force of a mass-spring system?", "back": "Hooke's law: F = -kx", "hint": "Force is directly proportional to stretch length."}
         ]
 
-def generate_video_flashcards(video_path, video_id, locale="en_US"):
+def generate_video_flashcards(video_path, video_id, locale="en_US", fallback_mock=True):
     """
     Submits lecture audio to Qwen 3.5 Omni and prompts it to generate 3 Socratic flashcards.
     Falls back to mock flashcards if key is missing or call fails.
@@ -597,8 +599,8 @@ def generate_video_flashcards(video_path, video_id, locale="en_US"):
     temp_mp3 = os.path.join("scratch", f"{video_id}_flashcards_temp.mp3")
     os.makedirs("scratch", exist_ok=True)
     if not extract_audio_from_video(video_path, temp_mp3):
-        print("[QWEN OMNI] Audio extraction failed for flashcards. Generating mock flashcards...")
-        return get_mock_flashcards(video_id, locale)
+        print("[QWEN OMNI] Audio extraction failed for flashcards.")
+        return get_mock_flashcards(video_id, locale) if fallback_mock else []
 
     prompt = (
         "You are an expert Socratic tutor. Listen to this lecture audio and generate exactly 3 study flashcards.\n"
@@ -763,7 +765,9 @@ def generate_video_flashcards(video_path, video_id, locale="en_US"):
     print("[QWEN OMNI] All audio flashcard generation pipelines failed. Returning mock flashcards.")
     if os.path.exists(temp_mp3):
         os.remove(temp_mp3)
-    return get_mock_flashcards(video_id, locale)
+    if fallback_mock:
+        return get_mock_flashcards(video_id, locale)
+    return []
 
 
 # ---------------------------------------------------------
@@ -939,4 +943,193 @@ def get_mock_simulation_layouts(subject, video_id):
                 }
             }
         ]
+
+
+def parse_llm_json_list(content):
+    if not content:
+        return None
+    text = str(content).strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return parsed
+        if isinstance(parsed, dict):
+            for key in ("questions", "items", "flashcards", "chapters"):
+                if isinstance(parsed.get(key), list):
+                    return parsed[key]
+            return [parsed]
+    except Exception:
+        pass
+    try:
+        start = text.find("[")
+        end = text.rfind("]")
+        if start >= 0 and end > start:
+            return json.loads(text[start:end + 1])
+    except Exception:
+        return None
+    return None
+
+
+def generate_quiz_mcqs(source_text, locale="en_US", n_main=5, n_alt=5):
+    """Generate evaluation + practice MCQs from lesson text. Returns [] on failure."""
+    lang = "French" if str(locale).lower().startswith("fr") else "English"
+    system_prompt = (
+        "You are an expert exam author for a Socratic tutor. Output ONLY valid JSON. "
+        "No markdown fences."
+    )
+    user_prompt = (
+        f"Write {n_main + n_alt} multiple-choice questions in {lang} from this lesson.\n"
+        f"The first {n_main} are the mastery exam (is_alternative=0). "
+        f"The next {n_alt} are extra practice (is_alternative=1).\n"
+        "Each item must be: "
+        '{"id": 1, "question": "...", "options": {"A": "...", "B": "...", "C": "...", "D": "..."}, '
+        '"correct": "A", "is_alternative": 0}\n'
+        "correct must be one of A, B, C, D. ids start at 1 for exam and restart at 1 for practice.\n"
+        f"Lesson text:\n{source_text[:8000]}"
+    )
+    content = query_llm_text(system_prompt, user_prompt)
+    parsed = parse_llm_json_list(content)
+    if not parsed:
+        google_key = os.environ.get("GOOGLE_API_KEY", "").strip()
+        if google_key:
+            try:
+                from google import genai
+                from google.genai import types
+                client = genai.Client(api_key=google_key)
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=user_prompt,
+                    config=types.GenerateContentConfig(response_mime_type="application/json"),
+                )
+                parsed = parse_llm_json_list(response.text)
+            except Exception as e:
+                print(f"[QWEN OMNI] Gemini quiz generation failed: {e}")
+    if not parsed:
+        return []
+    cleaned = []
+    for i, item in enumerate(parsed):
+        if not isinstance(item, dict):
+            continue
+        options = item.get("options") or {}
+        if not options:
+            options = {
+                "A": item.get("option_a") or item.get("A") or "",
+                "B": item.get("option_b") or item.get("B") or "",
+                "C": item.get("option_c") or item.get("C") or "",
+                "D": item.get("option_d") or item.get("D") or "",
+            }
+        correct = str(item.get("correct") or item.get("correct_option") or "A").strip().upper()[:1]
+        if correct not in ("A", "B", "C", "D"):
+            correct = "A"
+        is_alt = item.get("is_alternative", 1 if i >= n_main else 0)
+        cleaned.append({
+            "id": item.get("id") or ((i - n_main + 1) if i >= n_main else (i + 1)),
+            "question": item.get("question") or "",
+            "options": options,
+            "correct": correct,
+            "is_alternative": 1 if is_alt else 0,
+        })
+    return cleaned
+
+
+def generate_lesson_summary_doc(source_text, title, subject, locale="en_US"):
+    """Executive summary for the Summary tab. Returns dict or None."""
+    lang = "French" if str(locale).lower().startswith("fr") else "English"
+    system_prompt = "You are a curriculum writer. Output ONLY a JSON object. No markdown."
+    user_prompt = (
+        f"Create an executive lesson summary in {lang} for the Summary tab of a Socratic tutor.\n"
+        f"Title hint: {title}\nSubject: {subject}\n"
+        "JSON keys:\n"
+        '- "title": string\n'
+        '- "subtitle": string\n'
+        '- "overview": 2-4 sentence HTML-safe overview (you may use <u> for key terms)\n'
+        '- "formulas": list of {"label": string, "eq": string} using LaTeX without surrounding $$\n'
+        '- "concepts": list of 3-5 short HTML-safe bullet strings\n'
+        '- "takeaways": list of 3 short revision bullets\n'
+        f"Lesson text:\n{source_text[:8000]}"
+    )
+    content = query_llm_text(system_prompt, user_prompt)
+    parsed = None
+    if content:
+        text = content.strip()
+        if text.startswith("```"):
+            lines = text.splitlines()
+            text = "\n".join(lines[1:-1] if len(lines) > 2 else lines).strip()
+        try:
+            parsed = json.loads(text)
+        except Exception:
+            start = text.find("{")
+            end = text.rfind("}")
+            if start >= 0 and end > start:
+                try:
+                    parsed = json.loads(text[start:end + 1])
+                except Exception:
+                    parsed = None
+    if not isinstance(parsed, dict):
+        google_key = os.environ.get("GOOGLE_API_KEY", "").strip()
+        if google_key:
+            try:
+                from google import genai
+                from google.genai import types
+                client = genai.Client(api_key=google_key)
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=user_prompt,
+                    config=types.GenerateContentConfig(response_mime_type="application/json"),
+                )
+                parsed = json.loads(response.text.strip())
+            except Exception as e:
+                print(f"[QWEN OMNI] Gemini summary generation failed: {e}")
+                parsed = None
+    if not isinstance(parsed, dict):
+        return None
+    return {
+        "title": parsed.get("title") or title,
+        "subtitle": parsed.get("subtitle") or subject,
+        "overview": parsed.get("overview") or "",
+        "formulas": parsed.get("formulas") or [],
+        "concepts": parsed.get("concepts") or [],
+        "takeaways": parsed.get("takeaways") or [],
+    }
+
+
+def generate_chapters_from_text(source_text, locale="en_US"):
+    lang = "French" if str(locale).lower().startswith("fr") else "English"
+    content = query_llm_text(
+        "Output ONLY a JSON list. No markdown.",
+        f"Segment this lesson into 3-6 chapters in {lang}. "
+        'Each item: {"timestamp": "Page N" or "MM:SS", "title": "...", "description": "..."}.\n'
+        f"Text:\n{source_text[:8000]}",
+    )
+    parsed = parse_llm_json_list(content)
+    return parsed or []
+
+
+def generate_flashcards_from_text(source_text, locale="en_US"):
+    lang = "French" if str(locale).lower().startswith("fr") else "English"
+    content = query_llm_text(
+        "Output ONLY a JSON list. No markdown.",
+        f"Create 5 Socratic study flashcards in {lang}. "
+        'Each item: {"front": "...", "back": "...", "hint": "..."}.\n'
+        f"Text:\n{source_text[:8000]}",
+    )
+    parsed = parse_llm_json_list(content)
+    if not parsed:
+        return []
+    cards = []
+    for item in parsed:
+        if isinstance(item, dict) and item.get("front") and item.get("back"):
+            cards.append({
+                "front": item["front"],
+                "back": item["back"],
+                "hint": item.get("hint") or "",
+            })
+    return cards
 

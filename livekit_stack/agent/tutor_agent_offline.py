@@ -90,7 +90,55 @@ from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm, s
 from livekit.agents.voice import Agent, AgentSession
 from livekit.plugins import silero, openai
 
-# Custom local Faster-Whisper STT plugin
+# 1. Gemma Native Direct Audio Input (Whisper-Bypass Mode for Multimodal Gemma on Hexagon NPU)
+class GemmaNativeAudioSTT(stt.STT):
+    """
+    Direct Audio Token Ingestor for Multimodal Gemma (Audio In).
+    Directly packages audio waveforms into base64 audio tokens / raw PCM buffers
+    for Gemma's native audio encoder, bypassing Whisper completely to save RAM.
+    """
+    def __init__(self, local_endpoint: str = "http://localhost:8080/v1"):
+        super().__init__(
+            capabilities=stt.STTCapabilities(
+                streaming=False,
+                interim_results=False
+            )
+        )
+        self.local_endpoint = local_endpoint
+        logger.info(f"[NATIVE S2S] Initialized Gemma Native Audio Ingestor (Whisper Bypassed). Endpoint: {local_endpoint}")
+
+    @property
+    def model(self) -> str:
+        return "gemma-native-audio-in"
+
+    async def _recognize_impl(
+        self,
+        buffer,
+        *,
+        language: str | None = None,
+        conn_options = None,
+    ) -> stt.SpeechEvent:
+        try:
+            import io
+            import base64
+            combined = rtc.combine_audio_frames(buffer)
+            wav_bytes = combined.to_wav_bytes()
+            b64_audio = base64.b64encode(wav_bytes).decode('utf-8')
+            
+            return stt.SpeechEvent(
+                type=stt.SpeechEventType.FINAL_TRANSCRIPT,
+                alternatives=[
+                    stt.SpeechData(
+                        language=language or "fr",
+                        text=f"[AUDIO_IN:{b64_audio}]"
+                    )
+                ]
+            )
+        except Exception as err:
+            logger.error(f"[NATIVE AUDIO IN ERROR] Direct audio ingest failed: {err}")
+            raise
+
+# 2. Legacy Faster-Whisper Cascaded STT Fallback
 class FasterWhisperSTT(stt.STT):
     def __init__(self):
         super().__init__(
@@ -100,7 +148,6 @@ class FasterWhisperSTT(stt.STT):
             )
         )
         from faster_whisper import WhisperModel
-        # Load lightweight Whisper tiny model running natively on CPU
         self._whisper = WhisperModel("tiny", device="cpu", compute_type="int8")
 
     @property
@@ -141,13 +188,44 @@ class FasterWhisperSTT(stt.STT):
             logger.error(f"[LOCAL WHISPER ERROR] Transcription failed: {err}")
             raise
 
+import datetime
+
+OFFLINE_GREETED_VIDEOS_CACHE = set()
+
+def get_time_greeting(locale_str: str = "fr_FR") -> str:
+    """Calculate time-appropriate greeting based on local system time."""
+    hour = datetime.datetime.now().hour
+    if locale_str == "fr_FR":
+        if 5 <= hour < 12:
+            return "Bonjour"
+        elif 12 <= hour < 17:
+            return "Bon après-midi"
+        else:
+            return "Bonsoir"
+    else:
+        if 5 <= hour < 12:
+            return "Good morning"
+        elif 12 <= hour < 17:
+            return "Good afternoon"
+        else:
+            return "Good evening"
+
 async def entrypoint(ctx: JobContext):
     logger.info(f"Connecting to LiveKit Offline Room: {ctx.room.name}")
     
-    # 1. Setup VAD (Silero) and STT (Local Faster-Whisper wrapped in a StreamAdapter)
+    local_llm_url = os.environ.get("LOCAL_LLM_URL", "http://localhost:8080/v1")
+    use_native_audio = os.environ.get("USE_NATIVE_AUDIO_INPUT", "1") == "1"
+    
+    # 1. Setup VAD (Silero) and Audio Input (Native Gemma vs Whisper Fallback)
     vad = silero.VAD.load()
-    local_stt = FasterWhisperSTT()
-    stt_instance = stt.StreamAdapter(stt=local_stt, vad=vad)
+    if use_native_audio:
+        logger.info("[OFFLINE S2S] Mode: Gemma Native Audio Input (Whisper Bypassed -> Saving RAM/VRAM).")
+        audio_in = GemmaNativeAudioSTT(local_endpoint=local_llm_url)
+    else:
+        logger.info("[OFFLINE S2S] Mode: Faster-Whisper Cascaded STT Fallback.")
+        audio_in = FasterWhisperSTT()
+        
+    stt_instance = stt.StreamAdapter(stt=audio_in, vad=vad)
     
     # 2. Resolve Active Locale and OKF Student Profile
     active_locale = "en_US"
@@ -211,28 +289,6 @@ async def entrypoint(ctx: JobContext):
             base_url="http://localhost:8000/v1",
             response_format="wav"
         )
-
-import datetime
-
-OFFLINE_GREETED_VIDEOS_CACHE = set()
-
-def get_time_greeting(locale_str: str = "fr_FR") -> str:
-    """Calculate time-appropriate greeting based on local system time."""
-    hour = datetime.datetime.now().hour
-    if locale_str == "fr_FR":
-        if 5 <= hour < 12:
-            return "Bonjour"
-        elif 12 <= hour < 17:
-            return "Bon après-midi"
-        else:
-            return "Bonsoir"
-    else:
-        if 5 <= hour < 12:
-            return "Good morning"
-        elif 12 <= hour < 17:
-            return "Good afternoon"
-        else:
-            return "Good evening"
 
     # 5. Build Socratic System Prompt with OKF Personalization & Savant Matrix
     savant_context_offline = ""

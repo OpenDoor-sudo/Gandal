@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniGraphEngine - STEM Graphing & Physics Simulator</title>
+  <!-- 100% Offline Local Vendor Styles & Scripts -->
+  <link rel="stylesheet" href="./lib/jsxgraph.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./lib/jsxgraphcore.js"></script>
+  <script src="./lib/matter.min.js"></script>
+  <script src="./lib/tesseract.min.js"></script>
+</head>
+<body>
+
+  <div class="omni-layout">
+    <!-- LEFT SIDE: Graph Viewport (Biggest Area ~70%) -->
+    <main class="graph-viewport-area">
+      <!-- Top Centered Pill Search Bar (Matching Reference Mockup) -->
+      <div class="top-search-bar-wrapper">
+        <div class="omni-search-pill">
+          <!-- Left Action Button: Opens Scene & Tool Switcher -->
+          <button type="button" class="pill-icon-btn pill-plus-btn" id="btnPillMenuToggle" title="Open Modes & Tools">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+
+          <!-- Dropdown Menu for Modes and Upload -->
+          <div class="pill-dropdown-menu" id="pillDropdownMenu">
+            <div style="font-size: 0.7rem; text-transform: uppercase; color: #71717a; padding: 6px 12px; font-weight: 700; letter-spacing: 0.05em;">Simulation Scene</div>
+            <button type="button" class="pill-menu-item active" data-scene="general-math">
+              <span>📐</span> <span>General Functions & Geometry</span>
+            </button>
+            <button type="button" class="pill-menu-item" data-scene="calculus-riemann">
+              <span>∫</span> <span>Calculus (Riemann Sums)</span>
+            </button>
+            <button type="button" class="pill-menu-item" data-scene="linear-algebra">
+              <span>⇄</span> <span>Linear Algebra (Matrix Shear)</span>
+            </button>
+            <button type="button" class="pill-menu-item" data-scene="physics-kinematics">
+              <span>☄️</span> <span>Physics (Kinematics & Collisions)</span>
+            </button>
+            <div class="pill-menu-divider"></div>
+            <button type="button" class="pill-menu-item" id="btnOpenOcrModal">
+              <span>📷</span> <span>Upload Image Formula (OCR)</span>
+            </button>
+          </div>
+
+          <!-- Central Formula & Query Input -->
+          <input 
+            type="text" 
+            id="formulaInputBox" 
+            class="pill-search-input" 
+            placeholder="Graph anything..." 
+            value="3x + 5"
+            autocomplete="off"
+            spellcheck="false"
+          />
+
+          <!-- Right Action Button: Microphone (Voice to Math) -->
+          <button type="button" class="pill-icon-btn pill-mic-btn" id="btnVoiceInput" title="Speak math formula">
+            <!-- Sleek Voice / Broadcast Wave Icon (matching user reference) -->
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="2.2" fill="currentColor"></circle>
+              <path d="M16.5 7.5a6.5 6.5 0 0 1 0 9"></path>
+              <path d="M19.5 4.5a11 11 0 0 1 0 15"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Active Multi-Curve Legend & Comparison Chips -->
+        <div class="active-curves-bar" id="activeCurvesBar"></div>
+      </div>
+
+      <!-- Floating Canvas Navigation Controls (Zoom In, Zoom Out, Reset Home) -->
+      <div class="graph-zoom-hud">
+        <button type="button" class="zoom-hud-btn" id="btnZoomIn" title="Zoom In (+)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+        <button type="button" class="zoom-hud-btn" id="btnZoomOut" title="Zoom Out (-)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+        <button type="button" class="zoom-hud-btn" id="btnZoomReset" title="Reset View (Home)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+        </button>
+      </div>
+
+      <!-- Mount point for JSXGraph and Matter.js canvases -->
+      <div id="graphCanvasMount" class="graph-canvas-container"></div>
+    </main>
+
+    <!-- RIGHT SIDE: Variables & Input Control Panel (~30%) -->
+    <aside class="control-sidebar-area">
+      <header class="sidebar-header">
+        <div class="brand-badge">
+          <span>OmniGraph</span>Engine
+        </div>
+        <span style="font-size: 0.72rem; color: #71717a; font-family: monospace;">v1.0 • Standalone</span>
+      </header>
+
+      <div class="sidebar-scroll-content">
+        <!-- Dynamic Variable Sliders Section (Top Hero Card) -->
+        <section class="sliders-section-card" id="slidersCard">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span class="section-label">Interactive Parameters</span>
+            <span id="paramCountBadge" style="font-size: 0.72rem; color: #06b6d4; font-family: monospace; background: rgba(6, 182, 212, 0.1); padding: 2px 8px; border-radius: 4px;">2 active</span>
+          </div>
+          <div id="slidersContainer" style="display: flex; flex-direction: column; gap: 14px;">
+            <!-- Dynamically generated sliders for variables a, b, c, etc. -->
+          </div>
+        </section>
+
+        <!-- Topic Presets Chips -->
+        <section class="sliders-section-card" id="presetsCard">
+          <span class="section-label">Quick Presets (Multi-Curve, Inequalities, Calculus, Geometry)</span>
+          <div class="presets-grid">
+            <button type="button" class="preset-chip" data-preset="sin(x), cos(x)">〰️ Compare: sin(x), cos(x)</button>
+            <button type="button" class="preset-chip" data-preset="2sin(2x)">〰️ Wave: 2sin(2x)</button>
+            <button type="button" class="preset-chip" data-preset="y <= sin(x)">📐 Ineq: y ≤ sin(x)</button>
+            <button type="button" class="preset-chip" data-preset="y <= 2x + 1">📐 Linear Ineq: y ≤ 2x + 1</button>
+            <button type="button" class="preset-chip" data-preset="y >= x^2 - 4">⚡ Quad Ineq: y ≥ x² - 4</button>
+            <button type="button" class="preset-chip" data-preset="x^2 + y^2 <= 25">⭕ Disk Ineq: x² + y² ≤ 25</button>
+            <button type="button" class="preset-chip" data-preset="area(x^2, 0, 2)">∫ Area & Volume: area(x², 0, 2)</button>
+            <button type="button" class="preset-chip" data-preset="area(sin(x), 0, 3.1416)">∫ Wave Area: area(sin(x), 0, π)</button>
+            <button type="button" class="preset-chip" data-preset="x^2 + y^2 = 25">⭕ Circle: x² + y² = 25</button>
+            <button type="button" class="preset-chip" data-preset="3x + 5">📏 Line: 3x + 5</button>
+            <button type="button" class="preset-chip" data-preset="(3, 4)">📍 Dot (3, 4)</button>
+            <button type="button" class="preset-chip" data-preset="[3, 2]">➔ Vector [3, 2]</button>
+          </div>
+        </section>
+
+        <!-- Live Telemetry Inspector -->
+        <section class="telemetry-card" id="telemetryCard">
+          <div style="font-weight: bold; margin-bottom: 4px; color: #d4d4d8;">📊 Live Inspection Metrics</div>
+          <div id="telemetryContent">Ready to graph and manipulate variables.</div>
+        </section>
+      </div>
+    </aside>
+  </div>
+
+  <!-- App Bootstrap -->
+  <script type="module">
+    import { OmniGraphEngine } from "./src/core/OmniGraphEngine.js";
+
+    const mountPoint = document.getElementById("graphCanvasMount");
+    const formulaInput = document.getElementById("formulaInputBox");
+    const slidersContainer = document.getElementById("slidersContainer");
+    const telemetryContent = document.getElementById("telemetryContent");
+    const btnVoice = document.getElementById("btnVoiceInput");
+    const fileInputOcr = document.getElementById("fileInputOcr");
+    const btnPillMenuToggle = document.getElementById("btnPillMenuToggle");
+    const pillDropdownMenu = document.getElementById("pillDropdownMenu");
+    const activeCurvesBar = document.getElementById("activeCurvesBar");
+
+    const friendlyLabels = {
+      m: "m (Slope)",
+      b: "b (Y-Intercept)",
+      a: "a (Leading Coeff / Scale)",
+      c: "c (Constant / Shift)",
+      C: "C (Vertical Shift)",
+      A: "A (Amplitude)",
+      k: "k (Frequency / Wave)",
+      r: "r (Radius)",
+      d: "d (Diameter)",
+      vx: "vₓ (X-Component)",
+      vy: "v_y (Y-Component)",
+      x: "x (Coordinate)",
+      y: "y (Coordinate)",
+      // Multi-curve comparison labels
+      A1: "A₁ (Amplitude)",
+      k1: "k₁ (Frequency)",
+      C1: "C₁ (Vertical Shift)",
+      A2: "A₂ (Amplitude)",
+      k2: "k₂ (Frequency)",
+      C2: "C₂ (Vertical Shift)",
+      m1: "m₁ (Slope)",
+      b1: "b₁ (Y-Intercept)",
+      m2: "m₂ (Slope)",
+      b2: "b₂ (Y-Intercept)",
+      a1: "a₁ (Scale)",
+      c1: "c₁ (Shift)",
+      a2: "a₂ (Scale)",
+      c2: "c₂ (Shift)",
+      r1: "r₁ (Radius)",
+      d1: "d₁ (Diameter)",
+      r2: "r₂ (Radius)",
+      d2: "d₂ (Diameter)"
+    };
+    let currentRenderedVars = [];
+
+    // Initialize Master Engine
+    const engine = new OmniGraphEngine({
+      container: mountPoint,
+      onVariablesDetected: (vars, params) => {
+        renderVariableSliders(vars, params);
+      },
+      onCurvesUpdated: (curves) => {
+        renderCurveChips(curves);
+      },
+      onFormulaChanged: (f) => {
+        formulaInput.value = f;
+      },
+      onTelemetry: (data) => {
+        renderTelemetry(data);
+      },
+      onVoiceStateChange: (isListening) => {
+        if (btnVoice) {
+          if (isListening) {
+            btnVoice.classList.add("listening");
+            btnVoice.title = "Listening to formula... Click to stop";
+          } else {
+            btnVoice.classList.remove("listening");
+            btnVoice.title = "Speak math formula";
+          }
+        }
+      },
+      onVoiceTranscript: (mathFormula, rawText, isFinal) => {
+        if (mathFormula) {
+          formulaInput.value = mathFormula;
+          triggerPlot();
+        }
+      },
+      onOcrLoading: (isLoading, msg) => {
+        console.log("OCR:", isLoading, msg);
+      },
+      onOcrResult: (res) => {
+        if (res.rawFormula) {
+          formulaInput.value = res.rawFormula;
+          triggerPlot();
+        }
+      }
+    });
+
+    window.omniEngine = engine;
+
+    // Dropdown Menu Toggle and Outside-Click Dismiss
+    if (btnPillMenuToggle && pillDropdownMenu) {
+      btnPillMenuToggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = pillDropdownMenu.classList.toggle("open");
+        btnPillMenuToggle.classList.toggle("active", isOpen);
+      });
+
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".top-search-bar-wrapper")) {
+          pillDropdownMenu.classList.remove("open");
+          btnPillMenuToggle.classList.remove("active");
+        }
+      });
+    }
+
+    // Initial Scene Boot
+    engine.loadScene("general-math", { formula: formulaInput.value });
+
+    // Formula Input Events: Enter key, live typing, and change
+    const triggerPlot = () => {
+      const val = formulaInput.value.trim();
+      if (val) {
+        engine.plotFormula(val);
+      }
+    };
+
+    formulaInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        triggerPlot();
+      }
+    });
+
+    let debounceTimer = null;
+    formulaInput.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(triggerPlot, 180);
+    });
+    formulaInput.addEventListener("change", triggerPlot);
+
+    // Zoom Floating HUD Buttons
+    document.getElementById("btnZoomIn")?.addEventListener("click", () => engine.zoomIn());
+    document.getElementById("btnZoomOut")?.addEventListener("click", () => engine.zoomOut());
+    document.getElementById("btnZoomReset")?.addEventListener("click", () => {
+      formulaInput.value = "";
+      engine.clearAll();
+      if (activeCurvesBar) activeCurvesBar.innerHTML = "";
+      renderVariableSliders([], {});
+      telemetryContent.innerHTML = "Ready to graph and manipulate variables.";
+    });
+
+    // Voice Input Toggle on Mic Icon Click
+    if (btnVoice) {
+      btnVoice.addEventListener("click", () => {
+        engine.toggleVoice();
+      });
+    }
+
+    // Math Vision OCR Modal & Dropzone Handler
+    const btnOpenOcrModal = document.getElementById("btnOpenOcrModal");
+    const ocrModalOverlay = document.getElementById("ocrModalOverlay");
+    const ocrModalCard = document.getElementById("ocrModalCard");
+    const btnCloseOcrModal = document.getElementById("btnCloseOcrModal");
+    const ocrDropzone = document.getElementById("ocrDropzone");
+    const btnBrowseOcrFile = document.getElementById("btnBrowseOcrFile");
+    const ocrModalFileInput = document.getElementById("ocrModalFileInput");
+    const ocrPreviewPanel = document.getElementById("ocrPreviewPanel");
+    const ocrPreviewImg = document.getElementById("ocrPreviewImg");
+    const ocrScannerLaser = document.getElementById("ocrScannerLaser");
+    const ocrFileMeta = document.getElementById("ocrFileMeta");
+    const ocrStatusText = document.getElementById("ocrStatusText");
+    const ocrStatusIndicator = document.getElementById("ocrStatusIndicator");
+    const ocrFormulaResultInput = document.getElementById("ocrFormulaResultInput");
+    const btnOcrAcceptPlot = document.getElementById("btnOcrAcceptPlot");
+    const btnOcrUploadAnother = document.getElementById("btnOcrUploadAnother");
+
+    const openOcrModal = () => {
+      if (ocrModalOverlay) {
+        ocrModalOverlay.style.display = "flex";
+        if (pillDropdownMenu) pillDropdownMenu.classList.remove("open");
+        if (btnPillMenuToggle) btnPillMenuToggle.classList.remove("active");
+      }
+    };
+
+    const closeOcrModal = () => {
+      if (ocrModalOverlay) {
+        ocrModalOverlay.style.display = "none";
+        if (ocrModalFileInput) ocrModalFileInput.value = "";
+      }
+    };
+
+    if (btnOpenOcrModal) btnOpenOcrModal.addEventListener("click", openOcrModal);
+    if (btnCloseOcrModal) btnCloseOcrModal.addEventListener("click", closeOcrModal);
+
+    // Outside click dismiss modal
+    if (ocrModalOverlay) {
+      ocrModalOverlay.addEventListener("click", (e) => {
+        if (!ocrModalCard || !ocrModalCard.contains(e.target)) {
+          closeOcrModal();
+        }
+      });
+    }
+
+    // Keyboard shortcuts for modal: Esc to close, Enter to plot
+    window.addEventListener("keydown", (e) => {
+      if (ocrModalOverlay && ocrModalOverlay.style.display === "flex") {
+        if (e.key === "Escape") {
+          closeOcrModal();
+        } else if (e.key === "Enter" && document.activeElement === ocrFormulaResultInput) {
+          e.preventDefault();
+          plotOcrResult();
+        }
+      }
+    });
+
+    // File browsing trigger
+    if (btnBrowseOcrFile && ocrModalFileInput) {
+      btnBrowseOcrFile.addEventListener("click", (e) => {
+        e.stopPropagation();
+        ocrModalFileInput.click();
+      });
+    }
+    if (ocrDropzone && ocrModalFileInput) {
+      ocrDropzone.addEventListener("click", (e) => {
+        if (e.target !== btnBrowseOcrFile) {
+          ocrModalFileInput.click();
+        }
+      });
+    }
+
+    // Process image file or sample
+    const handleOcrImage = async (fileOrData) => {
+      if (ocrPreviewPanel) ocrPreviewPanel.style.display = "flex";
+      if (ocrScannerLaser) ocrScannerLaser.style.display = "block";
+      if (ocrStatusText) ocrStatusText.innerText = "Analyzing mathematical notation with OCR...";
+      if (ocrStatusIndicator) ocrStatusIndicator.classList.add("pulse");
+      if (ocrFormulaResultInput) ocrFormulaResultInput.value = "";
+
+      let dataUrl = "";
+      let fileName = "uploaded_math.png";
+
+      if (typeof fileOrData === "string") {
+        dataUrl = fileOrData;
+      } else if (fileOrData.dataUrl) {
+        dataUrl = fileOrData.dataUrl;
+        fileName = fileOrData.fileName || fileName;
+      } else if (fileOrData instanceof File || fileOrData instanceof Blob) {
+        fileName = fileOrData.name || fileName;
+        dataUrl = await engine.visionOcr.fileToDataUrl(fileOrData);
+      }
+
+      if (ocrPreviewImg) ocrPreviewImg.src = dataUrl;
+      if (ocrFileMeta) ocrFileMeta.innerText = fileName;
+
+      try {
+        const meta = { name: fileName, sampleFormula: fileOrData.formula || null };
+        const result = await engine.visionOcr.recognizeFromDataUrl(dataUrl, meta);
+        if (ocrScannerLaser) ocrScannerLaser.style.display = "none";
+        if (ocrStatusIndicator) ocrStatusIndicator.classList.remove("pulse");
+        if (ocrStatusText) ocrStatusText.innerText = "✨ Formula Recognized!";
+        if (ocrFormulaResultInput) {
+          ocrFormulaResultInput.value = result.rawFormula;
+          ocrFormulaResultInput.focus();
+        }
+      } catch (err) {
+        if (ocrScannerLaser) ocrScannerLaser.style.display = "none";
+        if (ocrStatusText) ocrStatusText.innerText = "Fallback formula generated";
+        if (ocrFormulaResultInput) ocrFormulaResultInput.value = "2sin(2x)";
+      }
+    };
+
+    if (ocrModalFileInput) {
+      ocrModalFileInput.addEventListener("change", (e) => {
+        if (e.target.files && e.target.files[0]) {
+          handleOcrImage(e.target.files[0]);
+        }
+      });
+    }
+
+    // Sample equation chips click
+    document.querySelectorAll(".ocr-sample-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const sampleFormula = chip.dataset.sample;
+        const sampleObj = engine.visionOcr.generateSampleImage(sampleFormula);
+        handleOcrImage(sampleObj);
+      });
+    });
+
+    // Accept & Plot button
+    const plotOcrResult = () => {
+      const formula = (ocrFormulaResultInput ? ocrFormulaResultInput.value.trim() : "") || "2sin(2x)";
+      formulaInput.value = formula;
+      triggerPlot();
+      closeOcrModal();
+    };
+
+    if (btnOcrAcceptPlot) {
+      btnOcrAcceptPlot.addEventListener("click", plotOcrResult);
+    }
+
+    if (btnOcrUploadAnother) {
+      btnOcrUploadAnother.addEventListener("click", () => {
+        if (ocrPreviewPanel) ocrPreviewPanel.style.display = "none";
+        if (ocrModalFileInput) ocrModalFileInput.value = "";
+      });
+    }
+
+    // Drag-and-drop on dropzone
+    if (ocrDropzone) {
+      ocrDropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        ocrDropzone.classList.add("dragover");
+      });
+      ocrDropzone.addEventListener("dragleave", () => {
+        ocrDropzone.classList.remove("dragover");
+      });
+      ocrDropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        ocrDropzone.classList.remove("dragover");
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+          handleOcrImage(e.dataTransfer.files[0]);
+        }
+      });
+    }
+
+    // Drag-and-drop anywhere onto graph viewport
+    window.addEventListener("dragover", (e) => {
+      if (e.dataTransfer && Array.from(e.dataTransfer.types).includes("Files")) {
+        e.preventDefault();
+      }
+    });
+    window.addEventListener("drop", (e) => {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        const file = e.dataTransfer.files[0];
+        if (file.type.startsWith("image/")) {
+          e.preventDefault();
+          openOcrModal();
+          handleOcrImage(file);
+        }
+      }
+    });
+
+    // Presets Click Handler
+    document.querySelectorAll(".preset-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const preset = chip.dataset.preset;
+        formulaInput.value = preset;
+        engine.plotFormula(preset);
+      });
+    });
+
+    // Scene Switcher Dropdown Items
+    document.querySelectorAll(".pill-menu-item[data-scene]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        document.querySelectorAll(".pill-menu-item[data-scene]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        if (pillDropdownMenu) pillDropdownMenu.classList.remove("open");
+        if (btnPillMenuToggle) btnPillMenuToggle.classList.remove("active");
+
+        const sceneId = btn.dataset.scene;
+        const presetsCard = document.getElementById("presetsCard");
+        const slidersCard = document.getElementById("slidersCard");
+
+        if (sceneId === "general-math") {
+          if (presetsCard) presetsCard.style.display = "flex";
+          if (slidersCard) slidersCard.style.display = "flex";
+          await engine.loadScene("general-math", { formula: formulaInput.value });
+        } else if (sceneId === "calculus-riemann") {
+          if (presetsCard) presetsCard.style.display = "none";
+          if (slidersCard) slidersCard.style.display = "flex";
+          const scene = await engine.loadScene("calculus-riemann");
+          renderCalculusControls(scene);
+        } else if (sceneId === "linear-algebra") {
+          if (presetsCard) presetsCard.style.display = "none";
+          if (slidersCard) slidersCard.style.display = "flex";
+          const scene = await engine.loadScene("linear-algebra");
+          renderLinearAlgebraControls(scene);
+        } else if (sceneId === "physics-kinematics") {
+          if (presetsCard) presetsCard.style.display = "none";
+          if (slidersCard) slidersCard.style.display = "flex";
+          const scene = await engine.loadScene("physics-kinematics");
+          renderKinematicsControls(scene);
+        }
+      });
+    });
+
+    // Multi-Equation Comparison Chips Rendering
+    function renderCurveChips(curves) {
+      if (!activeCurvesBar) return;
+      if (!curves || curves.length === 0) {
+        activeCurvesBar.innerHTML = "";
+        return;
+      }
+
+      activeCurvesBar.innerHTML = `
+        ${curves.map((c, idx) => `
+          <div class="curve-chip" style="--curve-color: ${c.color};">
+            <span class="curve-dot"></span>
+            <span class="curve-label" title="${c.rawExpr}">${c.rawExpr}</span>
+            <button type="button" class="curve-remove-btn" data-curve-idx="${idx}" title="Remove equation">✕</button>
+          </div>
+        `).join("")}
+        <button type="button" class="add-curve-chip-btn" id="btnAddCurveChip" title="Add another formula to compare">+ Compare</button>
+      `;
+
+      // Remove single equation
+      activeCurvesBar.querySelectorAll(".curve-remove-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const idx = parseInt(btn.dataset.curveIdx);
+          const remaining = engine.removeCurve(idx);
+          formulaInput.value = remaining;
+        });
+      });
+
+      // Add to comparison button
+      const btnAdd = document.getElementById("btnAddCurveChip");
+      if (btnAdd) {
+        btnAdd.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (!formulaInput.value.endsWith(", ") && !formulaInput.value.endsWith(",")) {
+            formulaInput.value += ", ";
+          }
+          formulaInput.focus();
+          formulaInput.setSelectionRange(formulaInput.value.length, formulaInput.value.length);
+        });
+      }
+    }
+
+    // Variable Slider Rendering with Human-Friendly Parameter Names
+    function renderVariableSliders(vars, params) {
+      const badge = document.getElementById("paramCountBadge");
+      if (!vars || vars.length === 0) {
+        currentRenderedVars = [];
+        if (badge) {
+          badge.innerText = "0 active";
+          badge.style.color = "#71717a";
+          badge.style.background = "rgba(113, 113, 122, 0.1)";
+        }
+        slidersContainer.innerHTML = `
+          <div style="font-size: 0.8rem; color: #71717a; font-style: italic; padding: 4px 0;">
+            No variable parameters detected. Type a parameter or formula like <code>3x + 5</code> or <code>a*x^2 + b</code> to generate sliders.
+          </div>
+        `;
+        return;
+      }
+
+      if (badge) {
+        badge.innerText = `${vars.length} active`;
+        badge.style.color = "#06b6d4";
+        badge.style.background = "rgba(6, 182, 212, 0.1)";
+      }
+
+      // If exactly the same variables are already rendered, smoothly update their values without destroying elements
+      const isSameVars = currentRenderedVars.length === vars.length && currentRenderedVars.every((v, i) => v === vars[i]);
+      if (isSameVars) {
+        vars.forEach(v => {
+          const slider = document.getElementById(`slider_${v}`);
+          const display = document.getElementById(`valDisplay_${v}`);
+          const val = params && params[v] !== undefined ? params[v] : 1;
+          if (slider && document.activeElement !== slider) {
+            slider.value = val;
+          }
+          if (display) {
+            display.innerText = Number.isInteger(val) ? val : Number(val).toFixed(1);
+          }
+        });
+        return;
+      }
+
+      currentRenderedVars = [...vars];
+      slidersContainer.innerHTML = vars.map(v => {
+        const val = params && params[v] !== undefined ? params[v] : 1;
+        let displayName = friendlyLabels[v] || `${v} (Parameter)`;
+        if (v === "b" && (formulaInput.value.includes("^2") || formulaInput.value.includes("x^2"))) {
+          displayName = "b (Linear Coeff)";
+        }
+        const minVal = Math.min(-10, Math.floor(val - 5));
+        const maxVal = Math.max(10, Math.ceil(val + 5));
+        return `
+          <div class="variable-slider-item">
+            <div class="slider-info-row">
+              <span class="var-name">${displayName}</span>
+              <span class="var-val" id="valDisplay_${v}">${val}</span>
+            </div>
+            <input 
+              type="range" 
+              class="custom-range-slider" 
+              id="slider_${v}" 
+              min="${minVal}" 
+              max="${maxVal}" 
+              step="0.1" 
+              value="${val}"
+            />
+          </div>
+        `;
+      }).join("");
+
+      vars.forEach(v => {
+        const slider = document.getElementById(`slider_${v}`);
+        const display = document.getElementById(`valDisplay_${v}`);
+        if (slider) {
+          slider.addEventListener("input", (e) => {
+            const num = parseFloat(e.target.value);
+            display.innerText = Number.isInteger(num) ? num : num.toFixed(1);
+            engine.setVariable(v, num);
+
+            // Live synchronize radius & diameter sliders
+            if (v === "r" || v.startsWith("r")) {
+              const dVar = "d" + v.substring(1);
+              const dSlider = document.getElementById(`slider_${dVar}`);
+              const dDisplay = document.getElementById(`valDisplay_${dVar}`);
+              const dVal = (num * 2);
+              if (dSlider) dSlider.value = dVal;
+              if (dDisplay) dDisplay.innerText = Number.isInteger(dVal) ? dVal : dVal.toFixed(1);
+            } else if (v === "d" || v.startsWith("d")) {
+              const rVar = "r" + v.substring(1);
+              const rSlider = document.getElementById(`slider_${rVar}`);
+              const rDisplay = document.getElementById(`valDisplay_${rVar}`);
+              const rVal = (num / 2);
+              if (rSlider) rSlider.value = rVal;
+              if (rDisplay) rDisplay.innerText = Number.isInteger(rVal) ? rVal : rVal.toFixed(1);
+            }
+          });
+        }
+      });
+    }
+
+    // Calculus Riemann controls rendering in side panel
+    function renderCalculusControls(scene) {
+      slidersContainer.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="variable-slider-item">
+            <div class="slider-info-row">
+              <span class="var-name">Partitions (n)</span>
+              <span class="var-val" id="nValDisplay">${scene.n}</span>
+            </div>
+            <input type="range" class="custom-range-slider" id="calcSliderN" min="1" max="100" step="1" value="${scene.n}">
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <span class="section-label">Riemann Method</span>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="preset-chip ${scene.type === 'left' ? 'active' : ''}" id="btnRiemLeft">Left</button>
+              <button type="button" class="preset-chip ${scene.type === 'midpoint' ? 'active' : ''}" id="btnRiemMid">Midpoint</button>
+              <button type="button" class="preset-chip ${scene.type === 'right' ? 'active' : ''}" id="btnRiemRight">Right</button>
+              <button type="button" class="preset-chip ${scene.type === 'trapezoidal' ? 'active' : ''}" id="btnRiemTrap">Trapezoid</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("calcSliderN").addEventListener("input", (e) => {
+        document.getElementById("nValDisplay").innerText = e.target.value;
+        scene.setPartitions(parseInt(e.target.value));
+      });
+
+      const setType = (t) => {
+        scene.setRiemannType(t);
+        renderCalculusControls(scene);
+      };
+      document.getElementById("btnRiemLeft").onclick = () => setType("left");
+      document.getElementById("btnRiemMid").onclick = () => setType("midpoint");
+      document.getElementById("btnRiemRight").onclick = () => setType("right");
+      document.getElementById("btnRiemTrap").onclick = () => setType("trapezoidal");
+    }
+
+    // Linear Algebra controls rendering
+    function renderLinearAlgebraControls(scene) {
+      slidersContainer.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-size: 0.8rem; color: #a1a1aa; line-height: 1.4;">
+            Drag the cyan arrow head (<strong style="color:#06b6d4;">î</strong>) or purple head (<strong style="color:#a855f7;">ĵ</strong>) directly on the grid to transform the coordinate space!
+          </div>
+          <span class="section-label">Transformation Presets</span>
+          <div class="presets-grid">
+            <button type="button" class="preset-chip" id="btnLaIdent">Identity</button>
+            <button type="button" class="preset-chip" id="btnLaRot90">90° Rotation</button>
+            <button type="button" class="preset-chip" id="btnLaShear">Horizontal Shear</button>
+            <button type="button" class="preset-chip" id="btnLaReflect">Reflection</button>
+            <button type="button" class="preset-chip" id="btnLaCollapse">Collinear Collapse (det=0)</button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("btnLaIdent").onclick = () => scene.setMatrixValues(1, 0, 0, 1);
+      document.getElementById("btnLaRot90").onclick = () => scene.setMatrixValues(0, -1, 1, 0);
+      document.getElementById("btnLaShear").onclick = () => scene.setMatrixValues(1, 1.5, 0, 1);
+      document.getElementById("btnLaReflect").onclick = () => scene.setMatrixValues(-1, 0, 0, 1);
+      document.getElementById("btnLaCollapse").onclick = () => scene.setMatrixValues(1, 2, 0.5, 1);
+    }
+
+    // Kinematics controls rendering
+    function renderKinematicsControls(scene) {
+      slidersContainer.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="variable-slider-item">
+            <div class="slider-info-row">
+              <span class="var-name">Launch Angle (θ)</span>
+              <span class="var-val" id="angleValDisplay">${scene.angleDeg}°</span>
+            </div>
+            <input type="range" class="custom-range-slider" id="kinSliderAngle" min="0" max="90" step="1" value="${scene.angleDeg}">
+          </div>
+
+          <div class="variable-slider-item">
+            <div class="slider-info-row">
+              <span class="var-name">Initial Velocity (v₀)</span>
+              <span class="var-val" id="v0ValDisplay">${scene.v0} m/s</span>
+            </div>
+            <input type="range" class="custom-range-slider" id="kinSliderV0" min="5" max="45" step="1" value="${scene.v0}">
+          </div>
+
+          <div class="variable-slider-item">
+            <div class="slider-info-row">
+              <span class="var-name">Gravity (g)</span>
+              <span class="var-val" id="gValDisplay">${scene.gravityY} m/s²</span>
+            </div>
+            <input type="range" class="custom-range-slider" id="kinSliderG" min="1.6" max="25" step="0.2" value="${scene.gravityY}">
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 6px;">
+            <button type="button" class="modality-btn" id="btnLaunchProjectile" style="background: linear-gradient(135deg, #06b6d4, #0284c7); color: #fff; font-weight: bold; border: none;">
+              🚀 Launch Projectile
+            </button>
+            <button type="button" class="modality-btn" id="btnResetKinematics">
+              🔄 Reset
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("kinSliderAngle").addEventListener("input", (e) => {
+        document.getElementById("angleValDisplay").innerText = `${e.target.value}°`;
+        scene.setAngle(parseFloat(e.target.value));
+      });
+      document.getElementById("kinSliderV0").addEventListener("input", (e) => {
+        document.getElementById("v0ValDisplay").innerText = `${e.target.value} m/s`;
+        scene.setVelocity(parseFloat(e.target.value));
+      });
+      document.getElementById("kinSliderG").addEventListener("input", (e) => {
+        document.getElementById("gValDisplay").innerText = `${e.target.value} m/s²`;
+        scene.setGravity(parseFloat(e.target.value));
+      });
+      document.getElementById("btnLaunchProjectile").onclick = () => scene.launch();
+      document.getElementById("btnResetKinematics").onclick = () => scene.reset();
+    }
+
+    // Render Telemetry Box
+    function renderTelemetry(data) {
+      if (data.scene === "calculus-riemann") {
+        telemetryContent.innerHTML = `
+          <div><strong>Bounds:</strong> [a = ${data.a}, b = ${data.b}] (${data.n} slices)</div>
+          <div><strong>Riemann Sum:</strong> <span class="telemetry-highlight">${data.riemannSum}</span></div>
+          <div><strong>Exact Integral:</strong> ${data.exactIntegral}</div>
+          <div><strong>Absolute Error:</strong> ${data.error}</div>
+          <div><strong>Tangent Slope f'(x₀):</strong> ${data.tangentSlope}</div>
+        `;
+      } else if (data.scene === "linear-algebra") {
+        telemetryContent.innerHTML = `
+          <div><strong>Matrix:</strong> [[${data.a}, ${data.b}], [${data.c}, ${data.d}]]</div>
+          <div><strong>Determinant det(A):</strong> <span class="telemetry-highlight">${data.det}</span></div>
+          <div><strong>Orientation:</strong> ${data.detStatus}</div>
+          <div><strong>Eigenvalues:</strong> ${data.eigenvalues}</div>
+        `;
+      } else if (data.scene === "physics-kinematics") {
+        telemetryContent.innerHTML = `
+          <div><strong>Angle:</strong> ${data.angle}° | <strong>v₀:</strong> ${data.v0} m/s | <strong>g:</strong> ${data.gravity} m/s²</div>
+          <div><strong>Theoretical Max Height:</strong> ${data.theoreticalMaxHeight} m</div>
+          <div><strong>Theoretical Range:</strong> <span class="telemetry-highlight">${data.theoreticalRange} m</span></div>
+          <div><strong>Flight Time:</strong> ${data.theoreticalTime} s</div>
+          ${data.currX ? `<div style="color:#38bdf8;"><strong>Live Position:</strong> (${data.currX}m, ${data.currY}m) • speed ${data.speed} m/s</div>` : ''}
+        `;
+      } else {
+        let content = `
+          <div><strong>Active Scene:</strong> Universal Mathematics & Geometry</div>
+          <div><strong>Active Formula(s):</strong> ${formulaInput.value}</div>
+        `;
+        if (data.integral) {
+          content += `
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #3f3f46;">
+              <div style="color: #38bdf8; font-weight: bold; margin-bottom: 2px;">Definite Integral & Volume:</div>
+              <div><strong>Expression:</strong> ∫ ${data.integral.baseExpr} dx on ${data.integral.bounds}</div>
+              <div><strong>Shaded Area:</strong> <span class="telemetry-highlight">${data.integral.area}</span> units²</div>
+              <div><strong>Solid of Revolution (x-axis):</strong> <span class="telemetry-highlight">${data.integral.revolutionVolume}</span> units³</div>
+            </div>
+          `;
+        }
+        if (data.curves && data.curves.length > 1) {
+          content += `
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #3f3f46;">
+              <div style="font-weight: bold; margin-bottom: 4px; color: #d4d4d8;">Active Comparison (${data.curves.length} curves):</div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                ${data.curves.map((c, i) => `
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${c.color}; box-shadow: 0 0 6px ${c.color};"></span>
+                    <span style="color:${c.color}; font-weight:600;">Curve ${i+1}:</span> ${c.rawExpr}
+                  </div>
+                `).join("")}
+              </div>
+            </div>
+          `;
+        }
+        telemetryContent.innerHTML = content;
+      }
+    }
+
+    // Window resize handler
+    window.addEventListener("resize", () => {
+      engine.resize();
+    });
+  </script>
+
+  <!-- Math Vision OCR Upload & Interactive Recognition Modal -->
+  <div class="ocr-modal-overlay" id="ocrModalOverlay" style="display: none;">
+    <div class="ocr-modal-card" id="ocrModalCard">
+      <header class="ocr-modal-header">
+        <div class="ocr-modal-title">
+          <div class="ocr-icon-badge">📷</div>
+          <div>
+            <div style="font-weight: 700; font-size: 1.05rem; color: #fff;">Math Vision OCR • Image to Graph</div>
+            <div style="font-size: 0.76rem; color: #a1a1aa;">Scan screenshots, photos, or handwritten equations to graph instantly</div>
+          </div>
+        </div>
+        <button type="button" class="ocr-modal-close-btn" id="btnCloseOcrModal" title="Close Modal">✕</button>
+      </header>
+
+      <div class="ocr-modal-body">
+        <!-- Drag & Drop Zone -->
+        <div class="ocr-dropzone" id="ocrDropzone">
+          <input type="file" id="ocrModalFileInput" accept="image/*" style="display: none;">
+          <div class="ocr-dropzone-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+              <polyline points="21 15 16 10 5 21"></polyline>
+            </svg>
+          </div>
+          <div style="font-weight: 600; color: #e4e4e7; font-size: 0.95rem; margin-bottom: 4px;">
+            Drop formula image here, or <span style="color: #38bdf8; text-decoration: underline; cursor: pointer;" id="btnBrowseOcrFile">Browse Device</span>
+          </div>
+          <div style="font-size: 0.75rem; color: #71717a;">
+            Supports PNG, JPG, JPEG, WebP, SVG • Up to 20MB
+          </div>
+        </div>
+
+        <!-- Quick Test Samples Bar -->
+        <div class="ocr-samples-section">
+          <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #71717a; font-weight: 700;">
+            Or test with instant equation images:
+          </span>
+          <div class="ocr-samples-grid">
+            <button type="button" class="ocr-sample-chip" data-sample="2sin(3x)" title="Trigonometric Wave">
+              〰️ Wave: 2sin(3x)
+            </button>
+            <button type="button" class="ocr-sample-chip" data-sample="x^2 - 4" title="Parabola">
+              ⚡ Quad: x² - 4
+            </button>
+            <button type="button" class="ocr-sample-chip" data-sample="x^2 + y^2 = 25" title="Circle">
+              ⭕ Circle: x² + y² = 25
+            </button>
+            <button type="button" class="ocr-sample-chip" data-sample="y <= 2x + 1" title="Linear Inequality">
+              📐 Ineq: y ≤ 2x + 1
+            </button>
+            <button type="button" class="ocr-sample-chip" data-sample="area(x^2, 0, 2)" title="Definite Integral & Volume">
+              ∫ Area: area(x², 0, 2)
+            </button>
+          </div>
+        </div>
+
+        <!-- Scan & Result Inspection Panel (active once image loaded) -->
+        <div class="ocr-preview-panel" id="ocrPreviewPanel" style="display: none;">
+          <div class="ocr-preview-media-col">
+            <div class="ocr-img-container">
+              <img id="ocrPreviewImg" alt="Uploaded Formula Preview" />
+              <div class="ocr-scanner-laser" id="ocrScannerLaser"></div>
+            </div>
+            <div class="ocr-file-meta" id="ocrFileMeta">IMG_formula.png</div>
+          </div>
+
+          <div class="ocr-preview-details-col">
+            <div class="ocr-status-pill" id="ocrStatusPill">
+              <span class="ocr-status-indicator pulse" id="ocrStatusIndicator"></span>
+              <span id="ocrStatusText">Scanning image with Math Vision OCR...</span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
+              <label for="ocrFormulaResultInput" style="font-size: 0.75rem; color: #a1a1aa; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;">
+                Recognized Math Formula (Editable):
+              </label>
+              <div class="ocr-input-wrapper">
+                <input type="text" id="ocrFormulaResultInput" class="ocr-formula-input" placeholder="e.g. 2sin(3x)" spellcheck="false" autocomplete="off" />
+              </div>
+              <div style="font-size: 0.72rem; color: #71717a;">
+                Verify or adjust the formula if needed before plotting.
+              </div>
+            </div>
+
+            <div class="ocr-modal-actions">
+              <button type="button" class="ocr-btn-primary" id="btnOcrAcceptPlot">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Plot on Graph
+              </button>
+              <button type="button" class="ocr-btn-secondary" id="btnOcrUploadAnother">
+                Upload Another
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

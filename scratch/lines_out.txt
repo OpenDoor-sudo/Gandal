@@ -1,0 +1,25 @@
+6091:           tab_profile: "الملف الشخصي",
+6092:           tab_evaluation: "التقييم",
+6093:           welcome_msg:
+6094:             "مرحبًا بكم في سلسلة المحاضرات! يرجى تحديد مسارك الدراسي أو الضغط على زر الميكروفون أدناه لبدء المحادثة واستكشاف المواضيع معًا. فلنبدأ التعلم!",
+6095:           mic_hint: '"اشرح العلاقة بين هذه المتجهات الثلاثة..."',
+6096:           active_lang: "لغة النظام النشطة",
+6097:           audio_mode: "وضع الصوت لترجمة المحاضرة",
+6098:           mesh_network: "شبكة eSIM المعقدة",
+6099:           mode_translated: "الصوت الأصلي المترجم (Gemma + Piper)",
+6100:           mode_original: "الصوت الأصلي (صوت المعلم)",
+6101:           graphing_simulator_active: "محاكي الرسوم البيانية نشط.",
+6102:         },
+6103:       };
+6104: 
+6105:       function translateClassroomUI(locale) {
+6106:         const strings = UI_LOCALIZATIONS[locale] || UI_LOCALIZATIONS["en_US"];
+6107:         const enStrings = UI_LOCALIZATIONS["en_US"];
+6108:         const getString = (key) =>
+6109:           strings[key] !== undefined ? strings[key] : enStrings[key];
+6110: 
+6111:         // Translate sidebar tab buttons
+6112:         const tabs = document.querySelectorAll(".sidebar-tabs button");
+6113:         if (tabs.length >= 6) {
+6114:           tabs[0].innerText = strings["tab_tutor"];
+6115:           tabs[1].innerText = strings["tab_chat"];

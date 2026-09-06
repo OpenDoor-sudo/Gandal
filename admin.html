@@ -249,9 +249,23 @@
         }
 
         .parent-link-btn:hover {
-            border-color: var(--primary-neon);
+            border-color: var(--primary);
             color: #fff;
-            box-shadow: 0 0 10px var(--primary-glow);
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+
+        .mode-select-card:hover {
+            border-color: rgba(168, 85, 247, 0.5) !important;
+            background: #181822 !important;
+            transform: translateY(-2px);
+        }
+        .mode-select-card.active {
+            border-color: #a855f7 !important;
+            background: rgba(168, 85, 247, 0.12) !important;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.25);
+        }
+        .mode-select-card.active .mode-radio {
+            color: #a855f7 !important;
         }
 
         .parent-link-btn svg {
@@ -708,6 +722,75 @@
 
             <!-- Grid Layout -->
             <div class="dashboard-grid" id="analyticsView">
+
+                <!-- Deployment Mode & Classroom Fleet Controller -->
+                <div class="dashboard-card" style="grid-column: 1 / -1; background: linear-gradient(180deg, #111116 0%, #0a0a0d 100%); border: 1px solid #2a2a35; padding: 20px; border-radius: var(--radius-lg); margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(168, 85, 247, 0.15); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; border: 1px solid rgba(168, 85, 247, 0.3);">
+                                🎛️
+                            </div>
+                            <div>
+                                <h3 style="margin: 0; font-size: 1.1rem; color: #fff; font-weight: 700;">Classroom Deployment Controller</h3>
+                                <p style="margin: 2px 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">Switch active room topology instantly. Connected displays adapt in real time.</p>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 0.8rem; color: #888;">Current Mode:</span>
+                            <span id="activeModeBadge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); font-size: 0.85rem; padding: 4px 12px; border-radius: 9999px; font-weight: 700; font-family: 'Geist', monospace;">
+                                CLASSROOM
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Mode Selector Buttons -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 18px;">
+                        <!-- Option 1: Classroom Broadcast -->
+                        <div id="modeCardClassroom" onclick="setAdminDeploymentMode('CLASSROOM')" class="mode-select-card" style="background: #14141a; border: 1px solid #272732; border-radius: 8px; padding: 14px; cursor: pointer; transition: all 0.2s ease;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                <span style="font-weight: 700; color: #f4f4f5; font-size: 0.95rem;">🎓 Classroom Broadcast</span>
+                                <span class="mode-radio" id="radioClassroom" style="font-size: 0.9rem;">⚪</span>
+                            </div>
+                            <p style="font-size: 0.78rem; color: #a1a1aa; margin: 0; line-height: 1.4;">Projector leads central lecture. Student desk screens synchronize and receive MCQs at lecture end.</p>
+                        </div>
+
+                        <!-- Option 2: Collaborative Pods (Lab) -->
+                        <div id="modeCardLab" onclick="setAdminDeploymentMode('LAB')" class="mode-select-card" style="background: #14141a; border: 1px solid #272732; border-radius: 8px; padding: 14px; cursor: pointer; transition: all 0.2s ease;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                <span style="font-weight: 700; color: #f4f4f5; font-size: 0.95rem;">🧪 Collaborative Pods (Lab)</span>
+                                <span class="mode-radio" id="radioLab" style="font-size: 0.9rem;">⚪</span>
+                            </div>
+                            <p style="font-size: 0.78rem; color: #a1a1aa; margin: 0; line-height: 1.4;">Self-paced clusters (2-4 students per pod). Shared video sync, mic interlock, and ≥85% consensus unlock.</p>
+                        </div>
+
+                        <!-- Option 3: Solo Socratic 1:1 -->
+                        <div id="modeCardSingle" onclick="setAdminDeploymentMode('SINGLE')" class="mode-select-card" style="background: #14141a; border: 1px solid #272732; border-radius: 8px; padding: 14px; cursor: pointer; transition: all 0.2s ease;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                                <span style="font-weight: 700; color: #f4f4f5; font-size: 0.95rem;">🤖 Solo 1:1 Socratic</span>
+                                <span class="mode-radio" id="radioSingle" style="font-size: 0.9rem;">⚪</span>
+                            </div>
+                            <p style="font-size: 0.78rem; color: #a1a1aa; margin: 0; line-height: 1.4;">Individual student workstation. 3D Spatius Avatar, LiveKit voice tutoring, and Arduino hardware binding.</p>
+                        </div>
+                    </div>
+
+                    <!-- Active Pods & Quick Help Strip -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; background: rgba(0,0,0,0.35); border: 1px solid #22222a; border-radius: 8px; padding: 12px 16px;">
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <span style="font-size: 0.8rem; color: #888;">Active Pods Telemetry:</span>
+                            <span id="activePodsCount" style="font-weight: 700; color: #34d399; font-size: 0.85rem; background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.3); padding: 2px 8px; border-radius: 4px;">0 Active</span>
+                            <span id="activePodListSummary" style="font-size: 0.8rem; color: #ccc;">No active pods connected</span>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button onclick="openAdminHelpGuideModal()" style="background: rgba(255,255,255,0.06); border: 1px solid #333; color: #eee; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                <span>❓ Setup & Help Guide</span>
+                            </button>
+                            <button onclick="fetchAdminDeploymentMode()" style="background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.3); color: #c084fc; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                <span>🔄 Refresh Mode</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Left Column: Student Analytics -->
                 <div class="dashboard-card">
@@ -756,7 +839,7 @@
                             </div>
                             <div class="pdf-details">
                                 <span class="pdf-filename">physics_pendulums_derivation.pdf</span>
-                                <span class="pdf-meta">Physics | 2.4 MB</span>
+                                <span class="pdf-meta">Student: STU-001 (Alex M.) • Physics | 2.4 MB</span>
                             </div>
                         </div>
 
@@ -767,7 +850,7 @@
                             </div>
                             <div class="pdf-details">
                                 <span class="pdf-filename">philosophy_stoic_impressions.pdf</span>
-                                <span class="pdf-meta">Philosophy | 1.1 MB</span>
+                                <span class="pdf-meta">Student: STU-002 (Sarah K.) • Philosophy | 1.1 MB</span>
                             </div>
                         </div>
 
@@ -778,7 +861,7 @@
                             </div>
                             <div class="pdf-details">
                                 <span class="pdf-filename">mechanics_period_derivation.pdf</span>
-                                <span class="pdf-meta">Physics | 1.8 MB</span>
+                                <span class="pdf-meta">Student: Alseny (Owner) • Physics | 1.8 MB</span>
                             </div>
                         </div>
 
@@ -789,7 +872,7 @@
                             </div>
                             <div class="pdf-details">
                                 <span class="pdf-filename">stoic_logic_compound.pdf</span>
-                                <span class="pdf-meta">Philosophy | 940 KB</span>
+                                <span class="pdf-meta">Student: Desk-04 (Classroom) • Philosophy | 940 KB</span>
                             </div>
                         </div>
                     </div>
@@ -923,6 +1006,65 @@
                     </div>
 
                 </div>
+
+                <!-- Classroom Fleet Session Manager & Class Creator -->
+                <div class="dashboard-card" style="width: 100%; margin-top: 24px; background: #000000; border: 1px solid var(--border-color); padding: 24px; border-radius: var(--radius-md);">
+                    <div class="card-header" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                        <h3>🏫 Create & Schedule Classroom Sessions</h3>
+                        <span class="status-indicator" style="border-color: rgba(59, 130, 246, 0.3); color: #60a5fa;">School Fleet Orchestration</span>
+                    </div>
+                    
+                    <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+                        <form id="createClassForm" onsubmit="submitCreateClass(event)" style="flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 14px;">
+                            <div>
+                                <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px;">Class Name / Period</label>
+                                <input type="text" id="classNameInput" placeholder="e.g. Period 2 - Physics" required style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px;">Class Code</label>
+                                <input type="text" id="classCodeInput" placeholder="e.g. PHYS-P2" required style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px;">1. Select Education Level</label>
+                                <select id="levelSelect" onchange="onLevelChanged()" style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                    <option value="">-- Select Level --</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <div style="flex: 1;">
+                                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px;">2. Grade / Track</label>
+                                    <select id="gradeSelect" onchange="onGradeChanged()" style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                        <option value="">-- Select Grade/Track --</option>
+                                    </select>
+                                </div>
+                                <div style="flex: 1;">
+                                    <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px;">3. Subject</label>
+                                    <select id="subjectSelect" onchange="onSubjectChanged()" style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                        <option value="">-- Select Subject --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px;">4. Select Video Lesson / Chapter</label>
+                                <select id="classVideoSelect" style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                                    <option value="">-- Select Chapter/Video --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px;">Schedule / Days</label>
+                                <input type="text" id="classScheduleInput" placeholder="e.g. Mon/Wed 9:00 AM" required style="width: 100%; padding: 10px; background: #0a0a0a; border: 1px solid var(--border-color); color: #fff; border-radius: var(--radius-default); outline: none;">
+                            </div>
+                            <button type="submit" style="padding: 12px; background: #2563eb; border: none; color: #fff; font-weight: 600; border-radius: var(--radius-default); cursor: pointer;">➕ Save & Publish Class Session</button>
+                        </form>
+
+                        <div style="flex: 1.5; min-width: 320px;">
+                            <h4 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--text-secondary);">Active Classroom Sessions</h4>
+                            <div id="createdClassesList" style="display: flex; flex-direction: column; gap: 10px;">
+                                <div style="color: #666; font-size: 0.85rem;">Loading created classes...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Student Feedback & Suggestions View -->
@@ -975,6 +1117,299 @@
             const timeStr = now.toTimeString().split(' ')[0];
             document.getElementById('sysTime').innerText = "SYS_CLOCK: " + timeStr;
         }, 1000);
+
+        function submitCreateClass(e) {
+            e.preventDefault();
+            const payload = {
+                class_name: document.getElementById('classNameInput').value.trim(),
+                class_code: document.getElementById('classCodeInput').value.trim(),
+                video_id: document.getElementById('classVideoSelect').value,
+                schedule_time: document.getElementById('classScheduleInput').value.trim(),
+                created_by: "Teacher Admin"
+            };
+
+            fetch('/api/create_class', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showToast("Classroom Session Created", `Published Class Code ${data.class_code}`);
+                    loadCreatedClasses();
+                    document.getElementById('createClassForm').reset();
+                }
+            })
+            .catch(err => console.log("[CREATE CLASS ERROR]", err));
+        }
+
+        function loadCreatedClasses() {
+            fetch('/api/get_classes')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.classes) {
+                        const list = document.getElementById('createdClassesList');
+                        if (!list) return;
+                        if (data.classes.length === 0) {
+                            list.innerHTML = `<div style="color: #666; font-size: 0.85rem;">No active classroom sessions created yet.</div>`;
+                            return;
+                        }
+                        let html = '';
+                        data.classes.forEach(c => {
+                            html += `<div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 12px 16px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 700; color: #fff;">${c.class_name} <span style="background: rgba(59,130,246,0.2); color: #60a5fa; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">Code: ${c.class_code}</span></div>
+                                    <div style="font-size: 0.8rem; color: #aaa; margin-top: 4px;">Video: ${c.video_id} | Schedule: ${c.schedule_time}</div>
+                                </div>
+                                <span style="color: var(--accent-green); font-weight: 600; font-size: 0.8rem;">● Live</span>
+                            </div>`;
+                        });
+                        list.innerHTML = html;
+                    }
+                })
+                .catch(err => console.log("[LOAD CLASSES ERROR]", err));
+        }
+
+        let fullCurriculumTree = {
+            "k12": {
+                "TSM": {
+                    "physics": ["classical_mechanics", "magnetism"],
+                    "chemistry": ["organic_chemistry"],
+                    "Economics": ["Extraeconomiques"],
+                    "english_literature": [],
+                    "world_history": []
+                },
+                "1st_grade": {
+                    "english_language_arts": [],
+                    "introductory_science": [],
+                    "mathematics": []
+                },
+                "TSE": {
+                    "english_language_arts": [],
+                    "introductory_science": [],
+                    "mathematics": []
+                },
+                "TSS": {
+                    "english_language_arts": [],
+                    "introductory_science": [],
+                    "mathematics": []
+                }
+            },
+            "college_level": {
+                "computer_science": {
+                    "data_structures": ["video_01_mcqs", "video_02_mcqs"],
+                    "data_structures_and_algorithms": [],
+                    "neural_networks_and_deep_learning": [],
+                    "operating_systems": []
+                },
+                "business_and_finance": {
+                    "corporate_finance": [],
+                    "macroeconomics": []
+                },
+                "engineering": {
+                    "electrical_circuits": [],
+                    "mechanical_statics": []
+                },
+                "mathematics": {
+                    "differential_equations": [],
+                    "linear_algebra": []
+                },
+                "pre_med": {
+                    "biochemistry": [],
+                    "human_anatomy": []
+                }
+            },
+            "independent_learner": {
+                "philosophy": {
+                    "socratic_dialogues": [],
+                    "stoicism_and_ethics": []
+                },
+                "language_acquisition": {
+                    "conversational_french": [],
+                    "mandarin_chinese": []
+                },
+                "creative_arts": {
+                    "digital_cinematography": [],
+                    "music_theory_and_composition": []
+                },
+                "advanced_hobbies": {
+                    "amateur_rocketry": [],
+                    "chess_grandmaster_strategy": []
+                }
+            },
+            "professional_certificates": {
+                "cybersecurity": {
+                    "comptia_security_plus": [],
+                    "network_security": ["video_01_mcqs", "video_02_mcqs"]
+                },
+                "data_science": {
+                    "google_data_analytics": []
+                },
+                "project_management": {
+                    "pmp_certification": []
+                },
+                "software_engineering": {
+                    "aws_solutions_architect": [],
+                    "cisco_ccna_networking": []
+                }
+            }
+        };
+
+        function resolveVideoLessonId(lvl, grd, subj, chapter, filename) {
+            const fLower = (filename || '').toLowerCase();
+            const sLower = (subj || '').toLowerCase();
+            const cLower = (chapter || '').toLowerCase();
+
+            if (sLower.includes('econ') || cLower.includes('extraecon')) {
+                if (fLower.includes('demographique') || fLower.includes('01')) {
+                    return 'vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques';
+                } else if (fLower.includes('sanitaire') || fLower.includes('02')) {
+                    return 'vid_economics_extraeconomiques_02_les_probl_mes_sanitaires';
+                } else if (fLower.includes('alimentaire') || fLower.includes('03')) {
+                    return 'vid_economics_extraeconomiques_03_probl_mes_alimentaires';
+                }
+            } else if (sLower.includes('chem')) {
+                return 'vid_chemistry_organic_chemistry_chemistry';
+            } else if (sLower.includes('phys')) {
+                return 'vid_physics_classical_mechanics_01_harmonic_oscillators';
+            }
+
+            const cleanFile = (filename || 'lesson_01').replace(/\.(mp4|mkv|webm|avi|mov|mp3|pdf)$/i, '').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+            return `vid_${sLower.replace(/[^a-z0-9]+/g, '_')}_${cleanFile}`;
+        }
+
+        function renderLevelSelect() {
+            const levelSelect = document.getElementById('levelSelect');
+            if (!levelSelect) return;
+            const currentVal = levelSelect.value;
+            levelSelect.innerHTML = '<option value="">-- Select Level --</option>';
+            Object.keys(fullCurriculumTree).forEach(lvl => {
+                let label = lvl.replace(/_/g, ' ').toUpperCase();
+                if (lvl === 'k12') label = 'Éducation K-12';
+                else if (lvl === 'college_level') label = 'College Level';
+                else if (lvl === 'independent_learner') label = 'Independent Learner';
+                else if (lvl === 'professional_certificates') label = 'Professional Certificates';
+                levelSelect.innerHTML += `<option value="${lvl}">${label}</option>`;
+            });
+            if (currentVal) levelSelect.value = currentVal;
+        }
+
+        function loadFullCurriculumCatalog() {
+            renderLevelSelect();
+            fetch('/api/get_full_curriculum_tree')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.tree && Object.keys(data.tree).length > 0) {
+                        fullCurriculumTree = data.tree;
+                        renderLevelSelect();
+                        if (document.getElementById('levelSelect').value) {
+                            onLevelChanged();
+                        }
+                    }
+                })
+                .catch(err => console.log("[LOAD CURRICULUM TREE ERROR]", err));
+        }
+
+        function onLevelChanged() {
+            const lvl = document.getElementById('levelSelect').value;
+            const gradeSelect = document.getElementById('gradeSelect');
+            const subjectSelect = document.getElementById('subjectSelect');
+            const videoSelect = document.getElementById('classVideoSelect');
+            
+            gradeSelect.innerHTML = '<option value="">-- Select Grade/Track --</option>';
+            subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+            videoSelect.innerHTML = '<option value="">-- Select Chapter/Video --</option>';
+
+            if (lvl && fullCurriculumTree[lvl]) {
+                Object.keys(fullCurriculumTree[lvl]).forEach(grd => {
+                    gradeSelect.innerHTML += `<option value="${grd}">${grd.replace(/_/g, ' ')}</option>`;
+                });
+            }
+        }
+
+        function onGradeChanged() {
+            const lvl = document.getElementById('levelSelect').value;
+            const grd = document.getElementById('gradeSelect').value;
+            const subjectSelect = document.getElementById('subjectSelect');
+            const videoSelect = document.getElementById('classVideoSelect');
+
+            subjectSelect.innerHTML = '<option value="">-- Select Subject --</option>';
+            videoSelect.innerHTML = '<option value="">-- Select Chapter/Video --</option>';
+
+            if (lvl && grd && fullCurriculumTree[lvl] && fullCurriculumTree[lvl][grd]) {
+                Object.keys(fullCurriculumTree[lvl][grd]).forEach(subj => {
+                    subjectSelect.innerHTML += `<option value="${subj}">${subj.replace(/_/g, ' ')}</option>`;
+                });
+            }
+        }
+
+        function onSubjectChanged() {
+            const lvl = document.getElementById('levelSelect').value;
+            const grd = document.getElementById('gradeSelect').value;
+            const subj = document.getElementById('subjectSelect').value;
+            const videoSelect = document.getElementById('classVideoSelect');
+
+            videoSelect.innerHTML = '<option value="">-- Select Chapter/Video --</option>';
+
+            if (!lvl || !grd || !subj || !fullCurriculumTree[lvl] || !fullCurriculumTree[lvl][grd] || !fullCurriculumTree[lvl][grd][subj]) {
+                return;
+            }
+
+            const rawContent = fullCurriculumTree[lvl][grd][subj];
+            const seenKeys = new Set();
+
+            function addOptionIfNew(vidId, displayTitle) {
+                const dedupeKey = `${vidId}|${displayTitle}`.toLowerCase();
+                if (!seenKeys.has(dedupeKey)) {
+                    seenKeys.add(dedupeKey);
+                    videoSelect.innerHTML += `<option value="${vidId}">${displayTitle}</option>`;
+                }
+            }
+
+            // Case 1: Object mapping chapters -> array of files
+            if (typeof rawContent === 'object' && !Array.isArray(rawContent)) {
+                const chapters = Object.keys(rawContent);
+                if (chapters.length === 0) {
+                    const defaultId = resolveVideoLessonId(lvl, grd, subj, 'main', '01_Lesson.mp4');
+                    addOptionIfNew(defaultId, `${subj.replace(/_/g, ' ')}: Main Lesson`);
+                } else {
+                    chapters.forEach(chap => {
+                        const files = rawContent[chap];
+                        if (Array.isArray(files) && files.length > 0) {
+                            files.forEach(f => {
+                                const cleanLabel = f.replace(/\.(mp4|mkv|webm|avi|mov|mp3|pdf)$/i, '').replace(/_/g, ' ');
+                                const vidId = resolveVideoLessonId(lvl, grd, subj, chap, f);
+                                const displayTitle = chap === 'Main Chapter' ? cleanLabel : `${chap.replace(/_/g, ' ')} • ${cleanLabel}`;
+                                addOptionIfNew(vidId, displayTitle);
+                            });
+                        } else {
+                            const cleanChap = chap.replace(/_/g, ' ');
+                            const vidId = resolveVideoLessonId(lvl, grd, subj, chap, 'lesson_01');
+                            addOptionIfNew(vidId, cleanChap);
+                        }
+                    });
+                }
+            } 
+            // Case 2: Array of file strings or chapter strings
+            else if (Array.isArray(rawContent)) {
+                if (rawContent.length === 0) {
+                    const defaultId = resolveVideoLessonId(lvl, grd, subj, 'main', '01_Lesson.mp4');
+                    addOptionIfNew(defaultId, `${subj.replace(/_/g, ' ')}: Main Lesson`);
+                } else {
+                    rawContent.forEach(item => {
+                        const cleanLabel = item.replace(/\.(mp4|mkv|webm|avi|mov|mp3|pdf)$/i, '').replace(/_/g, ' ');
+                        const vidId = resolveVideoLessonId(lvl, grd, subj, 'main', item);
+                        addOptionIfNew(vidId, cleanLabel);
+                    });
+                }
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadCreatedClasses();
+            loadFullCurriculumCatalog();
+        });
 
         let rawAdminFeedbackData = [];
 
@@ -1090,6 +1525,7 @@
                 if (analyticsView) analyticsView.style.display = 'none';
                 if (teacherView) teacherView.style.display = 'block';
                 if (feedbackView) feedbackView.style.display = 'none';
+                loadFullCurriculumCatalog();
             } else if (name === 'Student Feedback') {
                 if (analyticsView) analyticsView.style.display = 'none';
                 if (teacherView) teacherView.style.display = 'none';
@@ -1671,11 +2107,21 @@
                         score = 60;
                     }
 
+                    const isClassroom = user.user_id.includes(':') || user.user_id.startsWith('STU-') || user.user_id.startsWith('PHYS-') || user.user_id.startsWith('CLASS-');
+                    const badgeHtml = isClassroom ? 
+                        `<span style="background: rgba(59,130,246,0.2); color: #60a5fa; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">🏫 Classroom</span>` : 
+                        `<span style="background: rgba(168,85,247,0.2); color: #c084fc; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">🏠 Owner</span>`;
+
                     const row = document.createElement('div');
                     row.className = 'progress-row';
+                    row.style.display = 'flex';
+                    row.style.alignItems = 'center';
+                    row.style.gap = '10px';
                     row.innerHTML = `
-                        <div class="progress-label" title="${user.background_context}">ID: ${user.user_id}</div>
-                        <div class="progress-bar-bg">
+                        <div class="progress-label" style="min-width: 140px; display: flex; align-items: center; gap: 6px;" title="${user.background_context}">
+                            <span>ID: ${user.user_id}</span> ${badgeHtml}
+                        </div>
+                        <div class="progress-bar-bg" style="flex: 1;">
                             <div class="progress-bar-fill" style="width: ${score}%"></div>
                         </div>
                         <div class="progress-value">${score}%</div>
@@ -1781,6 +2227,97 @@
             }, 3000);
         }
 
+        // Classroom Deployment Mode Management
+        async function fetchAdminDeploymentMode() {
+            try {
+                const res = await fetch('/api/get_deployment_mode');
+                const data = await res.json();
+                if (data.success) {
+                    const mode = (data.mode || 'SINGLE').toUpperCase();
+                    const badge = document.getElementById('activeModeBadge');
+                    if (badge) {
+                        badge.innerText = mode;
+                        if (mode === 'CLASSROOM') {
+                            badge.style.background = 'rgba(59, 130, 246, 0.2)';
+                            badge.style.color = '#60a5fa';
+                            badge.style.borderColor = 'rgba(59, 130, 246, 0.4)';
+                        } else if (mode === 'LAB') {
+                            badge.style.background = 'rgba(16, 185, 129, 0.2)';
+                            badge.style.color = '#34d399';
+                            badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                        } else {
+                            badge.style.background = 'rgba(168, 85, 247, 0.2)';
+                            badge.style.color = '#c084fc';
+                            badge.style.borderColor = 'rgba(168, 85, 247, 0.4)';
+                        }
+                    }
+
+                    // Update Card Highlights
+                    ['Classroom', 'Lab', 'Single'].forEach(m => {
+                        const card = document.getElementById(`modeCard${m}`);
+                        const radio = document.getElementById(`radio${m}`);
+                        if (card && radio) {
+                            if (m.toUpperCase() === mode) {
+                                card.classList.add('active');
+                                radio.innerText = '🟣';
+                            } else {
+                                card.classList.remove('active');
+                                radio.innerText = '⚪';
+                            }
+                        }
+                    });
+
+                    // Update Pods Telemetry
+                    const pods = data.active_pods || [];
+                    const podsCountEl = document.getElementById('activePodsCount');
+                    const podListEl = document.getElementById('activePodListSummary');
+                    if (podsCountEl) {
+                        podsCountEl.innerText = `${pods.length} Active Pod${pods.length === 1 ? '' : 's'}`;
+                    }
+                    if (podListEl) {
+                        if (pods.length === 0) {
+                            podListEl.innerText = 'No active pods connected yet';
+                        } else {
+                            const summary = pods.map(p => `${p.pod_id} (${p.members.length} student${p.members.length === 1 ? '' : 's'})`).join(' • ');
+                            podListEl.innerText = summary;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("[ADMIN DEPLOYMENT FETCH ERROR]", err);
+            }
+        }
+
+        async function setAdminDeploymentMode(targetMode) {
+            try {
+                showToast("Deploying Room Mode", `Switching room topology to ${targetMode}...`);
+                const res = await fetch('/api/set_deployment_mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: targetMode })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("Mode Switched Successfully", `Active Room Topology: ${data.mode}`);
+                    await fetchAdminDeploymentMode();
+                } else {
+                    showToast("Mode Switch Failed", data.error || "Unknown error");
+                }
+            } catch (err) {
+                showToast("Connection Error", err.message);
+            }
+        }
+
+        function openAdminHelpGuideModal() {
+            const modal = document.getElementById('adminHelpGuideModal');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function closeAdminHelpGuideModal() {
+            const modal = document.getElementById('adminHelpGuideModal');
+            if (modal) modal.style.display = 'none';
+        }
+
         // Run integrations on load
         window.addEventListener('DOMContentLoaded', async () => {
             loadFleetMetrics();
@@ -1788,8 +2325,80 @@
             initCountrySelect();
             await fetchLessons();
             fetchInstructors();
+            await fetchAdminDeploymentMode();
+            setInterval(fetchAdminDeploymentMode, 5000);
         });
     </script>
+
+    <!-- Admin Setup & Troubleshooting Help Modal -->
+    <div id="adminHelpGuideModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 10001; align-items: center; justify-content: center; padding: 20px;">
+        <div style="background: #0d0d12; border: 1px solid #2d2d3d; border-radius: 14px; max-width: 680px; width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column;">
+            
+            <!-- Modal Header -->
+            <div style="padding: 20px 24px; border-bottom: 1px solid #22222f; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.3rem;">📋</span>
+                    <h2 style="margin: 0; font-size: 1.15rem; color: #fff; font-weight: 700;">Classroom & Pod Setup Guide</h2>
+                </div>
+                <button onclick="closeAdminHelpGuideModal()" style="background: transparent; border: none; color: #888; font-size: 1.4rem; cursor: pointer; padding: 4px;">✕</button>
+            </div>
+
+            <!-- Modal Body -->
+            <div style="padding: 24px; display: flex; flex-direction: column; gap: 20px; font-size: 0.85rem; color: #ccc; line-height: 1.6;">
+                
+                <!-- Section 1: Classroom Broadcast Mode -->
+                <div style="background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.25); border-radius: 10px; padding: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="font-size: 1.1rem;">🎓</span>
+                        <h4 style="margin: 0; color: #60a5fa; font-size: 0.95rem;">Mode 1: Classroom Broadcast (Projector + 25 Students)</h4>
+                    </div>
+                    <ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                        <li>Connect the teacher PC to the classroom HDMI projector.</li>
+                        <li>Open <code>http://localhost:8000/admin.html</code> and click <strong>Create Class Code</strong> (e.g. <code>PHYS-101</code>).</li>
+                        <li>Projector displays the central lecture video on <code>http://localhost:8000/</code>.</li>
+                        <li>Students open <code>http://&lt;HOST-IP&gt;:8000</code> on their laptops/tablets, enter the Class Code and their Student ID.</li>
+                        <li>When the video concludes, evaluation questions unlock simultaneously for all student desks.</li>
+                    </ol>
+                </div>
+
+                <!-- Section 2: Collaborative Pods (Lab Mode) -->
+                <div style="background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.25); border-radius: 10px; padding: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="font-size: 1.1rem;">🧪</span>
+                        <h4 style="margin: 0; color: #34d399; font-size: 0.95rem;">Mode 2: Collaborative Pods (Self-Paced Groups)</h4>
+                    </div>
+                    <ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                        <li>Students at a shared desk enter a shared Pod Code (e.g. <code>POD-101</code>) and their Student ID.</li>
+                        <li>Any student pressing Play, Pause, or Seek synchronizes playback across all screens in the pod in real time.</li>
+                        <li><strong>Voice Priority Interlock:</strong> When a student taps the mic (🎙️), the video pauses across all pod devices and displays <em>Locked by &lt;Student&gt;</em>.</li>
+                        <li><strong>≥85% Consensus Rule:</strong> Every student in the pod must individually submit and pass the quiz (≥85%) before the pod unlocks the next lesson.</li>
+                    </ol>
+                </div>
+
+                <!-- Section 3: Solo Socratic Mode -->
+                <div style="background: rgba(168,85,247,0.06); border: 1px solid rgba(168,85,247,0.25); border-radius: 10px; padding: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="font-size: 1.1rem;">🤖</span>
+                        <h4 style="margin: 0; color: #c084fc; font-size: 0.95rem;">Mode 3: Solo Socratic Workstation</h4>
+                    </div>
+                    <p style="margin: 0;">1:1 AI tutoring workstation with 3D Spatius Avatar, real-time Gemini voice agent, and optional USB Arduino hardware buttons/cameras.</p>
+                </div>
+
+                <!-- Section 4: Network & Wi-Fi IP Resolution -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid #252530; border-radius: 10px; padding: 16px;">
+                    <div style="font-weight: 700; color: #fff; margin-bottom: 6px;">🌐 Local Wi-Fi Pairing:</div>
+                    <p style="margin: 0;">Student devices can connect via your local IP address (e.g., <code>http://172.20.12.199:8000</code> or <code>http://ventuno.local:8000</code>). Ensure all devices are connected to the same classroom Wi-Fi network.</p>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div style="padding: 16px 24px; border-top: 1px solid #22222f; display: flex; justify-content: flex-end;">
+                <button onclick="closeAdminHelpGuideModal()" style="background: #a855f7; color: #fff; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    Got It
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Elegant Toast Container -->
     <div id="toastContainer" style="

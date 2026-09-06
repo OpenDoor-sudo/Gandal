@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Offline PhET-Style Simulation: DC Circuit Construction</title>
+  <style>
+    body {
+      margin: 0;
+      background: #09090b;
+      color: #f4f4f5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+    .header {
+      padding: 12px 20px;
+      background: #141418;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #27272a;
+    }
+    .main-box {
+      flex: 1;
+      display: flex;
+      position: relative;
+    }
+    canvas {
+      flex: 1;
+      display: block;
+      background: #101015;
+    }
+    .sidebar {
+      width: 280px;
+      background: #141418;
+      border-left: 1px solid #27272a;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .meter-card {
+      background: #09090b;
+      border: 1px solid #27272a;
+      border-radius: 10px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+    .val-highlight {
+      font-weight: bold;
+      color: #38bdf8;
+      font-size: 1.3rem;
+      margin: 4px 0;
+    }
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.8rem;
+    }
+    input[type="range"] {
+      accent-color: #a855f7;
+    }
+    .btn-toggle {
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      background: #a855f7;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-toggle:hover { filter: brightness(1.15); }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <strong>⚡ Offline Simulation: Circuit Construction Kit (Ohm's Law: V = IR)</strong>
+    <span style="font-size: 0.8rem; color: #a1a1aa;">100% Offline Local Engine</span>
+  </div>
+
+  <div class="main-box">
+    <canvas id="circuitCanvas"></canvas>
+
+    <div class="sidebar">
+      <div class="meter-card">
+        <div style="color: #a1a1aa; font-size: 0.75rem;">CURRENT (I = V / R)</div>
+        <div class="val-highlight" id="currentReadout">0.90 A</div>
+        <div style="font-size: 0.75rem; color: #10b981;" id="powerReadout">Power: 8.10 W</div>
+      </div>
+
+      <div class="slider-row">
+        <label>Battery Voltage (V): <span id="voltVal" style="color: #38bdf8; font-weight:bold;">9.0 V</span></label>
+        <input type="range" id="voltSlider" min="1" max="24" value="9" step="0.5">
+      </div>
+
+      <div class="slider-row">
+        <label>Resistance (R): <span id="resVal" style="color: #eab308; font-weight:bold;">10.0 Ω</span></label>
+        <input type="range" id="resSlider" min="2" max="50" value="10" step="1">
+      </div>
+
+      <button type="button" class="btn-toggle" id="btnSwitch">🔌 Switch: CLOSED (ON)</button>
+
+      <div style="font-size: 0.8rem; color: #a1a1aa; line-height: 1.5; background: #09090b; padding: 12px; border-radius: 8px; border: 1px solid #27272a;">
+        <strong>Ohm's Law Insight:</strong><br>
+        Current (I) is directly proportional to Voltage (V) and inversely proportional to Resistance (R). Watch the bulb glow brighter as current rises!
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("circuitCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resize() {
+      if (!canvas || !canvas.parentElement) return;
+      canvas.width = Math.max(300, canvas.parentElement.clientWidth - 280);
+      canvas.height = canvas.parentElement.clientHeight || 500;
+    }
+    window.addEventListener("resize", resize);
+    if (window.ResizeObserver) {
+      new ResizeObserver(() => resize()).observe(canvas.parentElement);
+    }
+    resize();
+
+    let voltage = 9.0;
+    let resistance = 10.0;
+    let isClosed = true;
+    let electronOffset = 0;
+
+    document.getElementById("voltSlider").oninput = (e) => {
+      voltage = parseFloat(e.target.value);
+      document.getElementById("voltVal").innerText = voltage.toFixed(1) + " V";
+    };
+
+    document.getElementById("resSlider").oninput = (e) => {
+      resistance = parseFloat(e.target.value);
+      document.getElementById("resVal").innerText = resistance.toFixed(1) + " Ω";
+    };
+
+    document.getElementById("btnSwitch").onclick = () => {
+      isClosed = !isClosed;
+      document.getElementById("btnSwitch").innerText = isClosed ? "🔌 Switch: CLOSED (ON)" : "🔌 Switch: OPEN (OFF)";
+      document.getElementById("btnSwitch").style.background = isClosed ? "#a855f7" : "#3f3f46";
+    };
+
+    function loop() {
+      const current = isClosed ? (voltage / resistance) : 0;
+      const power = current * voltage;
+
+      document.getElementById("currentReadout").innerText = current.toFixed(2) + " A";
+      document.getElementById("powerReadout").innerText = `Power: ${power.toFixed(2)} W`;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const cw = Math.min(w * 0.7, 460);
+      const ch = Math.min(h * 0.6, 280);
+
+      const x1 = cx - cw / 2;
+      const x2 = cx + cw / 2;
+      const y1 = cy - ch / 2;
+      const y2 = cy + ch / 2;
+
+      // Draw Wires
+      ctx.strokeStyle = "#475569";
+      ctx.lineWidth = 6;
+      ctx.strokeRect(x1, y1, cw, ch);
+
+      // Battery (Left wire)
+      ctx.fillStyle = "#1e293b";
+      ctx.fillRect(x1 - 18, cy - 35, 36, 70);
+      ctx.fillStyle = "#38bdf8";
+      ctx.fillRect(x1 - 12, cy - 35, 24, 15);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(`${voltage}V`, x1, cy + 5);
+
+      // Resistor (Bottom wire)
+      ctx.fillStyle = "#d97706";
+      ctx.fillRect(cx - 35, y2 - 12, 70, 24);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText(`${resistance}Ω`, cx, y2 + 5);
+
+      // Light Bulb (Top wire)
+      const bulbGlow = Math.min(60, current * 40);
+      if (isClosed && current > 0) {
+        ctx.save();
+        ctx.shadowColor = "#facc15";
+        ctx.shadowBlur = bulbGlow;
+        ctx.beginPath();
+        ctx.arc(cx, y1, 24, 0, Math.PI * 2);
+        ctx.fillStyle = "#fef08a";
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.beginPath();
+        ctx.arc(cx, y1, 24, 0, Math.PI * 2);
+        ctx.fillStyle = "#334155";
+        ctx.fill();
+      }
+      ctx.strokeStyle = "#94a3b8";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Switch (Right wire)
+      ctx.fillStyle = "#141418";
+      ctx.fillRect(x2 - 15, cy - 25, 30, 50);
+      ctx.beginPath();
+      ctx.moveTo(x2, cy - 20);
+      if (isClosed) {
+        ctx.lineTo(x2, cy + 20);
+      } else {
+        ctx.lineTo(x2 + 20, cy + 10);
+      }
+      ctx.strokeStyle = isClosed ? "#10b981" : "#ef4444";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Electron flow animation along wire
+      if (isClosed && current > 0) {
+        electronOffset = (electronOffset + current * 6) % 24;
+        ctx.fillStyle = "#38bdf8";
+        const perimeter = 2 * (cw + ch);
+        const count = 28;
+        for (let i = 0; i < count; i++) {
+          let dist = (i * (perimeter / count) + electronOffset) % perimeter;
+          let ex, ey;
+          if (dist < cw) { ex = x1 + dist; ey = y1; }
+          else if (dist < cw + ch) { ex = x2; ey = y1 + (dist - cw); }
+          else if (dist < 2 * cw + ch) { ex = x2 - (dist - (cw + ch)); ey = y2; }
+          else { ex = x1; ey = y2 - (dist - (2 * cw + ch)); }
+
+          ctx.beginPath();
+          ctx.arc(ex, ey, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "name": "omni-graph-engine",
+  "version": "1.0.0",
+  "description": "Modular, commercial-friendly (MIT/LGPL) interactive STEM graphing and physics simulation package powered by JSXGraph and Matter.js",
+  "main": "src/core/OmniGraphEngine.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 0"
+  },
+  "keywords": [
+    "jsxgraph",
+    "matter-js",
+    "graphing-calculator",
+    "physics-engine",
+    "stem",
+    "riemann-sums",
+    "linear-algebra",
+    "kinematics",
+    "coordinate-mapper"
+  ],
+  "author": "Antigravity STEM Labs",
+  "license": "MIT",
+  "dependencies": {
+    "jsxgraph": "^1.11.0",
+    "matter-js": "^0.20.0"
+  }
+}

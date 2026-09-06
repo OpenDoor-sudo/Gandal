@@ -1,0 +1,1086 @@
+/* ==============================================================================
+   Antigravity Modular Virtual Labs Package - Unified Scoped Stylesheet
+   Compatible with Modern Browsers, Tablets, Interactive Displays, and Touchscreens
+   ============================================================================== */
+
+:root {
+  --lab-bg-dark: #09090b;
+  --lab-card-bg: #141418;
+  --lab-card-hover: #1c1c22;
+  --lab-border: #27272a;
+  --lab-border-glow: #a855f7;
+  --lab-accent-chem: #06b6d4;
+  --lab-accent-phys: #6366f1;
+  --lab-accent-emerald: #10b981;
+  --lab-text-main: #f4f4f5;
+  --lab-text-muted: #a1a1aa;
+}
+
+/* Standalone & Container resets */
+.virtual-labs-wrapper {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--lab-bg-dark);
+  color: var(--lab-text-main);
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Header & Breadcrumb Navigation */
+.labs-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  background: rgba(20, 20, 24, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--lab-border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.labs-top-bar .title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.labs-top-bar h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lab-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #c084fc;
+}
+
+.lab-btn-back {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--lab-border);
+  color: var(--lab-text-main);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.lab-btn-back:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #52525b;
+}
+
+/* ==============================================================================
+   1. STEM Virtual Lab Center (Hub Screen)
+   ============================================================================== */
+.stem-hub-container {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 40px 24px 120px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: labFadeIn 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.stem-hub-hero {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.stem-hub-hero h1 {
+  font-size: 2.3rem;
+  font-weight: 800;
+  margin: 0 0 10px 0;
+  background: linear-gradient(135deg, #ffffff 0%, #a1a1aa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stem-hub-hero p {
+  color: var(--lab-text-muted);
+  font-size: 1.05rem;
+  margin: 0;
+  max-width: 620px;
+}
+
+.lab-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 24px;
+  width: 100%;
+}
+
+.lab-card {
+  background: var(--lab-card-bg);
+  border: 1px solid var(--lab-border);
+  border-radius: 18px;
+  padding: 28px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.lab-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: transparent;
+  transition: background 0.3s ease;
+}
+
+.lab-card.chem-card:hover::before {
+  background: linear-gradient(90deg, #06b6d4, #3b82f6);
+}
+
+.lab-card.phys-card:hover::before {
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+}
+
+.lab-card:hover {
+  transform: translateY(-4px);
+  background: var(--lab-card-hover);
+  border-color: #3f3f46;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.card-icon-bubble {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  margin-bottom: 20px;
+}
+
+.chem-icon {
+  background: rgba(6, 182, 212, 0.15);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  color: #06b6d4;
+}
+
+.phys-icon {
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #818cf8;
+}
+
+.lab-card h3 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.lab-card p {
+  color: var(--lab-text-muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+  flex-grow: 1;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 16px;
+}
+
+.card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.card-tag {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #d4d4d8;
+}
+
+.card-arrow {
+  color: #a1a1aa;
+  font-size: 1.1rem;
+  font-weight: 700;
+  transition: transform 0.2s ease;
+}
+
+.lab-card:hover .card-arrow {
+  transform: translateX(4px);
+  color: #ffffff;
+}
+
+/* ==============================================================================
+   2. Shared Workspace Layout (Chem Bench & Physics Canvas)
+   ============================================================================== */
+.lab-workspace {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 65px);
+  overflow: hidden;
+  position: relative;
+}
+
+.workspace-sidebar {
+  width: 320px;
+  min-width: 300px;
+  background: #101014;
+  border-right: 1px solid var(--lab-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 18px;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+.sidebar-section {
+  background: var(--lab-card-bg);
+  border: 1px solid var(--lab-border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.sidebar-section h4 {
+  margin: 0 0 10px 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lab-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.workspace-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: #09090b;
+  overflow: hidden;
+}
+
+/* Preset Pills Bar */
+.preset-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: rgba(16, 16, 20, 0.7);
+  border-bottom: 1px solid var(--lab-border);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.preset-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #18181b;
+  border: 1px solid var(--lab-border);
+  color: var(--lab-text-muted);
+  transition: all 0.2s ease;
+}
+
+.preset-pill:hover,
+.preset-pill.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: #6366f1;
+  color: #e0e7ff;
+}
+
+/* ==============================================================================
+   3. Chemistry Bench Components
+   ============================================================================== */
+.chem-bench-grid {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: 
+    radial-gradient(circle at center, rgba(6, 182, 212, 0.04) 0%, transparent 70%),
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 32px 32px, 32px 32px;
+  padding: 24px;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.glassware-card {
+  width: 200px;
+  height: 270px;
+  background: rgba(20, 20, 26, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  position: relative;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  touch-action: none;
+}
+
+.glassware-card.target-beaker {
+  width: 240px;
+  height: 310px;
+  border-color: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 24px rgba(6, 182, 212, 0.15);
+}
+
+.glass-vessel {
+  width: 140px;
+  height: 180px;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-top: none;
+  border-radius: 0 0 20px 20px;
+  position: relative;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column-reverse;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.liquid-layer {
+  width: 100%;
+  transition: height 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.4s ease;
+  position: relative;
+}
+
+.liquid-meniscus {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  border-radius: 50%;
+  background: inherit;
+  filter: brightness(1.25);
+}
+
+.grad-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 15px 4px;
+  box-sizing: border-box;
+}
+
+.grad-tick {
+  width: 8px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.grad-tick.major {
+  width: 14px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.glassware-meta {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.reagent-pill-btn {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #18181c;
+  border: 1px solid var(--lab-border);
+  color: var(--lab-text-main);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  touch-action: none;
+}
+
+.reagent-pill-btn:hover,
+.reagent-pill-btn:active {
+  background: #24242c;
+  border-color: var(--lab-accent-chem);
+  transform: translateX(2px);
+}
+
+/* Digital pH Meter */
+.digital-ph-meter {
+  background: #09090b;
+  border: 1px solid #27272a;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+
+.ph-value-display {
+  font-size: 2.2rem;
+  font-weight: 900;
+  font-family: "Courier New", Courier, monospace;
+  margin: 4px 0;
+}
+
+.ph-scale-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ef4444 0%, #eab308 35%, #22c55e 50%, #06b6d4 65%, #7c3aed 100%);
+  margin-top: 8px;
+  position: relative;
+}
+
+.ph-indicator-needle {
+  width: 4px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 2px;
+  position: absolute;
+  top: -3px;
+  transform: translateX(-50%);
+  transition: left 0.4s ease;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+}
+
+/* ==============================================================================
+   4. Physics Mechanics Canvas & Telemetry HUD
+   ============================================================================== */
+.physics-canvas-box {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  touch-action: none; /* Crucial for full touch gesture control */
+}
+
+#physicsCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #0c0c0f;
+  display: block;
+}
+
+.telemetry-hud {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(16, 16, 22, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-family: "SF Mono", Monaco, Inconsolata, "Courier New", monospace;
+  font-size: 0.8rem;
+  color: #e4e4e7;
+  pointer-events: none;
+  min-width: 190px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+.telemetry-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.telemetry-val {
+  font-weight: 700;
+  color: #818cf8;
+}
+
+.telemetry-val.chem {
+  color: #06b6d4;
+}
+
+/* Touch Control Sliders */
+.control-slider-group {
+  margin-bottom: 14px;
+}
+
+.control-slider-group label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--lab-text-muted);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.control-slider-group input[type="range"] {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #27272a;
+  outline: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.control-slider-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #6366f1;
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.control-slider-group input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(1.25);
+}
+
+/* Primary Action Buttons */
+.lab-action-btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-primary-chem {
+  background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+  color: #ffffff;
+}
+
+.btn-primary-chem:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 4px 14px rgba(6, 182, 212, 0.35);
+}
+
+.btn-primary-phys {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #ffffff;
+}
+
+.btn-primary-phys:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+}
+
+.btn-secondary {
+  background: #1e1e24;
+  border: 1px solid var(--lab-border);
+  color: var(--lab-text-main);
+}
+
+.btn-secondary:hover {
+  background: #272730;
+  border-color: #52525b;
+}
+
+/* Notification Toast */
+.lab-toast {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 20, 26, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--lab-border);
+  color: #ffffff;
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 100;
+  animation: labSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes labFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes labSlideUp {
+  from { opacity: 0; transform: translate(-50%, 14px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ==============================================================================
+   5. Gandho Voice Mic Button (Socratic Voice Assistant Integration)
+   ============================================================================== */
+.lab-gandho-mic-btn {
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  color: #ffffff;
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  border-radius: 30px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.4);
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.lab-gandho-mic-btn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 24px rgba(168, 85, 247, 0.65);
+}
+
+.lab-gandho-mic-btn.active {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  border-color: #f87171;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.7);
+  animation: micPulse 1.5s infinite;
+}
+
+@keyframes micPulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Voice Help Popup Modal */
+.gandho-voice-modal {
+  position: absolute;
+  top: 70px;
+  right: 24px;
+  width: 320px;
+  background: rgba(18, 18, 24, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid #a855f7;
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+  z-index: 200;
+  animation: labFadeIn 0.25s ease;
+}
+
+/* ==============================================================================
+   6. Interactive Student Mission & Exercise Drawer
+   ============================================================================== */
+.mission-banner {
+  background: linear-gradient(135deg, rgba(20, 20, 28, 0.95) 0%, rgba(28, 28, 40, 0.95) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  position: relative;
+}
+
+.mission-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  margin-bottom: 8px;
+}
+
+.mission-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 6px 0;
+}
+
+.mission-goal {
+  font-size: 0.82rem;
+  color: #d4d4d8;
+  line-height: 1.45;
+  margin: 0 0 12px 0;
+}
+
+.mission-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 14px 0;
+  font-size: 0.78rem;
+  color: #a1a1aa;
+}
+
+.mission-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mission-tracker-box {
+  background: #09090b;
+  border: 1px solid var(--lab-border);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.btn-check-grade {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  transition: all 0.2s ease;
+}
+
+.btn-check-grade:hover {
+  filter: brightness(1.15);
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
+}
+
+/* Modal Feedback Dialogue */
+.grade-feedback-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  animation: labFadeIn 0.2s ease;
+}
+
+.grade-card {
+  background: #141418;
+  border: 2px solid #10b981;
+  border-radius: 20px;
+  padding: 32px;
+  max-width: 440px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+}
+
+.grade-card.fail {
+  border-color: #ef4444;
+}
+
+/* ==============================================================================
+   7. Curriculum Topic Matrix (All Physics & Chemistry Lessons)
+   ============================================================================== */
+.topic-filter-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.topic-filter-btn {
+  padding: 8px 18px;
+  border-radius: 20px;
+  background: #18181c;
+  border: 1px solid var(--lab-border);
+  color: var(--lab-text-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.topic-filter-btn.active,
+.topic-filter-btn:hover {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: #a855f7;
+  color: #ffffff;
+}
+
+.topics-matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 20px;
+  width: 100%;
+}
+
+.topic-matrix-card {
+  background: var(--lab-card-bg);
+  border: 1px solid var(--lab-border);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  position: relative;
+}
+
+.topic-matrix-card:hover {
+  transform: translateY(-3px);
+  border-color: #52525b;
+  background: var(--lab-card-hover);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.topic-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.topic-subject-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.badge-chem {
+  background: rgba(6, 182, 212, 0.15);
+  color: #06b6d4;
+  border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.badge-phys {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.topic-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+}
+
+.topic-desc {
+  font-size: 0.82rem;
+  color: var(--lab-text-muted);
+  line-height: 1.45;
+  margin: 0 0 16px 0;
+  flex-grow: 1;
+}
+
+.topic-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 12px;
+  font-size: 0.78rem;
+  color: #a1a1aa;
+}
+
+/* Offline Sim Iframe */
+.offline-sim-container {
+  width: 100%;
+  height: calc(100vh - 65px);
+  min-height: calc(100vh - 65px);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.offline-sim-iframe {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  border: none;
+  display: block;
+  background: #09090b;
+}
+
+/* ==============================================================================
+   8. Two-Split Layout (Left: Lab Workspace / Right: Instructions)
+   ============================================================================== */
+.lab-split-workspace {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - 65px);
+  overflow: hidden;
+  position: relative;
+}
+
+.lab-split-left {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  background: #09090d;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding-bottom: 140px;
+}
+
+.lab-split-right {
+  width: 420px;
+  min-width: 360px;
+  max-width: 460px;
+  height: 100%;
+  overflow-y: auto;
+  background: #111116;
+  border-left: 1px solid var(--lab-border);
+  padding: 24px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 120px;
+}
+
+/* Floating Toolbar on Canvas */
+.canvas-floating-toolbar {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  background: rgba(18, 18, 24, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--lab-border);
+  border-radius: 12px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 30;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+}
+
+.btn-release-drop {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.82rem;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.btn-release-drop:hover {
+  filter: brightness(1.15);
+  transform: translateY(-2px);
+}
+
+/* ==============================================================================
+   Full-Width Virtual Labs Mode in Gandal AI Platform
+   Hides the right-hand interaction sidebar / webcam and expands the lab to 100%
+   ============================================================================== */
+body.full-width-labs .interaction-sidebar,
+body.full-width-labs .sidebar-toggle-handle-btn {
+  display: none !important;
+}
+
+body.full-width-labs .workspace-grid {
+  grid-template-columns: 1fr !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+  height: calc(100vh - 56px) !important;
+  max-height: calc(100vh - 56px) !important;
+  width: 100% !important;
+}
+
+body.full-width-labs .left-content-area {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+}
+
+body.full-width-labs #virtualLabsPane,
+body.full-width-labs #stemGraphsPane {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+}
+
+
