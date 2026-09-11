@@ -217,6 +217,9 @@ export class PhysicsWorld {
       // Floor platform
       if (b.y + b.radius > floorLimit) {
         b.y = floorLimit - b.radius;
+        if (Math.abs(b.vy) > 35 && typeof this.onImpact === "function") {
+          this.onImpact(b.mass, Math.abs(b.vy));
+        }
         b.vy = -b.vy * boundRestitution;
         b.vx *= (1 - boundFriction);
       }
@@ -293,6 +296,9 @@ export class PhysicsWorld {
         const velAlongNormal = rvx * nx + rvy * ny;
 
         if (velAlongNormal < 0) {
+          if (Math.abs(velAlongNormal) > 30 && typeof this.onImpact === "function") {
+            this.onImpact(Math.max(a.mass, b.mass), Math.abs(velAlongNormal));
+          }
           const e = Math.min(a.restitution, b.restitution, this.globalRestitution);
           let impulse = -(1 + e) * velAlongNormal;
           impulse /= (a.invMass + b.invMass);

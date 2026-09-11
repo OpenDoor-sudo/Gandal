@@ -26,6 +26,8 @@ ENV/
 # Runtime Session & Temporary Logs
 active_session.json
 *.log
+scratch/
+
 
 # IDE & OS Cache
 .vscode/

@@ -4,6 +4,8 @@
  */
 
 import { GandhoLabVoiceAssistant } from "../gandho_voice_helper.js";
+import { labAudio } from "../audio/lab_audio.js";
+import { challengeManager } from "../challenges/lab_challenges.js";
 
 export class MathPhysicsLab {
   constructor(containerElement) {
@@ -117,6 +119,9 @@ export class MathPhysicsLab {
             <!-- Populated per mode -->
           </div>
 
+          <!-- Lab Missions & Badges Panel -->
+          <div id="mathChallengesMount"></div>
+
           <!-- Educational Scientific Explainer -->
           <div style="margin-top: auto; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 12px; padding: 14px;">
             <strong style="color: #818cf8; font-size: 0.82rem;">💡 About SymPy & SciPy Engine:</strong>
@@ -130,6 +135,10 @@ export class MathPhysicsLab {
 
     this.renderModeControls();
     this.renderModeDataGrid();
+    const chMount = this.container.querySelector("#mathChallengesMount");
+    if (chMount) {
+      challengeManager.renderSidebarPanel("phys_math", chMount);
+    }
   }
 
   setMode(mode) {
@@ -154,6 +163,7 @@ export class MathPhysicsLab {
 
     this.renderModeControls();
     this.renderModeDataGrid();
+    challengeManager.renderSidebarPanel("phys_math", this.container.querySelector("#mathChallengesMount"));
     this.updateDerivationsInstant();
     this.solveCurrent();
   }
@@ -1086,5 +1096,88 @@ export class MathPhysicsLab {
       cancelAnimationFrame(this.animId);
       this.animId = null;
     }
+  }
+
+  executeVoiceCommand(cmd) {
+    if (!cmd) return;
+    const action = (cmd.action || "").toLowerCase();
+    const val = typeof cmd.value === "number" ? cmd.value : parseFloat(cmd.value || 0);
+    const mode = (cmd.mode || "").toLowerCase();
+    console.log("[MATH PHYSICS VOICE CMD]", cmd);
+
+    if (action.includes("mode") || mode) {
+      let targetMode = mode;
+      if (!targetMode) {
+        if (action.includes("wave") || action.includes("onde")) targetMode = "waves";
+        else if (action.includes("kinematic") || action.includes("projectile") || action.includes("tir")) targetMode = "kinematics";
+        else if (action.includes("orbit") || action.includes("satellite")) targetMode = "orbital";
+      }
+      if (targetMode && ["waves", "kinematics", "orbital"].includes(targetMode)) {
+        this.setMode(targetMode);
+        this.showVoiceToast(`🎙️ Gandho: Switched to ${targetMode.toUpperCase()} mode!`);
+      }
+    } else if (action.includes("frequency") || action.includes("fréquence") || action.includes("frequence")) {
+      if (val > 0) {
+        this.freq = Math.min(12, Math.max(1, val));
+        const s = this.container.querySelector('#waveFreqSlider');
+        if (s) s.value = this.freq;
+        const lbl = this.container.querySelector('#sliderFreqVal');
+        if (lbl) lbl.innerText = `${this.freq.toFixed(1)} Hz`;
+        this.updateDerivationsInstant();
+        this.solveCurrent();
+        this.showVoiceToast(`🎙️ Gandho: Wave frequency set to ${this.freq} Hz!`);
+      }
+    } else if (action.includes("altitude") || action.includes("alt")) {
+      if (val > 0 || cmd.preset) {
+        let alt = val;
+        if (cmd.preset === "iss" || action.includes("iss")) alt = 400;
+        else if (cmd.preset === "hubble" || action.includes("hubble")) alt = 540;
+        else if (cmd.preset === "gps" || action.includes("gps")) alt = 20200;
+        else if (cmd.preset === "geo" || action.includes("geo")) alt = 35786;
+        this.altitude = alt;
+        const s = this.container.querySelector('#orbitAltSlider');
+        if (s) s.value = this.altitude;
+        const lbl = this.container.querySelector('#sliderAltVal');
+        if (lbl) lbl.innerText = `${this.altitude} km`;
+        this.updateDerivationsInstant();
+        this.solveCurrent();
+        this.showVoiceToast(`🎙️ Gandho: Orbit altitude set to ${this.altitude} km!`);
+      }
+    } else if (action.includes("reset") || action.includes("réinitialiser") || action.includes("reinit")) {
+      this.time = 0;
+      this.kinTime = 0;
+      this.orbitAngle = 0;
+      this.updateDerivationsInstant();
+      this.showVoiceToast("🎙️ Gandho: Simulation reset.");
+    } else if (action.includes("pause") || action.includes("stop")) {
+      this.isPaused = !this.isPaused;
+      this.showVoiceToast(`🎙️ Gandho: Simulation ${this.isPaused ? "paused" : "resumed"}.`);
+    }
+  }
+
+  showVoiceToast(msg) {
+    const toast = document.createElement("div");
+    toast.style.cssText = `
+      position: absolute;
+      bottom: 80px;
+      left: 20px;
+      background: linear-gradient(135deg, #9333ea, #a855f7);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-radius: 20px;
+      box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
+      z-index: 100;
+      pointer-events: none;
+      animation: fadeIn 0.3s ease;
+    `;
+    toast.innerText = msg;
+    this.container.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.4s ease';
+      setTimeout(() => toast.remove(), 400);
+    }, 3200);
   }
 }

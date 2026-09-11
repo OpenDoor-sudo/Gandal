@@ -1565,6 +1565,35 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(err_bytes)
                 return
 
+        # Virtual Labs: List Badges API
+        if clean_path == '/api/v1/badges/list':
+            try:
+                db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
+                badges = []
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    cur = conn.cursor()
+                    cur.execute("SELECT badge_id, title, xp, awarded_at FROM student_badges ORDER BY id DESC")
+                    badges = [{"badge_id": r[0], "title": r[1], "xp": r[2], "awarded_at": r[3]} for r in cur.fetchall()]
+                    conn.close()
+                res_bytes = json.dumps({"success": True, "badges": badges}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+
         if clean_path in ['/api/get_feedback', '/get_feedback']:
             try:
                 db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
@@ -3544,6 +3573,104 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 else:
                     res = {"success": False, "error": "SymPy solver not loaded"}
                 res_bytes = json.dumps(res).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+
+        # Virtual Labs: Lab Voice Command Dispatcher
+        if clean_path == '/api/v1/lab/command':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                cmd_data = json.loads(post_data) if post_data else {}
+                if os.path.exists(SESSION_JSON_PATH):
+                    try:
+                        with open(SESSION_JSON_PATH, "r", encoding="utf-8") as sf:
+                            s = json.load(sf)
+                        s["latest_lab_command"] = cmd_data
+                        with open(SESSION_JSON_PATH, "w", encoding="utf-8") as sf:
+                            json.dump(s, sf, indent=2)
+                    except Exception:
+                        pass
+                ws_payload = json.dumps({"action": "LAB_CONTROL", "command": cmd_data})
+                if MAIN_ASYNCIO_LOOP and MAIN_ASYNCIO_LOOP.is_running():
+                    asyncio.run_coroutine_threadsafe(broadcast(ws_payload), MAIN_ASYNCIO_LOOP)
+                res_bytes = json.dumps({"success": True, "command": cmd_data}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+
+        # Virtual Labs: Gamification Badges Award & List
+        if clean_path == '/api/v1/badges/award':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                b_data = json.loads(post_data) if post_data else {}
+                b_id = b_data.get("badge_id")
+                title = b_data.get("title", "")
+                xp = int(b_data.get("xp", 0))
+                db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
+                if b_id and os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    cur = conn.cursor()
+                    cur.execute("INSERT OR IGNORE INTO student_badges (student_id, badge_id, title, xp) VALUES ('alseny', ?, ?, ?)", (b_id, title, xp))
+                    conn.commit()
+                    conn.close()
+                res_bytes = json.dumps({"success": True, "badge_id": b_id}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+
+        if clean_path == '/api/v1/badges/list':
+            try:
+                db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
+                badges = []
+                if os.path.exists(db_path):
+                    conn = sqlite3.connect(db_path)
+                    cur = conn.cursor()
+                    cur.execute("SELECT badge_id, title, xp, awarded_at FROM student_badges ORDER BY id DESC")
+                    badges = [{"badge_id": r[0], "title": r[1], "xp": r[2], "awarded_at": r[3]} for r in cur.fetchall()]
+                    conn.close()
+                res_bytes = json.dumps({"success": True, "badges": badges}).encode('utf-8')
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(res_bytes)))

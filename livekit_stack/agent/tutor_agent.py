@@ -732,16 +732,63 @@ async def entrypoint(ctx: JobContext):
             logger.error(f"[TOOL USE ERROR] Failed to fetch lab telemetry: {e}")
             return f"Error reading lab telemetry: {e}"
 
+    @llm.function_tool(
+        description="Control and interact with the student's active STEM Virtual Lab simulation in real-time. Call this when the student asks you to drop balls/objects, change gravity (e.g. Earth, Moon, Mars, Jupiter), change wave frequency/amplitude, switch simulation modes (waves, projectile kinematics, orbital mechanics), or reset the lab."
+    )
+    async def control_virtual_lab(action: str, value: float = 0.0, mode: str = "", preset: str = "") -> str:
+        """Control the student's active STEM Virtual Lab simulation."""
+        logger.info(f"[TOOL LAB CONTROL] Action: '{action}' | Value: {value} | Mode: '{mode}' | Preset: '{preset}'")
+        cmd_dict = {
+            "action": action,
+            "value": value,
+            "mode": mode,
+            "preset": preset
+        }
+        
+        # 1. Publish via LiveKit Data Channel directly to student's room
+        try:
+            raw_bytes = json.dumps(cmd_dict).encode("utf-8")
+            await ctx.room.local_participant.publish_data(raw_bytes, topic="lab-control")
+            logger.info("[TOOL LAB CONTROL] Published command over LiveKit data channel (topic: lab-control).")
+        except Exception as lk_err:
+            logger.warning(f"[TOOL LAB CONTROL] LiveKit publish_data warning: {lk_err}")
+            
+        # 2. Also send via HTTP /api/v1/lab/command to sync active_session.json and broadcast over WebSocket
+        try:
+            import urllib.request
+            req = urllib.request.Request(
+                "http://localhost:8000/api/v1/lab/command",
+                data=json.dumps(cmd_dict).encode("utf-8"),
+                headers={"Content-Type": "application/json"}
+            )
+            urllib.request.urlopen(req, timeout=1.0)
+        except Exception as http_err:
+            logger.warning(f"[TOOL LAB CONTROL] HTTP /api/v1/lab/command broadcast error: {http_err}")
+            
+        if action == "drop_balls":
+            return "Both spheres released from suspension! They are falling under uniform gravity."
+        elif "gravity" in action:
+            return f"Gravity has been set to {value if value > 0 else preset}!"
+        elif "mode" in action or mode:
+            return f"Switched simulation to {mode or action} mode."
+        elif "frequency" in action:
+            return f"Standing wave frequency set to {value} Hz."
+        elif "altitude" in action:
+            return f"Orbital altitude set to {value} km."
+        elif "reset" in action:
+            return "Simulation has been reset."
+        return f"Lab command '{action}' successfully executed on the student's canvas."
+
     # Instantiate Agent Session and Configuration
     session = AgentSession(
         llm=gemini_live,
-        tools=[search_curriculum, get_virtual_lab_status]
+        tools=[search_curriculum, get_virtual_lab_status, control_virtual_lab]
     )
     
     agent = Agent(
         instructions=dynamic_instructions,
         llm=gemini_live,
-        tools=[search_curriculum, get_virtual_lab_status]
+        tools=[search_curriculum, get_virtual_lab_status, control_virtual_lab]
     )
 
     session_transcripts = []

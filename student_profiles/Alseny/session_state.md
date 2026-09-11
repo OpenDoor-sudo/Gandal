@@ -1,6 +1,6 @@
 ---
 status: 'paused'
-last_session_time: '2026-09-11T06:50:06.963369Z'
+last_session_time: '2026-09-11T08:06:21.019030Z'
 subject: 'Economics'
 ---
 

@@ -8759,6 +8759,10 @@
               if (!window.USING_REAL_CAMERA_DETECTION) {
                 handleLockDevice(payload.reason);
               }
+            } else if (payload && payload.action === "LAB_CONTROL") {
+              if (window.virtualLabsInstance && typeof window.virtualLabsInstance.executeVoiceCommand === "function") {
+                window.virtualLabsInstance.executeVoiceCommand(payload.command);
+              }
             } else if (payload && payload.action === "UNLOCK_DEVICE") {
               if (!window.USING_REAL_CAMERA_DETECTION) {
                 handleUnlockDevice();
@@ -10596,6 +10600,17 @@
                     "[LIVEKIT DATA ERROR] Failed to parse message:",
                     err,
                   );
+                }
+              } else if (topic === "lab-control") {
+                const decoder = new TextDecoder();
+                try {
+                  const cmd = JSON.parse(decoder.decode(payload));
+                  console.log("[LIVEKIT LAB CONTROL RECEIVED]", cmd);
+                  if (window.virtualLabsInstance && typeof window.virtualLabsInstance.executeVoiceCommand === "function") {
+                    window.virtualLabsInstance.executeVoiceCommand(cmd);
+                  }
+                } catch (err) {
+                  console.error("[LIVEKIT LAB CONTROL ERROR] Failed to parse message:", err);
                 }
               }
             },

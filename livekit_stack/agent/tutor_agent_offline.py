@@ -333,12 +333,33 @@ async def entrypoint(ctx: JobContext):
         tts=tts,
     )
 
-    # 6. Hybrid LanceDB routing handler
+    # 6. Hybrid LanceDB routing handler & Lab Control
     @session.on("user_speech_committed")
     def on_user_speech(msg: rtc.ChatMessage):
         student_query = msg.content
         logger.info(f"[OFFLINE] Student asked: {student_query}")
         
+        # Check for direct lab voice commands in offline speech
+        q_lower = student_query.lower()
+        if any(w in q_lower for w in ["drop", "lâche", "lache", "gravity", "gravité", "gravite", "wave", "onde", "orbit", "satellite", "reset", "reinit"]):
+            cmd_action = "drop_balls" if ("drop" in q_lower or "lâche" in q_lower or "lache" in q_lower) else ("set_gravity" if "grav" in q_lower else ("switch_mode" if ("wave" in q_lower or "onde" in q_lower or "orbit" in q_lower) else "reset"))
+            cmd_payload = {"action": cmd_action, "query": student_query}
+            try:
+                raw_bytes = json.dumps(cmd_payload).encode("utf-8")
+                asyncio.create_task(ctx.room.local_participant.publish_data(raw_bytes, topic="lab-control"))
+            except Exception:
+                pass
+            try:
+                import urllib.request
+                req = urllib.request.Request(
+                    "http://localhost:8000/api/v1/lab/command",
+                    data=json.dumps(cmd_payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json"}
+                )
+                urllib.request.urlopen(req, timeout=0.5)
+            except Exception:
+                pass
+
         if table is None:
             logger.warning("LanceDB curriculum table is offline. Using local LLM general knowledge.")
             return

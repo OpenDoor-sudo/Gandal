@@ -453,6 +453,20 @@ export class VirtualLabsApp {
       }));
     }
   }
+
+  executeVoiceCommand(cmd) {
+    console.log("[VIRTUAL LABS VOICE ROUTER]", cmd);
+    if (!cmd) return;
+
+    if ((cmd.action === "SWITCH_LAB" || cmd.action === "OPEN_LAB") && cmd.topicId) {
+      this.launchModule(cmd.topicId);
+      return;
+    }
+
+    if (this.activeSubModule && typeof this.activeSubModule.executeVoiceCommand === "function") {
+      this.activeSubModule.executeVoiceCommand(cmd);
+    }
+  }
 }
 
 export function mountVirtualLabs(containerElement) {

@@ -6,6 +6,8 @@
 
 import { PhysicsWorld, PhysicsBody } from "./physics_engine.js";
 import { GandhoLabVoiceAssistant } from "../gandho_voice_helper.js";
+import { labAudio } from "../audio/lab_audio.js";
+import { challengeManager } from "../challenges/lab_challenges.js";
 
 export class PhysicsView {
   constructor(containerElement, initialMission = "free_fall") {
@@ -18,6 +20,7 @@ export class PhysicsView {
     this.showLabels = true;
     this.currentMissionKey = initialMission;
     this.isSuspendedAtTop = false;
+    labAudio.playCannonLaunch();
 
     this.missions = {
       free_fall: {
@@ -252,6 +255,9 @@ export class PhysicsView {
             </div>
           </div>
 
+          <!-- Lab Missions & Badges Panel -->
+          <div id="physChallengesMount"></div>
+
           <!-- Check & Grade Lab Button -->
           <div style="margin-top: auto; padding-top: 10px;">
             <button type="button" class="btn-check-grade" id="btnPhysCheckGrade" style="padding: 14px; font-size: 0.95rem;">
@@ -266,6 +272,7 @@ export class PhysicsView {
   initCanvas() {
     this.canvas = this.container.querySelector("#physicsCanvas");
     this.ctx = this.canvas.getContext("2d");
+    this.world.onImpact = (mass, vel) => labAudio.playImpactThud(mass, vel);
     this.resizeCanvas();
     window.addEventListener("resize", () => {
       this.resizeCanvas();
@@ -342,17 +349,21 @@ export class PhysicsView {
 
     // Release / Drop Both Balls Button
     this.container.querySelector("#btnReleaseDrop").addEventListener("click", () => {
+      labAudio.playClick();
       this.releaseSuspendedBalls();
     });
 
     // Spawning Buttons
     this.container.querySelector("#btnSpawnBall").addEventListener("click", () => {
+      labAudio.playClick();
       this.spawnBall(this.world.width * 0.5, 90, 1.0, "#818cf8", "1kg Ball");
     });
     this.container.querySelector("#btnSpawnHeavyBox").addEventListener("click", () => {
+      labAudio.playClick();
       this.spawnBox(this.world.width * 0.5, 90, 5.0, "#f43f5e", "5kg Box");
     });
     this.container.querySelector("#btnSpawnBouncy").addEventListener("click", () => {
+      labAudio.playClick();
       const b = this.spawnBall(this.world.width * 0.5, 90, 0.8, "#38bdf8", "SuperBall");
       b.restitution = 0.98;
     });
@@ -425,6 +436,7 @@ export class PhysicsView {
 
   releaseSuspendedBalls() {
     this.isSuspendedAtTop = false;
+    labAudio.playCannonLaunch();
     let releasedCount = 0;
     for (const b of this.world.bodies) {
       if (b.isStatic) {
@@ -471,6 +483,11 @@ export class PhysicsView {
     if (status) {
       status.innerText = "🟢 READY TO DROP";
       status.style.color = "#10b981";
+    }
+
+    const chMount = this.container.querySelector("#physChallengesMount");
+    if (chMount) {
+      challengeManager.renderSidebarPanel(this.currentMissionKey === "free_fall" ? "phys_free_fall" : "phys_momentum", chMount);
     }
 
     this.broadcastTelemetry();
@@ -719,5 +736,63 @@ export class PhysicsView {
     if (hudBodies) hudBodies.innerText = bodies.length;
     if (hudKE) hudKE.innerText = `${(totalKE / 1000).toFixed(2)} J`;
     if (hudMaxV) hudMaxV.innerText = `${(maxSpeed / 100).toFixed(1)} m/s`;
+  }
+
+  executeVoiceCommand(cmd) {
+    if (!cmd) return;
+    const action = (cmd.action || "").toLowerCase();
+    const val = typeof cmd.value === "number" ? cmd.value : parseFloat(cmd.value || 0);
+    console.log("[PHYSICS VOICE CMD]", cmd);
+
+    if (action.includes("drop") || action.includes("lâche") || action.includes("lache") || action.includes("release")) {
+      this.releaseSuspendedBalls();
+      this.showVoiceToast("🎙️ Gandho: Dropped both spheres!");
+    } else if (action.includes("gravity") || action.includes("gravité") || action.includes("gravite")) {
+      let g = 980;
+      if (val > 0) g = val * 100;
+      else if (cmd.preset === "moon" || action.includes("moon") || action.includes("lune")) g = 160;
+      else if (cmd.preset === "jupiter" || action.includes("jupiter")) g = 2480;
+      else if (cmd.preset === "earth" || action.includes("earth") || action.includes("terre")) g = 980;
+      this.world.gravityY = g;
+      const gravSlider = this.container.querySelector("#gravitySlider");
+      if (gravSlider) gravSlider.value = g;
+      const gravLabel = this.container.querySelector("#gravityLabel");
+      if (gravLabel) gravLabel.innerText = `${(g/100).toFixed(1)} m/s²`;
+      this.updateTelemetry();
+      this.showVoiceToast(`🎙️ Gandho: Gravity set to ${(g/100).toFixed(1)} m/s²!`);
+    } else if (action.includes("reset") || action.includes("réinitialiser") || action.includes("reinit")) {
+      this.loadMission(this.currentMissionKey);
+      this.showVoiceToast("🎙️ Gandho: Simulation reset.");
+    } else if (action.includes("pause") || action.includes("stop")) {
+      const btn = this.container.querySelector("#btnTogglePause");
+      if (btn) btn.click();
+      this.showVoiceToast("🎙️ Gandho: Simulation paused/resumed.");
+    }
+  }
+
+  showVoiceToast(msg) {
+    const toast = document.createElement("div");
+    toast.style.cssText = `
+      position: absolute;
+      bottom: 80px;
+      left: 20px;
+      background: linear-gradient(135deg, #9333ea, #a855f7);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-radius: 20px;
+      box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
+      z-index: 100;
+      pointer-events: none;
+      animation: fadeIn 0.3s ease;
+    `;
+    toast.innerText = msg;
+    this.container.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.4s ease';
+      setTimeout(() => toast.remove(), 400);
+    }, 3200);
   }
 }
