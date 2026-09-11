@@ -30,8 +30,13 @@
    - [6.13 Omni Graph Engine (Calculus & Mathematical Function Grapher)](#613-omni-graph-engine-calculus--mathematical-function-grapher---port-8085)
    - [6.14 App Launcher Menu & Streamlined Top Navigation](#614-app-launcher-menu--streamlined-top-navigation)
    - [6.15 Hardened Video Startup Sequence & Performance Architecture](#615-hardened-video-startup-sequence--performance-architecture)
+   - [6.16 Voice Agent "Lab Telekinesis" & Live Simulation Control](#616-voice-agent-lab-telekinesis--live-simulation-control)
+   - [6.17 Zero-Asset Procedural Web Audio Engine (lab_audio.js)](#617-zero-asset-procedural-web-audio-engine-labaudiojs)
+   - [6.18 Interactive Lab Challenges & Gamified Badges Engine (lab_challenges.js)](#618-interactive-lab-challenges--gamified-badges-engine-labchallengesjs)
+   - [6.19 Dynamic Network Health Watcher & Auto-Failover Orchestrator (run_agent.py)](#619-dynamic-network-health-watcher--auto-failover-orchestrator-runagentpy)
 7. [Offline Pre-Processing & Device Ingestion Pipeline](#7-offline-pre-processing--device-ingestion-pipeline)
 8. [Setup, Execution & Maintenance Commands](#8-setup-execution--maintenance-commands)
+9. [System Modularity & Architectural Boundary Report](#9-system-modularity--architectural-boundary-report)
 
 ---
 
@@ -283,6 +288,46 @@ The system relies on **SQLite (`vault.db`)** for relational metadata, **LanceDB*
 - **Autoplay Resilience**:
   - Catches browser autoplay restrictions (`NotAllowedError`) without throwing unhandled exceptions, cleanly restoring the Play icon `▶` state instead of leaving frozen pause bars.
 
+### 6.16 Voice Agent "Lab Telekinesis" & Live Simulation Control
+- **Multimodal Control Architecture**: Empowers both the online Gemini 3.1 Live agent and local offline voice agent to directly manipulate the Virtual Labs simulation canvas via spoken natural language.
+- **Function Tooling (`tutor_agent.py`)**: Registered `@llm.function_tool` `control_virtual_lab` enabling the model to invoke:
+  - `action="drop_balls"`: Simultaneously unpins and drops suspended Galileo spheres with cyan velocity vector tracking.
+  - `action="set_gravity"`: Adjusts gravitational field constant $g$ (Earth $9.8\text{ m/s}^2$, Moon $1.6\text{ m/s}^2$, Jupiter $24.8\text{ m/s}^2$) and synchronizes UI slider values.
+  - `action="switch_mode"`: Shifts Calculus Lab modes dynamically (`'waves'`, `'kinematics'`, `'orbital'`).
+  - `action="reset"`, `action="pause"`: Manages physical simulation timelines.
+- **Offline Natural Language Parsing (`tutor_agent_offline.py`)**: Employs an instant regex/keyword pattern matcher detecting commands like *"lâche les balles"*, *"drop both spheres"*, *"set gravity to moon"*, and *"switch to orbital mode"* during offline Ollama/Piper sessions.
+- **Dual-Transport Synchronization**:
+  - **LiveKit Data Channel**: Publishes JSON payloads across WebRTC topic `"lab-control"` with sub-millisecond local latency.
+  - **HTTP & WebSocket Broadcast (`display_client.py`)**: Exposes `POST /api/v1/lab/command`, updates `latest_lab_command` in `active_session.json`, and broadcasts `{"action": "LAB_CONTROL"}` to all connected browser sockets on port `8001`.
+- **Client Execution**: Dispatchers in `virtual_labs.js`, `physics_view.js`, and `math_physics.js` execute physical modifications and display animated purple Gandho voice feedback toasts (`🎙️ Gandho: Dropped both spheres!`).
+
+### 6.17 Zero-Asset Procedural Web Audio Engine (`lab_audio.js`)
+- **Zero-Download Footprint**: 100% offline procedural synthesis generated dynamically via the browser's native `AudioContext`. Requires zero MP3/WAV file downloads, eliminating edge storage bloat and caching latency.
+- **Physics-Linked Impact Audio (`playImpactThud(mass, velocity)`)**: Dual-oscillator (sine + triangle) pitch-drop synthesis. Fundamental frequency and gain are dynamically parameterized based on kinetic energy and mass: heavier masses produce low-frequency bass thuds ($40\text{--}70\text{ Hz}$), while light spheres produce higher-pitched clacks ($150\text{--}250\text{ Hz}$).
+- **Continuous Standing Wave Drone (`setWaveDrone(frequency, active)`)**: Dual detuned sine wave oscillators linked to physical standing wave frequencies ($f$) passed through a resonant lowpass filter ($1200\text{ Hz}$) with smooth exponential gain transitions ($0.05\text{s}$ ramping).
+- **Explosive Projectile Launch (`playCannonLaunch()`)**: Bandpass-filtered white noise burst synthesized via procedural buffer combined with a rapidly descending sine pitch glide ($240\text{ Hz} \to 40\text{ Hz}$).
+- **Procedural Victory Chimes (`playSuccessChime()`)**: Ascending 4-note major triad arpeggio ($\text{C}_5, \text{E}_5, \text{G}_5, \text{C}_6$) rendered with decaying bell envelopes for earned challenge badges.
+
+### 6.18 Interactive Lab Challenges & Gamified Badges Engine (`lab_challenges.js`)
+- **Curriculum Mission Objectives**: Real-time evaluation of experimental conditions across Physics and Calculus labs:
+  - 🌕 **Galileo on the Moon (`moon_drop`)**: Set gravity to Lunar ($1.6\text{ m/s}^2$) and release both spheres (+100 XP).
+  - 🪐 **Jupiter High-G (`jupiter_slam`)**: Simulate Jupiter gravity ($24.8\text{ m/s}^2$) and analyze impact kinetics (+150 XP).
+  - 🌊 **Resonant Harmonics (`standing_resonance`)**: Tune standing wave frequency to $6.0\text{ Hz}$ with amplitude $\ge 30\text{ px}$ (+100 XP).
+  - 🎯 **Artillery Marksman (`sniper_range`)**: Achieve projectile flight range $\ge 120\text{ m}$ with initial velocity $35\text{ m/s}$ (+125 XP).
+  - 🛰️ **Low Earth Orbit (`iss_orbit`)**: Stabilize satellite circular orbit at $400\text{ km}$ ISS altitude with exact orbital velocity $v = \sqrt{GM/r}$ (+150 XP).
+- **Persistent Student Ledger**: Backed by SQLite table `student_badges` in `vault.db` with REST endpoints:
+  - `POST /api/v1/badges/award`: Idempotently awards badges with timestamps and XP.
+  - `GET /api/v1/badges/list`: Retrieves all student badges and historical unlock data.
+- **Interactive UI Panel**: Slide-in neon celebration toasts and a collapsible right-hand Mission Drawer updating completion criteria live as simulation variables change.
+
+### 6.19 Dynamic Network Health Watcher & Auto-Failover Orchestrator (`run_agent.py`)
+- **Continuous Connectivity Monitoring**: Performs socket-level probe checks against Google Gemini endpoints (`generativelanguage.googleapis.com:443`) with a 3.0-second timeout.
+- **Dynamic Mode Resolution**:
+  - Automatically launches online `tutor_agent.py` when internet connectivity is verified.
+  - Gracefully fails over to offline `tutor_agent_offline.py` (Ollama Qwen-2.5 + Piper TTS) when internet disconnects.
+- **Self-Healing Background Watcher**: Continuously polls network health every 12 seconds in a background daemon thread. When network status changes, terminates the active child process and smoothly pivots between online and offline modes without user intervention.
+- **Manual Overrides**: Retains explicit CLI control (`--online` / `--offline` flags) for testing and development.
+
 ---
 
 ## 7. Offline Pre-Processing & Device Ingestion Pipeline
@@ -345,6 +390,34 @@ python livekit_stack/agent/run_agent.py --offline dev
 ```bash
 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/get_active_session').read().decode())"
 ```
+
+---
+
+## 9. System Modularity & Architectural Boundary Report
+
+An architectural review of the repository reveals how modularity is structured across both the frontend and backend layers:
+
+### 🧩 Fully Modular Subsystems (Decoupled, Swappable, Zero-Leaking)
+
+| Subsystem | Location | Coupling Level | Architectural Isolation & Contract |
+| :--- | :--- | :--- | :--- |
+| **Procedural Audio Engine** | `antigravity_labs/web_labs_package/src/audio/lab_audio.js` | **Zero (100% Standalone)** | Pure Web Audio API class. Exports a singleton `labAudio` with no DOM or CSS requirements. Imported by any simulation or component without side effects. |
+| **Gamification & Badges Engine** | `antigravity_labs/web_labs_package/src/challenges/lab_challenges.js` | **Decoupled** | Autonomous state machine managing missions, progress counters, XP rewards, and celebration banners. Mounts into any arbitrary container via `renderSidebarPanel(topicId, mountEl)`. Communicates with backend exclusively via REST (`/api/v1/badges/*`). |
+| **Virtual Labs Modular Suite** | `antigravity_labs/web_labs_package/src/` | **Modular ES6 Architecture** | Split into sub-packages (`audio/`, `challenges/`, `chemistry/`, `physics/`). Root `virtual_labs.js` acts as a dynamic entry point mounting into any DOM root (`mountVirtualLabs(containerElement)`). |
+| **Science Backend Solvers** | `antigravity_labs/chemistry_backend/` | **Standalone Microservice** | Pure computational Python layer isolating RDKit, ChemPy, and SymPy. Can run as an independent REST microservice or local library. |
+| **Omni Graph Engine** | `antigravity_labs/omni_graph_engine/` | **Isolated Microservice** | Runs on its own dedicated port (`8085`) with independent routes, Canvas 2D/WebGL engines, and SymPy numerical pipelines. |
+| **Voice Agent Failover Watcher** | `livekit_stack/agent/run_agent.py` | **Process-Level Decoupled** | Monitors cloud network health and dynamically swaps child processes between `tutor_agent.py` (Gemini) and `tutor_agent_offline.py` (Ollama/Piper). |
+
+### 🏛️ Monolithic Core Shells (By Design for Edge Appliance Deployments)
+
+1. **`index.html` (The Classroom Dashboard Shell)**:
+   - **Role**: Acts as the single-page application (SPA) orchestrator for the hardware appliance.
+   - **Design Rationale**: Bundles HTML, glassmorphic layout tokens, Spatius 3D WebGL avatar canvas, video player, and WebSocket transport in a zero-build file to run directly on the Jetson/Ventuno hardware without requiring Node.js, Webpack, or npm runtime dependencies.
+   - **Modularity Boundary**: Rather than inlining lab code, `index.html` dynamically lazy-loads `virtual_labs.js` via native ES module `import()` only when the student switches to the Virtual Labs view.
+
+2. **`display_client.py` (The Edge Device Hub)**:
+   - **Role**: Unifies local HTTP serving (`port 8000`), WebSocket broadcasting (`port 8001`), UDP hardware signals (`port 9999`), and SQLite database operations (`vault.db`).
+   - **Modularity Boundary**: Acts as an API gateway dispatching to domain solvers (`science_solvers`), vector RAG (`orchestrator`), and session persistence (`active_session.json`).
 
 ---
 *Documentation maintained by Ventuno AI Engineering Team.*
