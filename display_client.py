@@ -162,7 +162,7 @@ import hashlib
 import urllib.parse
 
 TRANSLATION_CACHE_FILE = os.path.join(PROJECT_ROOT, "translation_cache.json")
-SESSION_JSON_PATH = os.path.join(PROJECT_ROOT, "active_session.json")
+SESSION_JSON_PATH = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"
 
 def load_session_info():
     session_data = {}
@@ -1522,9 +1522,21 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
 
+    def end_headers(self):
+        clean = self.path.split('?')[0].lower()
+        if '/antigravity_labs/' in clean or clean.endswith('.js') or clean.endswith('.css'):
+            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            self.send_header('Pragma', 'no-cache')
+            self.send_header('Expires', '0')
+        super().end_headers()
+
     def do_GET(self):
         import urllib.parse
         clean_path = self.path.split('?')[0]
+
+        # Alias /offline_sims/ to /antigravity_labs/offline_sims/
+        if self.path.startswith('/offline_sims/'):
+            self.path = '/antigravity_labs' + self.path
 
         # Virtual Labs: PubChem / ChEMBL Search API
         if clean_path == '/api/v1/chemistry/database/search':
@@ -3525,7 +3537,7 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
             try:
                 data = json.loads(post_data) if post_data else {}
-                m_type = data.get("type", "standing_wave")
+                m_type = data.get("topic") or data.get("type") or "waves"
                 params = data.get("params", {})
                 if LABS_SOLVERS_AVAILABLE:
                     res = science_solvers.solve_physics_symbolic(m_type, params)

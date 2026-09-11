@@ -134,7 +134,7 @@ export class PhysicsView {
     this.container.innerHTML = `
       <div class="lab-split-workspace">
         <!-- LEFT: Full-Height Canvas Lab Space -->
-        <div class="lab-split-left" id="canvasBox">
+        <div class="lab-split-left" id="canvasBox" style="padding: 0 !important; padding-bottom: 0 !important; overflow: hidden !important; height: 100%;">
           <canvas id="physicsCanvas" style="width: 100%; height: 100%; touch-action: none; cursor: crosshair; display: block;"></canvas>
 
           <!-- Floating Telemetry HUD -->
@@ -267,19 +267,31 @@ export class PhysicsView {
     this.canvas = this.container.querySelector("#physicsCanvas");
     this.ctx = this.canvas.getContext("2d");
     this.resizeCanvas();
-    window.addEventListener("resize", () => this.resizeCanvas());
+    window.addEventListener("resize", () => {
+      this.resizeCanvas();
+      if (this.ctx) this.draw();
+    });
+    if (window.ResizeObserver && this.canvas.parentElement) {
+      this.resizeObserver = new ResizeObserver(() => {
+        this.resizeCanvas();
+        if (this.ctx) this.draw();
+      });
+      this.resizeObserver.observe(this.canvas.parentElement);
+    }
   }
 
   resizeCanvas() {
     if (!this.canvas || !this.canvas.parentElement) return;
-    const rect = this.canvas.parentElement.getBoundingClientRect();
-    const width = Math.floor(rect.width) || 800;
-    const height = Math.floor(rect.height) || 600;
+    const parent = this.canvas.parentElement;
+    const width = parent.clientWidth > 50 ? parent.clientWidth : (Math.floor(parent.getBoundingClientRect().width) || 800);
+    const height = parent.clientHeight > 50 ? parent.clientHeight : (Math.floor(parent.getBoundingClientRect().height) || 600);
 
     // Direct 1:1 pixel coordinate matching with CSS!
-    this.canvas.width = width;
-    this.canvas.height = height;
-    this.world.setDimensions(width, height);
+    if (this.canvas.width !== width || this.canvas.height !== height) {
+      this.canvas.width = width;
+      this.canvas.height = height;
+      this.world.setDimensions(width, height);
+    }
   }
 
   bindEvents() {
@@ -287,9 +299,11 @@ export class PhysicsView {
 
     const getCanvasPos = (e) => {
       const rect = canvas.getBoundingClientRect();
+      const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+      const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
       return {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
       };
     };
 
@@ -410,6 +424,7 @@ export class PhysicsView {
   }
 
   releaseSuspendedBalls() {
+    this.isSuspendedAtTop = false;
     let releasedCount = 0;
     for (const b of this.world.bodies) {
       if (b.isStatic) {
@@ -426,6 +441,7 @@ export class PhysicsView {
     }
     const btn = this.container.querySelector("#btnReleaseDrop");
     if (btn) btn.innerText = "🔄 Reset & Drop Again";
+    this.broadcastTelemetry();
   }
 
   loadMission(missionKey) {
@@ -458,19 +474,28 @@ export class PhysicsView {
     }
 
     this.broadcastTelemetry();
+    if (this.ctx) {
+      this.draw();
+      this.updateTelemetry();
+    }
   }
 
   broadcastTelemetry() {
-    const bodies = this.world.bodies.map(b => `${b.label || 'Sphere'} (${b.mass}kg, vel_y: ${b.vy ? b.vy.toFixed(1) : 0} m/s, y: ${b.y ? b.y.toFixed(0) : 0}px)`);
-    window.currentSocraticLabContext = {
-      experiment_id: "phys_" + this.currentMissionKey,
-      title: "Physics Mechanics: " + (this.currentMissionKey === "free_fall" ? "Gravity & Free Fall (Galileo)" : (this.currentMissionKey === "momentum" ? "Momentum & Elastic Collisions" : "Planetary Gravity")),
-      gravity: (this.world.gravity.y / 100).toFixed(1) + " m/s²",
-      bodies_on_canvas: bodies,
-      status: this.isSuspended ? "Spheres suspended at top ready to drop" : "Spheres in active physical motion"
-    };
-    if (typeof window.updateActiveViewState === "function") {
-      window.updateActiveViewState();
+    try {
+      const bodies = this.world.bodies.map(b => `${b.label || 'Sphere'} (${b.mass}kg, vel_y: ${b.vy ? b.vy.toFixed(1) : 0} m/s, y: ${b.y ? b.y.toFixed(0) : 0}px)`);
+      const gY = this.world.gravityY !== undefined ? this.world.gravityY : (this.world.gravity ? this.world.gravity.y : 980);
+      window.currentSocraticLabContext = {
+        experiment_id: "phys_" + this.currentMissionKey,
+        title: "Physics Mechanics: " + (this.currentMissionKey === "free_fall" ? "Gravity & Free Fall (Galileo)" : (this.currentMissionKey === "momentum" ? "Momentum & Elastic Collisions" : "Planetary Gravity")),
+        gravity: (gY / 100).toFixed(1) + " m/s²",
+        bodies_on_canvas: bodies,
+        status: this.isSuspendedAtTop ? "Spheres suspended at top ready to drop" : "Spheres in active physical motion"
+      };
+      if (typeof window.updateActiveViewState === "function") {
+        window.updateActiveViewState();
+      }
+    } catch (e) {
+      console.warn("Error broadcasting physics telemetry:", e);
     }
   }
 
@@ -532,6 +557,11 @@ export class PhysicsView {
   stopLoop() {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
     }
   }
 
@@ -542,22 +572,51 @@ export class PhysicsView {
 
     ctx.clearRect(0, 0, w, h);
 
-    // Grid
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
+    // Visible background grid
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
     ctx.lineWidth = 1;
     for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
     for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
 
-    // Floor line
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-    ctx.lineWidth = 2;
+    // Laboratory Floor Platform
+    const floorY = Math.max(100, h - (this.world.floorOffset || 64));
+
+    // Floor Base Fill
+    ctx.fillStyle = "rgba(18, 18, 26, 0.95)";
+    ctx.fillRect(0, floorY, w, h - floorY);
+
+    // Floor Glowing Boundary
+    ctx.strokeStyle = "rgba(99, 102, 241, 0.75)";
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(0, h - 2);
-    ctx.lineTo(w, h - 2);
+    ctx.moveTo(0, floorY);
+    ctx.lineTo(w, floorY);
     ctx.stroke();
+
+    // Floor hash pattern
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x < w; x += 28) {
+      ctx.beginPath();
+      ctx.moveTo(x, floorY);
+      ctx.lineTo(x + 14, h);
+      ctx.stroke();
+    }
+
+    // Floor label
+    ctx.fillStyle = "rgba(161, 161, 170, 0.7)";
+    ctx.font = "bold 11px monospace";
+    ctx.textAlign = "right";
+    ctx.fillText("LABORATORY FLOOR (Ground Plane)", w - 20, floorY + 22);
 
     // Bodies
     for (const b of this.world.bodies) {
+      if (!Number.isFinite(b.x) || !Number.isFinite(b.y)) {
+        b.x = w * 0.5;
+        b.y = 120;
+        b.vx = 0;
+        b.vy = 0;
+      }
       ctx.save();
 
       // Glowing shadow

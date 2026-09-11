@@ -5652,8 +5652,8 @@
         </div>
 
         <!-- VIEW 5: VIRTUAL LABS (STEM CHEMISTRY, PHYSICS, RDKIT & PUBCHEM) -->
-        <div class="view-pane" id="virtualLabsPane" style="padding: 0; overflow-y: auto; height: 100%; box-sizing: border-box; background: #09090b;">
-          <div id="virtualLabsMountPoint" style="width: 100%; min-height: 100%; display: flex; flex-direction: column;"></div>
+        <div class="view-pane" id="virtualLabsPane" style="padding: 0; overflow: hidden; height: 100%; box-sizing: border-box; background: #09090b;">
+          <div id="virtualLabsMountPoint" style="width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;"></div>
         </div>
 
         <!-- VIEW 6: STEM GRAPHS (INTERACTIVE GRAPHING & SIMULATOR) -->
@@ -8998,7 +8998,7 @@
           if (labsPane) labsPane.classList.add("active");
           const mountPoint = document.getElementById("virtualLabsMountPoint");
           if (mountPoint && !window.virtualLabsInstance) {
-            import("/antigravity_labs/web_labs_package/src/virtual_labs.js").then((mod) => {
+            import("/antigravity_labs/web_labs_package/src/virtual_labs.js?v=" + Date.now()).then((mod) => {
               if (!window.virtualLabsInstance) {
                 window.virtualLabsInstance = mod.mountVirtualLabs(mountPoint);
               }

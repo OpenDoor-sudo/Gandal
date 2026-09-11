@@ -229,7 +229,7 @@ async def entrypoint(ctx: JobContext):
     
     # 2. Resolve Active Locale and OKF Student Profile
     active_locale = "en_US"
-    session_file = os.path.join(PROJECT_ROOT, "active_session.json")
+    session_file = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"
     student_id = "alseny"
     if os.path.exists(session_file):
         try:

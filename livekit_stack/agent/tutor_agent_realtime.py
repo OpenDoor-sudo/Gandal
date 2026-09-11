@@ -80,7 +80,7 @@ async def entrypoint(ctx: JobContext):
 
     # 1. Resolve Active Video ID and Human-Readable Title
     active_video_id = None
-    session_json_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "active_session.json"))
+    session_json_path = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"
     if os.path.exists(session_json_path):
         try:
             with open(session_json_path, "r", encoding="utf-8") as f:

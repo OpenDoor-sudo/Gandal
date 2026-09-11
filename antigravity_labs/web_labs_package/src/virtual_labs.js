@@ -69,7 +69,7 @@ export class VirtualLabsApp {
         id: "phys_projectile",
         subject: "physics",
         type: "offline_sim",
-        simPath: "/offline_sims/projectile_motion.html",
+        simPath: "/antigravity_labs/offline_sims/projectile_motion.html",
         title: "Projectile Motion & Kinematic Trajectory",
         grade: "Grades 9–12",
         desc: "Aim and fire the cannon! Adjust launch angle, velocity, and air drag to calculate horizontal range and peak trajectory height.",
@@ -80,7 +80,7 @@ export class VirtualLabsApp {
         id: "phys_circuits",
         subject: "physics",
         type: "offline_sim",
-        simPath: "/offline_sims/circuit_kit.html",
+        simPath: "/antigravity_labs/offline_sims/circuit_kit.html",
         title: "DC Circuit Construction & Ohm's Law",
         grade: "Grades 6–12",
         desc: "Build active DC circuits with batteries, resistors, and lightbulbs. Test Ohm's Law (V = IR) and observe real-time electron flow animation.",
@@ -146,7 +146,7 @@ export class VirtualLabsApp {
         id: "chem_balancing",
         subject: "chemistry",
         type: "offline_sim",
-        simPath: "/offline_sims/balancing_equations.html",
+        simPath: "/antigravity_labs/offline_sims/balancing_equations.html",
         title: "Balancing Chemical Equations",
         grade: "Grades 7–12",
         desc: "Master the Law of Conservation of Mass! Adjust stoichiometric coefficients to synthesize water (H₂ + O₂ ➔ H₂O) and balance atom tallies.",
@@ -157,7 +157,7 @@ export class VirtualLabsApp {
         id: "chem_gas_laws",
         subject: "chemistry",
         type: "offline_sim",
-        simPath: "/offline_sims/gas_properties.html",
+        simPath: "/antigravity_labs/offline_sims/gas_properties.html",
         title: "Gas Properties & Ideal Gas Law (PV = nRT)",
         grade: "Grades 9–12",
         desc: "Pump molecules into an enclosed gas chamber. Heat or cool the gas, move the piston to adjust volume, and watch the pressure gauge react.",
@@ -316,7 +316,7 @@ export class VirtualLabsApp {
   launchRdkit() {
     this.currentView = "rdkit";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
@@ -338,7 +338,7 @@ export class VirtualLabsApp {
   launchMathPhysics() {
     this.currentView = "math_physics";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
@@ -360,7 +360,7 @@ export class VirtualLabsApp {
   launchPubchem() {
     this.currentView = "pubchem";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
@@ -382,7 +382,7 @@ export class VirtualLabsApp {
   launchChemistry(missionKey = "titration") {
     this.currentView = "chemistry";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
@@ -404,7 +404,7 @@ export class VirtualLabsApp {
   launchPhysics(missionKey = "free_fall") {
     this.currentView = "physics";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
@@ -426,7 +426,7 @@ export class VirtualLabsApp {
   launchOfflineSim(topic) {
     this.currentView = "offline_sim";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
@@ -437,7 +437,7 @@ export class VirtualLabsApp {
           </div>
           <div id="offlineSimGandhoSlot"></div>
         </div>
-        <div class="offline-sim-container" style="flex: 1; width: 100%; height: calc(100vh - 65px); display: flex; overflow: hidden;">
+        <div class="offline-sim-container" style="flex: 1; width: 100%; height: 100%; min-height: 0; display: flex; overflow: hidden;">
           <iframe class="offline-sim-iframe" src="${topic.simPath}" style="width: 100%; height: 100%; flex: 1; border: none; display: block;"></iframe>
         </div>
       </div>

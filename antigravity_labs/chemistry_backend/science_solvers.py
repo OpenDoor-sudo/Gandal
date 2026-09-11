@@ -233,13 +233,21 @@ def solve_physics_symbolic(topic: str, params: Dict[str, Any]) -> Dict[str, Any]
     if not SYMPY_AVAILABLE:
         return {"success": False, "error": "SymPy is not installed."}
 
+    topic_clean = (topic or "").lower().strip()
+    if topic_clean in ("waves", "standing_wave", "standing_waves", "wave"):
+        topic = "waves"
+    elif topic_clean in ("kinematics", "projectile", "projectile_motion"):
+        topic = "kinematics"
+    elif topic_clean in ("orbital", "orbit", "kepler"):
+        topic = "orbital"
+
     t, x, g, v0, theta, f, lmbda, r, M, G = sp.symbols("t x g v0 theta f lambda r M G")
 
     if topic == "kinematics":
         # Projectile kinematics calculus: s(t), v(t) = s'(t), a(t) = v'(t)
-        v0_val = float(params.get("v0", 20.0))
+        v0_val = float(params.get("v0", params.get("velocity", 20.0)))
         angle_deg = float(params.get("angle", 45.0))
-        g_val = float(params.get("g", 9.8))
+        g_val = float(params.get("g", params.get("gravity", 9.8)))
 
         angle_rad = math.radians(angle_deg)
         v0x = v0_val * math.cos(angle_rad)

@@ -143,7 +143,7 @@ async def entrypoint(ctx: JobContext):
     
     # Load active session info to determine locale
     active_locale = "en_US"
-    session_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "active_session.json"))
+    session_file = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"
     if os.path.exists(session_file):
         try:
             with open(session_file, "r") as sf:

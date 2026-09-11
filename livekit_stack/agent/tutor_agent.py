@@ -42,6 +42,8 @@ for handler in logger.handlers:
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 os.chdir(PROJECT_ROOT)
 
+SESSION_JSON_PATH = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"
+
 # Global memory cache to track greeted videos within the active server process
 GREETED_VIDEOS_CACHE = set()
 
@@ -131,7 +133,7 @@ async def entrypoint(ctx: JobContext):
     active_mode = "CLASSROOM"
     active_pdf_path = None
     
-    session_json_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "active_session.json"))
+    session_json_path = SESSION_JSON_PATH
     if os.path.exists(session_json_path):
         try:
             with open(session_json_path, "r", encoding="utf-8") as f:
@@ -508,7 +510,7 @@ async def entrypoint(ctx: JobContext):
             # Read active_video_id and active_pdf_path from active_session.json
             active_video_id = None
             active_pdf_path = None
-            session_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "active_session.json"))
+            session_path = SESSION_JSON_PATH
             if os.path.exists(session_path):
                 try:
                     with open(session_path, "r") as sf:
@@ -707,10 +709,13 @@ async def entrypoint(ctx: JobContext):
             
         return "No matching curriculum guidelines or video transcript sections found for this topic."
 
+    @llm.function_tool(
+        description="Returns the real-time live telemetry and state of the student's active STEM Virtual Lab experiment (current chemistry pH, volume, reagents in beaker, physics velocity, gravity, masses, organic molecule SMILES, standing waves). Call this tool whenever the student asks about their lab, experiment, or measurements."
+    )
     async def get_virtual_lab_status() -> str:
         """Returns the real-time live telemetry and state of the student's active STEM Virtual Lab experiment (current chemistry pH, volume, reagents in beaker, physics velocity, gravity, masses, organic molecule SMILES, standing waves). Call this tool whenever the student asks about their lab, experiment, or measurements."""
         try:
-            session_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "active_session.json"))
+            session_path = SESSION_JSON_PATH
             if os.path.exists(session_path):
                 with open(session_path, "r", encoding="utf-8") as sf:
                     sdata = json.load(sf)
@@ -1118,5 +1123,5 @@ async def entrypoint(ctx: JobContext):
 if __name__ == "__main__":
     cli.run_app(WorkerOptions(
         entrypoint_fnc=entrypoint,
-        load_threshold=0.98      # Raise from default 0.7 — prevents CPU spikes on a dev machine from blocking voice connections
+        load_threshold=float("inf")  # Disable CPU load shedding so Windows dev CPU spikes never drop student sessions
     ))
