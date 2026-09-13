@@ -34,6 +34,11 @@
     </script>
     <!-- Antigravity STEM Virtual Labs Stylesheet -->
     <link rel="stylesheet" href="/antigravity_labs/web_labs_package/labs.css" />
+    <!-- Three.js and OrbitControls for Circuits 3D Breadboard Lab -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Antigravity STEM Circuits 3D Lab Stylesheet -->
+    <link rel="stylesheet" href="/antigravity_labs/circuits_lab/circuits.css" />
     <style>
       /* Brute-force input spinner override */
       input::-webkit-outer-spin-button,
@@ -379,6 +384,11 @@
 
       .icon-box-graphs {
         background: linear-gradient(135deg, #06b6d4, #0284c7);
+        color: #ffffff;
+      }
+
+      .icon-box-circuits {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
         color: #ffffff;
       }
 
@@ -3971,6 +3981,18 @@
                 </div>
                 <div class="launcher-item-active-check">✓</div>
               </div>
+
+              <!-- 4. Circuits -->
+              <div class="launcher-menu-item nav-item" role="menuitem" data-view="circuits_lab" onclick="selectLauncherTab('circuits_lab', this)">
+                <div class="launcher-item-icon-box icon-box-circuits">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                </div>
+                <div class="launcher-item-content">
+                  <div class="launcher-item-title">⚡ Circuits</div>
+                  <div class="launcher-item-desc">3D Breadboard, Dual-Mode Build & AI Guide</div>
+                </div>
+                <div class="launcher-item-active-check">✓</div>
+              </div>
             </nav>
           </div>
         </div>
@@ -5659,6 +5681,11 @@
         <!-- VIEW 6: STEM GRAPHS (INTERACTIVE GRAPHING & SIMULATOR) -->
         <div class="view-pane" id="stemGraphsPane" style="padding: 0; overflow: hidden; height: 100%; box-sizing: border-box; background: #09090b;">
           <iframe id="stemGraphsIframe" src="/antigravity_labs/omni_graph_engine/index.html" style="width: 100%; height: 100%; border: none; display: block;" allow="microphone"></iframe>
+        </div>
+
+        <!-- VIEW 7: CIRCUITS LAB (3D BREADBOARD WALKTHROUGH & DUAL BUILD) -->
+        <div class="view-pane" id="circuitsLabPane" style="padding: 0; overflow: hidden; height: 100%; box-sizing: border-box; background: #09090b;">
+          <div id="circuitsLabMountPoint" style="width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;"></div>
         </div>
       </div>
 
@@ -8945,7 +8972,8 @@
           dashboard: { icon: "📊", label: "Dashboard" },
           revision_library: { icon: "📼", label: "Révision & Cours" },
           virtual_labs: { icon: "🧪", label: "Virtual Labs" },
-          stem_graphs: { icon: "📈", label: "Graphs" }
+          stem_graphs: { icon: "📈", label: "Graphs" },
+          circuits_lab: { icon: "⚡", label: "Circuits" }
         };
 
         if (viewName === "dashboard") {
@@ -8972,24 +9000,28 @@
           document.body.classList.remove("full-width-labs");
           window.isVirtualLabsActive = false;
           window.isStemGraphsActive = false;
+          window.isCircuitsLabActive = false;
           document.getElementById("dashboardPane").classList.add("active");
           if (typeof updateActiveViewState === "function") updateActiveViewState();
         } else if (viewName === "courses") {
           document.body.classList.remove("full-width-labs");
           window.isVirtualLabsActive = false;
           window.isStemGraphsActive = false;
+          window.isCircuitsLabActive = false;
           document.getElementById("coursesPane").classList.add("active");
           if (typeof updateActiveViewState === "function") updateActiveViewState();
         } else if (viewName === "library") {
           document.body.classList.remove("full-width-labs");
           window.isVirtualLabsActive = false;
           window.isStemGraphsActive = false;
+          window.isCircuitsLabActive = false;
           document.getElementById("libraryPane").classList.add("active");
           if (typeof updateActiveViewState === "function") updateActiveViewState();
         } else if (viewName === "revision_library") {
           document.body.classList.remove("full-width-labs");
           window.isVirtualLabsActive = false;
           window.isStemGraphsActive = false;
+          window.isCircuitsLabActive = false;
           const revPane = document.getElementById("revisionLibraryPane");
           if (revPane) revPane.classList.add("active");
           renderRevisionLibraryGrid();
@@ -8998,6 +9030,7 @@
           document.body.classList.add("full-width-labs");
           window.isVirtualLabsActive = true;
           window.isStemGraphsActive = false;
+          window.isCircuitsLabActive = false;
           const labsPane = document.getElementById("virtualLabsPane");
           if (labsPane) labsPane.classList.add("active");
           const mountPoint = document.getElementById("virtualLabsMountPoint");
@@ -9015,8 +9048,27 @@
           document.body.classList.add("full-width-labs");
           window.isVirtualLabsActive = false;
           window.isStemGraphsActive = true;
+          window.isCircuitsLabActive = false;
           const graphsPane = document.getElementById("stemGraphsPane");
           if (graphsPane) graphsPane.classList.add("active");
+          if (typeof updateActiveViewState === "function") updateActiveViewState();
+        } else if (viewName === "circuits_lab") {
+          document.body.classList.add("full-width-labs");
+          window.isVirtualLabsActive = false;
+          window.isStemGraphsActive = false;
+          window.isCircuitsLabActive = true;
+          const circuitsPane = document.getElementById("circuitsLabPane");
+          if (circuitsPane) circuitsPane.classList.add("active");
+          const mountPoint = document.getElementById("circuitsLabMountPoint");
+          if (mountPoint && !window.circuitsLabInstance) {
+            import("/antigravity_labs/circuits_lab/src/circuits_lab.js?v=" + Date.now()).then((mod) => {
+              if (!window.circuitsLabInstance) {
+                window.circuitsLabInstance = mod.mountCircuitsLab(mountPoint);
+              }
+            }).catch((err) => {
+              console.error("Failed to dynamically load Circuits Lab module:", err);
+            });
+          }
           if (typeof updateActiveViewState === "function") updateActiveViewState();
         }
       }

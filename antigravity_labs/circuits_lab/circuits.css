@@ -1,0 +1,584 @@
+/* circuits.css - Ventuno 3D Electronics Breadboard Walkthrough Assistant */
+/* Theme: Lumina Intelligence Dark Palette (#131313, #1c1b1b, #201f1f, #c2c1ff, #3e90ff) */
+
+.circuits-lab-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background: #09090b;
+  color: #e5e2e1;
+  font-family: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   LEFT PANEL: CURRICULUM TREE & PROBLEM STATEMENT
+   ========================================================================== */
+.circuits-left-panel {
+  width: 360px;
+  min-width: 300px;
+  max-width: 420px;
+  background: #131318;
+  border-right: 1px solid #27272a;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s ease;
+  overflow: hidden;
+}
+
+.circuits-left-panel.collapsed {
+  transform: translateX(-100%);
+  width: 0;
+  min-width: 0;
+}
+
+.circuits-panel-header {
+  padding: 16px 20px;
+  background: #18181f;
+  border-bottom: 1px solid #27272a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.circuits-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #f4f4f5;
+}
+
+.circuits-panel-badge {
+  font-size: 10px;
+  font-family: 'Geist', monospace;
+  background: rgba(194, 193, 255, 0.12);
+  color: #c2c1ff;
+  border: 1px solid rgba(194, 193, 255, 0.25);
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.circuits-curriculum-accordion {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.curriculum-level-group {
+  border: 1px solid #27272a;
+  border-radius: 10px;
+  background: #14141a;
+  overflow: hidden;
+}
+
+.curriculum-level-header {
+  padding: 12px 14px;
+  background: #1c1c24;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 13px;
+  color: #e4e4e7;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.curriculum-level-header:hover {
+  background: #23232e;
+}
+
+.curriculum-level-arrow {
+  font-size: 11px;
+  transition: transform 0.2s ease;
+}
+
+.curriculum-level-group.open .curriculum-level-arrow {
+  transform: rotate(90deg);
+}
+
+.curriculum-problems-list {
+  display: none;
+  flex-direction: column;
+  padding: 6px;
+  gap: 4px;
+  background: #121216;
+}
+
+.curriculum-level-group.open .curriculum-problems-list {
+  display: flex;
+}
+
+.curriculum-problem-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.curriculum-problem-item:hover {
+  background: #1d1d26;
+  border-color: #2e2e3a;
+}
+
+.curriculum-problem-item.active {
+  background: rgba(194, 193, 255, 0.08);
+  border-color: #c2c1ff;
+}
+
+.problem-item-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #f4f4f5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.problem-item-sub {
+  font-size: 11px;
+  color: #a1a1aa;
+}
+
+/* Active Problem Details Card */
+.circuits-problem-details {
+  border-top: 1px solid #27272a;
+  padding: 16px;
+  background: #14141b;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.problem-markdown-body {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #d4d4d8;
+}
+
+.problem-markdown-body h2 {
+  font-size: 14px;
+  margin: 0 0 8px 0;
+  color: #c2c1ff;
+}
+
+.problem-markdown-body h3 {
+  font-size: 13px;
+  margin: 12px 0 6px 0;
+  color: #e5e2e1;
+}
+
+.problem-markdown-body p, .problem-markdown-body ul {
+  margin: 0 0 8px 0;
+  padding-left: 18px;
+}
+
+/* ==========================================================================
+   CENTER WORKSPACE: THREE.JS 3D CANVAS & OVERLAYS
+   ========================================================================== */
+.circuits-center-workspace {
+  flex: 1;
+  position: relative;
+  background: radial-gradient(circle at center, #181820 0%, #09090c 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#circuitsThreeJsCanvasContainer {
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+}
+
+/* Floating Top Controls Bar */
+.circuits-top-controls {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.circuits-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+/* Mode Toggle Switch Pill */
+.mode-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid #3e90ff;
+  background: rgba(62, 144, 255, 0.15);
+  color: #70b4ff;
+  backdrop-filter: blur(12px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.mode-toggle-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(62, 144, 255, 0.25);
+}
+
+.mode-toggle-btn.mode-physical {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.mode-toggle-btn.mode-physical:hover {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+.mode-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3e90ff;
+  box-shadow: 0 0 10px #3e90ff;
+}
+
+.mode-toggle-btn.mode-physical .mode-indicator-dot {
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+}
+
+.btn-circuit-action {
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #3f3f46;
+  background: rgba(24, 24, 27, 0.85);
+  color: #e4e4e7;
+  backdrop-filter: blur(12px);
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.btn-circuit-action:hover {
+  background: #27272a;
+  border-color: #52525b;
+}
+
+.btn-circuit-reset {
+  border-color: #ef4444;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.btn-circuit-reset:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #f87171;
+}
+
+/* Floating Bottom Step HUD */
+.circuits-bottom-hud {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 20;
+  pointer-events: none;
+  width: 90%;
+  max-width: 680px;
+}
+
+.circuits-spoken-pill {
+  padding: 12px 20px;
+  background: rgba(18, 18, 24, 0.9);
+  border: 1px solid rgba(194, 193, 255, 0.25);
+  border-radius: 14px;
+  color: #f4f4f5;
+  font-size: 13.5px;
+  line-height: 1.5;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.spoken-agent-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #c2c1ff;
+  color: #0c006a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.circuits-step-navigator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(18, 18, 24, 0.85);
+  border: 1px solid #27272a;
+  padding: 6px 14px;
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.step-nav-btn {
+  background: #27272a;
+  border: none;
+  color: #f4f4f5;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.step-nav-btn:hover:not(:disabled) {
+  background: #3f3f46;
+}
+
+.step-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.step-nav-btn.btn-primary-step {
+  background: #5856d6;
+  color: #ffffff;
+}
+
+.step-nav-btn.btn-primary-step:hover {
+  background: #6e6cf0;
+}
+
+.step-counter-text {
+  font-size: 12px;
+  font-family: 'Geist', monospace;
+  color: #a1a1aa;
+  padding: 0 8px;
+}
+
+/* Voice Mic Button */
+.circuits-mic-btn {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #27272a;
+  border: 2px solid #3f3f46;
+  color: #f4f4f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.circuits-mic-btn:hover {
+  transform: scale(1.08);
+  border-color: #c2c1ff;
+  background: #35353d;
+}
+
+.circuits-mic-btn.listening {
+  background: #ef4444;
+  border-color: #fca5a5;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+  animation: pulse-mic 1.5s infinite;
+}
+
+@keyframes pulse-mic {
+  0% { transform: scale(1); box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+  50% { transform: scale(1.08); box-shadow: 0 0 25px rgba(239, 68, 68, 0.8); }
+  100% { transform: scale(1); box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+}
+
+/* ==========================================================================
+   RIGHT PANEL: PARTS BIN & REQUIRED HARDWARE INVENTORY
+   ========================================================================== */
+.circuits-right-panel {
+  width: 320px;
+  min-width: 280px;
+  max-width: 380px;
+  background: #131318;
+  border-left: 1px solid #27272a;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), width 0.3s ease;
+  overflow: hidden;
+}
+
+.circuits-right-panel.collapsed {
+  transform: translateX(100%);
+  width: 0;
+  min-width: 0;
+}
+
+.parts-bin-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.part-card {
+  background: #181820;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.part-card:hover {
+  border-color: #3f3f4e;
+  background: #1e1e28;
+}
+
+.part-card.collected {
+  opacity: 0.55;
+  border-color: #10b981;
+}
+
+.part-thumbnail-box {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  background: #0d0d12;
+  border: 1px solid #27272a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.part-thumbnail-box svg {
+  width: 48px;
+  height: 48px;
+}
+
+.part-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.part-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f4f4f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.part-value {
+  font-size: 11px;
+  font-family: 'Geist', monospace;
+  color: #c2c1ff;
+}
+
+.part-pinout-note {
+  font-size: 10.5px;
+  color: #a1a1aa;
+  line-height: 1.35;
+}
+
+.part-qty-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 10px;
+  font-family: 'Geist', monospace;
+  background: #27272a;
+  color: #e4e4e7;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* Panel Toggle Icons */
+.panel-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.panel-toggle-btn:hover {
+  color: #f4f4f5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .circuits-left-panel { width: 280px; }
+  .circuits-right-panel { width: 260px; }
+}

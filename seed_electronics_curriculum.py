@@ -1,0 +1,431 @@
+# seed_electronics_curriculum.py
+# Seeds comprehensive electronics curriculum into LanceDB and offline JSON catalog
+
+import os
+import sys
+import json
+
+PROJECT_ROOT = os.path.abspath(os.path.dirname(__file__))
+LANCEDB_DIR = os.path.join(PROJECT_ROOT, ".lancedb")
+OFFLINE_JSON_PATH = os.path.join(PROJECT_ROOT, "antigravity_labs", "circuits_lab", "data", "curriculum.json")
+
+CURRICULUM_DATA = [
+    # =========================================================================
+    # LEVEL 1: FOUNDATIONS
+    # =========================================================================
+    {
+        "id": "foundations_01_led_blinker",
+        "level": 1,
+        "level_title": "Level 1: Foundations",
+        "topic": "DC Circuits & Diodes",
+        "title": "LED & Current-Limiting Resistor Circuit",
+        "difficulty": "Beginner",
+        "summary": "Learn basic breadboard power rails, LED polarity (anode/cathode), and Ohm's Law current limiting.",
+        "problem_text": """## Challenge 1: The Core Indicator Circuit
+
+Before building complex digital computers, we must master fundamental electrical flow on a solderless breadboard.
+
+### Theoretical Background
+* **Ohm's Law**: $V = I \\times R$. A standard red LED has a forward voltage drop of approximately $V_f \\approx 2.0\\text{V}$ and a maximum continuous current of $I_f \\approx 20\\text{mA}$.
+* If powered directly from a $5\\text{V}$ rail without a resistor, current surges through the semiconductor diode, destroying the junction.
+* The required ballast resistor value is:
+  $$R = \\frac{V_{CC} - V_f}{I_f} = \\frac{5\\text{V} - 2.0\\text{V}}{0.015\\text{A}} = 200\\,\\Omega$$
+  We safely select a standard **$330\\,\\Omega$** (Orange-Orange-Brown) resistor to limit current to $\\approx 9\\text{mA}$.
+
+### Breadboard Rules
+* **Power Rails**: The vertical red line ($+$) is positive $5\\text{V}$, and the blue line ($-$) is Ground ($0\\text{V}$).
+* **Terminal Strips**: Rows 1–30 are connected horizontally across columns A–E and F–J. The center trough separates the two sides.
+""",
+        "components": [
+            {
+                "name": "Red 5mm LED",
+                "type": "LED",
+                "value": "Forward V: 2.0V, 20mA max",
+                "package": "Radial 5mm",
+                "pinout": "Long leg: Anode (+), Short leg / Flat edge: Cathode (-)",
+                "quantity": 1,
+                "image_id": "led_red"
+            },
+            {
+                "name": "330Ω Carbon Film Resistor",
+                "type": "Resistor",
+                "value": "330 Ω, 1/4W (Orange-Orange-Brown-Gold)",
+                "package": "Axial Through-Hole",
+                "pinout": "Non-polar passive component",
+                "quantity": 1,
+                "image_id": "resistor_330"
+            },
+            {
+                "name": "Jumper Wires",
+                "type": "Wire",
+                "value": "22 AWG Solid Core",
+                "package": "Male-to-Male",
+                "pinout": "Red (+5V) and Black (GND)",
+                "quantity": 2,
+                "image_id": "jumper_wires"
+            }
+        ],
+        "initial_schematic": {
+            "components": [
+                { "id": "LED1", "type": "LED_RED", "anode_pin": "E10", "cathode_pin": "E11" },
+                { "id": "R1", "type": "RESISTOR_330", "pin1": "D11", "pin2": "D16" }
+            ],
+            "target_connections": [
+                {
+                    "step": 1,
+                    "action": "PLACE_COMPONENT",
+                    "component_id": "LED1",
+                    "from": "E10",
+                    "to": "E11",
+                    "color": "red",
+                    "description": "Insert the Red LED. Place the long leg (anode) into row E10 and the short leg (cathode) into row E11.",
+                    "spoken_instruction": "First, take the red LED. Insert the long positive lead into row 10, column E, and the short cathode lead into row 11."
+                },
+                {
+                    "step": 2,
+                    "action": "PLACE_COMPONENT",
+                    "component_id": "R1",
+                    "from": "D11",
+                    "to": "D16",
+                    "color": "beige",
+                    "description": "Place the 330Ω resistor across row D11 and row D16 to connect with the LED cathode.",
+                    "spoken_instruction": "Next, connect the 330 ohm resistor between row 11 and row 16, tying into the cathode of the LED."
+                },
+                {
+                    "step": 3,
+                    "action": "DRAW_WIRE",
+                    "from": "POWER_PLUS_10",
+                    "to": "A10",
+                    "color": "red",
+                    "description": "Connect a red jumper wire from the positive 5V power rail to column A, row 10 (LED anode).",
+                    "spoken_instruction": "Now take a red jumper wire. Connect the positive power rail to column A, row 10 to provide 5 volts to the LED."
+                },
+                {
+                    "step": 4,
+                    "action": "DRAW_WIRE",
+                    "from": "A16",
+                    "to": "POWER_MINUS_16",
+                    "color": "black",
+                    "description": "Connect a black jumper wire from row A16 to the negative ground rail to complete the loop.",
+                    "spoken_instruction": "Finally, run a black jumper wire from row 16 to the ground rail. The circuit loop is complete and your LED should illuminate."
+                }
+            ]
+        }
+    },
+    {
+        "id": "foundations_02_voltage_divider",
+        "level": 1,
+        "level_title": "Level 1: Foundations",
+        "topic": "DC Circuits & Analysis",
+        "title": "Resistive Voltage Divider",
+        "difficulty": "Beginner",
+        "summary": "Create reference voltage nodes using dual series resistors and observe Kirchhoff's Voltage Law.",
+        "problem_text": """## Challenge 2: Resistive Voltage Divider
+
+Voltage dividers are foundational analog sub-circuits used for sensor interfacing, transistor biasing, and ADC reference scaling.
+
+### Formula
+$$V_{out} = V_{in} \\times \\frac{R_2}{R_1 + R_2}$$
+With $V_{in} = 5\\text{V}$ and two equal $10\\text{k}\\Omega$ resistors:
+$$V_{out} = 5\\text{V} \\times \\frac{10\\text{k}\\Omega}{10\\text{k}\\Omega + 10\\text{k}\\Omega} = 2.5\\text{V}$$
+""",
+        "components": [
+            { "name": "10kΩ Resistors", "type": "Resistor", "value": "10 kΩ 1/4W (Brown-Black-Orange)", "package": "Axial", "pinout": "Passive", "quantity": 2, "image_id": "resistor_10k" },
+            { "name": "Jumper Wires", "type": "Wire", "value": "Solid Core", "package": "M-M", "pinout": "Red, Blue, Yellow", "quantity": 3, "image_id": "jumper_wires" }
+        ],
+        "initial_schematic": {
+            "components": [
+                { "id": "R1", "type": "RESISTOR_10K", "pin1": "C5", "pin2": "C10" },
+                { "id": "R2", "type": "RESISTOR_10K", "pin1": "C10", "pin2": "C15" }
+            ],
+            "target_connections": [
+                { "step": 1, "action": "PLACE_COMPONENT", "component_id": "R1", "from": "C5", "to": "C10", "color": "beige", "description": "Place R1 (10kΩ) between row C5 and C10.", "spoken_instruction": "Place the first 10k resistor from row 5 to row 10." },
+                { "step": 2, "action": "PLACE_COMPONENT", "component_id": "R2", "from": "C10", "to": "C15", "color": "beige", "description": "Place R2 (10kΩ) between row C10 and C15, creating the center midpoint tap.", "spoken_instruction": "Now place the second 10k resistor from row 10 to row 15. Row 10 is your voltage divider tap." },
+                { "step": 3, "action": "DRAW_WIRE", "from": "POWER_PLUS_5", "to": "A5", "color": "red", "description": "Connect 5V power rail to row 5.", "spoken_instruction": "Wire positive 5 volts into row 5." },
+                { "step": 4, "action": "DRAW_WIRE", "from": "A15", "to": "POWER_MINUS_15", "color": "black", "description": "Connect row 15 to ground rail.", "spoken_instruction": "Ground row 15 to the negative rail." },
+                { "step": 5, "action": "DRAW_WIRE", "from": "A10", "to": "E20", "color": "yellow", "description": "Run the 2.5V probe line from row 10 tap out to test row 20.", "spoken_instruction": "Take a yellow wire from row 10 to row 20. Row 20 now carries exactly 2.5 volts." }
+            ]
+        }
+    },
+    {
+        "id": "foundations_03_npn_transistor",
+        "level": 1,
+        "level_title": "Level 1: Foundations",
+        "topic": "Semiconductor Switches",
+        "title": "NPN BJT Transistor as a Digital Switch",
+        "difficulty": "Intermediate",
+        "summary": "Control a high-current load using a 2N3904 NPN bipolar junction transistor in common-emitter configuration.",
+        "problem_text": """## Challenge 3: NPN Transistor Switch
+
+Bipolar Junction Transistors (BJTs) are the building blocks of RTL (Resistor-Transistor Logic). When driven into saturation, the transistor acts as an electronically controlled closed switch connecting the collector to emitter.
+
+### Pinout (2N3904 TO-92 flat face forward)
+1. **Emitter (E)**: Left pin $\\rightarrow$ Connect to GND
+2. **Base (B)**: Center pin $\\rightarrow$ Driven through $1\\text{k}\\Omega$ resistor
+3. **Collector (C)**: Right pin $\\rightarrow$ Connect to load cathode
+""",
+        "components": [
+            { "name": "2N3904 NPN Transistor", "type": "BJT Transistor", "value": "TO-92 NPN 40V 200mA", "package": "TO-92", "pinout": "Pin 1: Emitter, Pin 2: Base, Pin 3: Collector", "quantity": 1, "image_id": "transistor_npn" },
+            { "name": "1kΩ Base Resistor", "type": "Resistor", "value": "1 kΩ (Brown-Black-Red)", "package": "Axial", "pinout": "Passive", "quantity": 1, "image_id": "resistor_1k" },
+            { "name": "330Ω Collector Resistor", "type": "Resistor", "value": "330 Ω", "package": "Axial", "pinout": "Passive", "quantity": 1, "image_id": "resistor_330" },
+            { "name": "Red 5mm LED", "type": "LED", "value": "5mm Red", "package": "Radial", "pinout": "Anode(+), Cathode(-)", "quantity": 1, "image_id": "led_red" }
+        ],
+        "initial_schematic": {
+            "components": [
+                { "id": "Q1", "type": "TRANSISTOR_TO92", "emitter": "E12", "base": "E13", "collector": "E14" }
+            ],
+            "target_connections": [
+                { "step": 1, "action": "PLACE_COMPONENT", "component_id": "Q1", "from": "E12", "to": "E14", "color": "black", "description": "Insert 2N3904 transistor: Emitter at E12, Base at E13, Collector at E14.", "spoken_instruction": "Place the 2N3904 transistor with the flat face toward you. Emitter in row 12, Base in row 13, Collector in row 14." },
+                { "step": 2, "action": "DRAW_WIRE", "from": "A12", "to": "POWER_MINUS_12", "color": "black", "description": "Tie Emitter row 12 directly to GND rail.", "spoken_instruction": "Ground the emitter by connecting row 12 to the negative rail." },
+                { "step": 3, "action": "PLACE_COMPONENT", "component_id": "R_BASE", "from": "B13", "to": "B8", "color": "beige", "description": "Place 1kΩ base resistor between row 13 and control row 8.", "spoken_instruction": "Insert the 1k base resistor between row 13 and row 8." },
+                { "step": 4, "action": "PLACE_COMPONENT", "component_id": "LED1", "from": "C14", "to": "C18", "color": "red", "description": "Connect LED cathode to Collector row 14, anode to row 18.", "spoken_instruction": "Connect the LED with its short cathode in row 14 and long anode in row 18." },
+                { "step": 5, "action": "PLACE_COMPONENT", "component_id": "R_COLL", "from": "D18", "to": "D22", "color": "beige", "description": "Place 330Ω ballast resistor from row 18 to 22.", "spoken_instruction": "Place the 330 ohm resistor from row 18 to row 22." },
+                { "step": 6, "action": "DRAW_WIRE", "from": "A22", "to": "POWER_PLUS_22", "color": "red", "description": "Connect row 22 to 5V power rail.", "spoken_instruction": "Power row 22 from the positive rail." },
+                { "step": 7, "action": "DRAW_WIRE", "from": "A8", "to": "POWER_PLUS_8", "color": "yellow", "description": "Connect Base control row 8 to 5V to switch transistor ON.", "spoken_instruction": "Tie base row 8 to 5 volts. This saturates the base, sinking current and lighting the LED." }
+            ]
+        }
+    },
+
+    # =========================================================================
+    # LEVEL 2: TIMING & ANALOG
+    # =========================================================================
+    {
+        "id": "timing_01_555_astable",
+        "level": 2,
+        "level_title": "Level 2: Timing & Analog",
+        "topic": "555 Timer Circuits",
+        "title": "555 Timer Astable Multivibrator (Clock Generator)",
+        "difficulty": "Intermediate",
+        "summary": "Build the iconic 555 timer square wave oscillator circuit used as the master clock for 8-bit computers.",
+        "problem_text": """## Challenge 4: 555 Astable Multivibrator Clock
+
+The NE555 timer is the most popular integrated circuit in history. In astable mode, it oscillates continuously between high and low states, generating a clean digital square wave clock pulse.
+
+### 555 Timer DIP-8 Pinout
+Across center breadboard trough:
+* **Pin 1 (GND)**: Ground reference ($0\\text{V}$)
+* **Pin 2 (TRIG)**: Triggers flip-flop when $V < \\frac{1}{3} V_{CC}$
+* **Pin 3 (OUT)**: High-current output square wave
+* **Pin 4 (RESET)**: Active-low reset (tie to $V_{CC}$ to disable)
+* **Pin 5 (CTRL)**: Control voltage (tie to GND via $10\\text{nF}$ bypass cap or leave open)
+* **Pin 6 (THRESH)**: Resets flip-flop when $V > \\frac{2}{3} V_{CC}$
+* **Pin 7 (DISCH)**: Open-collector transistor discharges timing capacitor
+* **Pin 8 (VCC)**: Positive supply ($+5\\text{V}$)
+
+### Timing Formulas
+$$t_{high} = 0.693 \\times (R_1 + R_2) \\times C_1$$
+$$t_{low} = 0.693 \\times R_2 \\times C_1$$
+$$f = \\frac{1.44}{(R_1 + 2 R_2) \\times C_1}$$
+With $R_1 = 1\\text{k}\\Omega$, $R_2 = 100\\text{k}\\Omega$, and $C_1 = 10\\,\\mu\\text{F}$, frequency is approximately $0.7\\text{ Hz}$ (blinking once per second).
+""",
+        "components": [
+            { "name": "NE555 Precision Timer IC", "type": "IC", "value": "DIP-8 Package", "package": "DIP-8", "pinout": "Pins 1-4 Left, Pins 5-8 Right", "quantity": 1, "image_id": "ic_555" },
+            { "name": "1kΩ Resistor (R1)", "type": "Resistor", "value": "1 kΩ (Brown-Black-Red)", "package": "Axial", "pinout": "Passive", "quantity": 1, "image_id": "resistor_1k" },
+            { "name": "100kΩ Resistor (R2)", "type": "Resistor", "value": "100 kΩ (Brown-Black-Yellow)", "package": "Axial", "pinout": "Passive", "quantity": 1, "image_id": "resistor_100k" },
+            { "name": "10µF Electrolytic Capacitor", "type": "Capacitor", "value": "10 µF 16V Polarized", "package": "Radial", "pinout": "Long: (+), White stripe: (-)", "quantity": 1, "image_id": "cap_10uf" },
+            { "name": "Red 5mm LED & 330Ω Resistor", "type": "Output Indicator", "value": "5mm LED + 330Ω", "package": "Radial/Axial", "pinout": "Indicator pair", "quantity": 1, "image_id": "led_red" }
+        ],
+        "initial_schematic": {
+            "components": [
+                { "id": "U1", "type": "IC_DIP8", "pin_start_left": "E10", "pin_start_right": "F10" }
+            ],
+            "target_connections": [
+                { "step": 1, "action": "PLACE_COMPONENT", "component_id": "U1", "from": "E10", "to": "F13", "color": "darkgray", "description": "Seat the 555 Timer across the center divider from row 10 to 13. Notch points toward row 1.", "spoken_instruction": "Place the 555 Timer across the center trough spanning rows 10 to 13, with the notch facing up toward row 1." },
+                { "step": 2, "action": "DRAW_WIRE", "from": "A10", "to": "POWER_MINUS_10", "color": "black", "description": "Connect Pin 1 (GND) to negative power rail.", "spoken_instruction": "Connect pin 1 in row 10 to the ground rail using a black jumper wire." },
+                { "step": 3, "action": "DRAW_WIRE", "from": "J10", "to": "POWER_PLUS_10", "color": "red", "description": "Connect Pin 8 (VCC) to positive 5V power rail.", "spoken_instruction": "Connect pin 8 in row 10 to the positive 5 volt rail with a red wire." },
+                { "step": 4, "action": "DRAW_WIRE", "from": "A13", "to": "POWER_PLUS_13", "color": "red", "description": "Tie Pin 4 (RESET) to 5V rail to prevent accidental resetting.", "spoken_instruction": "Tie pin 4 in row 13 to 5 volts to keep the timer enabled." },
+                { "step": 5, "action": "DRAW_WIRE", "from": "B11", "to": "I12", "color": "blue", "description": "Bridge Pin 2 (Trigger) to Pin 6 (Threshold) with a jumper wire.", "spoken_instruction": "Take a blue jumper wire and bridge pin 2 in row 11 across to pin 6 in row 12." },
+                { "step": 6, "action": "PLACE_COMPONENT", "component_id": "R1", "from": "H10", "to": "H11", "color": "beige", "description": "Place R1 (1kΩ) between Pin 8 (row 10) and Pin 7 (row 11).", "spoken_instruction": "Connect the 1k resistor between pin 8 and pin 7 on the right bank." },
+                { "step": 7, "action": "PLACE_COMPONENT", "component_id": "R2", "from": "G11", "to": "G12", "color": "beige", "description": "Place R2 (100kΩ) between Pin 7 (row 11) and Pin 6 (row 12).", "spoken_instruction": "Connect the 100k resistor between pin 7 and pin 6." },
+                { "step": 8, "action": "PLACE_COMPONENT", "component_id": "C1", "from": "C11", "to": "C7", "color": "blue", "description": "Place 10µF capacitor: positive lead in Pin 2 (row 11), negative lead in row 7.", "spoken_instruction": "Insert the 10 microfarad timing capacitor. Long positive lead goes to pin 2 row 11, and short lead to row 7." },
+                { "step": 9, "action": "DRAW_WIRE", "from": "A7", "to": "POWER_MINUS_7", "color": "black", "description": "Ground the negative lead of C1 in row 7.", "spoken_instruction": "Ground the negative lead of the capacitor by connecting row 7 to the negative rail." },
+                { "step": 10, "action": "DRAW_WIRE", "from": "B12", "to": "B18", "color": "yellow", "description": "Connect Pin 3 (Output) to output indicator row 18.", "spoken_instruction": "Connect pin 3 in row 12 to row 18 with a yellow wire to drive your LED indicator." },
+                { "step": 11, "action": "PLACE_COMPONENT", "component_id": "LED_OUT", "from": "C18", "to": "C19", "color": "red", "description": "Insert LED anode at row 18 and cathode at row 19.", "spoken_instruction": "Insert the indicator LED anode at row 18 and cathode at row 19." },
+                { "step": 12, "action": "PLACE_COMPONENT", "component_id": "R_LED", "from": "D19", "to": "POWER_MINUS_19", "color": "beige", "description": "Connect 330Ω resistor from LED cathode to GND rail.", "spoken_instruction": "Complete the circuit with a 330 ohm resistor from row 19 to ground. Your 555 clock pulse is now active and blinking!" }
+            ]
+        }
+    },
+
+    # =========================================================================
+    # LEVEL 3: DIGITAL LOGIC
+    # =========================================================================
+    {
+        "id": "logic_01_74hc08_and",
+        "level": 3,
+        "level_title": "Level 3: Digital Logic",
+        "topic": "TTL / CMOS Logic Gates",
+        "title": "74HC08 Quad 2-Input AND Gate",
+        "difficulty": "Intermediate",
+        "summary": "Wire a standard 7400-series CMOS logic IC to verify Boolean truth tables and digital signal switching.",
+        "problem_text": """## Challenge 5: 74HC08 Quad 2-Input AND Gate
+
+The 74HC08 contains four independent 2-input positive-logic AND gates. An AND gate outputs HIGH ($1$) if and only if both of its inputs are HIGH ($A=1 \\land B=1$).
+
+### Truth Table
+| Input A (Pin 1) | Input B (Pin 2) | Output Y (Pin 3) |
+| :---: | :---: | :---: |
+| 0 (GND) | 0 (GND) | 0 (0V) |
+| 0 (GND) | 1 (5V) | 0 (0V) |
+| 1 (5V) | 0 (GND) | 0 (0V) |
+| 1 (5V) | 1 (5V) | 1 (5V) |
+
+### 74HC08 DIP-14 Pinout Rules
+* **Pin 7 (GND)**: Bottom left corner of DIP-14 $\\rightarrow$ Connect to Ground rail.
+* **Pin 14 (VCC)**: Top right corner of DIP-14 $\\rightarrow$ Connect to $+5\\text{V}$ rail.
+* **Gate 1**: Inputs on Pins 1 & 2, Output on Pin 3.
+""",
+        "components": [
+            { "name": "74HC08 Quad 2-Input AND Gate", "type": "IC", "value": "DIP-14 High-Speed CMOS", "package": "DIP-14", "pinout": "Pin 7: GND, Pin 14: VCC, 1A=Pin 1, 1B=Pin 2, 1Y=Pin 3", "quantity": 1, "image_id": "ic_74hc08" },
+            { "name": "330Ω Current-Limiting Resistor", "type": "Resistor", "value": "330 Ω", "package": "Axial", "pinout": "Passive", "quantity": 1, "image_id": "resistor_330" },
+            { "name": "Green 5mm Logic LED", "type": "LED", "value": "Green 5mm", "package": "Radial", "pinout": "Anode(+), Cathode(-)", "quantity": 1, "image_id": "led_green" },
+            { "name": "Jumper Wires", "type": "Wire", "value": "Solid Core", "package": "M-M", "pinout": "Assorted colors", "quantity": 6, "image_id": "jumper_wires" }
+        ],
+        "initial_schematic": {
+            "components": [
+                { "id": "U1", "type": "IC_DIP14", "pin_start_left": "E8", "pin_start_right": "F8" }
+            ],
+            "target_connections": [
+                { "step": 1, "action": "PLACE_COMPONENT", "component_id": "U1", "from": "E8", "to": "F14", "color": "darkgray", "description": "Seat the 74HC08 across center divider from row 8 to 14. Pin 1 notch facing row 1.", "spoken_instruction": "Place the 74HC08 IC across the center trough from row 8 to row 14, notch facing upward." },
+                { "step": 2, "action": "DRAW_WIRE", "from": "A14", "to": "POWER_MINUS_14", "color": "black", "description": "Connect Pin 7 (row 14 left side) to GND rail.", "spoken_instruction": "Connect Pin 7 in row 14 to the ground rail using a black wire." },
+                { "step": 3, "action": "DRAW_WIRE", "from": "J8", "to": "POWER_PLUS_8", "color": "red", "description": "Connect Pin 14 (row 8 right side) to +5V rail.", "spoken_instruction": "Connect Pin 14 in row 8 of the right bank to the 5 volt positive rail." },
+                { "step": 4, "action": "DRAW_WIRE", "from": "B8", "to": "POWER_PLUS_8", "color": "blue", "description": "Tie Input 1A (Pin 1, row 8) to +5V (Logic 1).", "spoken_instruction": "Set Input A to High by connecting pin 1 in row 8 to the positive rail." },
+                { "step": 5, "action": "DRAW_WIRE", "from": "B9", "to": "POWER_PLUS_9", "color": "blue", "description": "Tie Input 1B (Pin 2, row 9) to +5V (Logic 1).", "spoken_instruction": "Set Input B to High by connecting pin 2 in row 9 to the positive rail." },
+                { "step": 6, "action": "DRAW_WIRE", "from": "B10", "to": "B20", "color": "yellow", "description": "Run output line from Pin 1Y (Pin 3, row 10) to row 20.", "spoken_instruction": "Take the output from pin 3 in row 10 and run it to row 20." },
+                { "step": 7, "action": "PLACE_COMPONENT", "component_id": "LED_OUT", "from": "C20", "to": "C21", "color": "green", "description": "Insert Green LED: anode at row 20, cathode at row 21.", "spoken_instruction": "Insert the green logic LED: anode in row 20, cathode in row 21." },
+                { "step": 8, "action": "PLACE_COMPONENT", "component_id": "R_BALLAST", "from": "D21", "to": "POWER_MINUS_21", "color": "beige", "description": "Ground cathode via 330Ω resistor.", "spoken_instruction": "Complete the gate with a 330 ohm resistor from row 21 to ground. Since both inputs are 1, your AND gate output lights up!" }
+            ]
+        }
+    },
+    {
+        "id": "logic_02_74ls283_adder",
+        "level": 3,
+        "level_title": "Level 3: Digital Logic",
+        "topic": "Arithmetic Circuits",
+        "title": "74LS283 4-Bit Binary Full Adder Stage",
+        "difficulty": "Advanced",
+        "summary": "Construct an arithmetic ALU building block: adding two 4-bit binary numbers with carry lookahead.",
+        "problem_text": """## Challenge 6: 4-Bit Binary Full Adder (74LS283)
+
+The 74LS283 adds two 4-bit nibbles ($A_3 A_2 A_1 A_0 + B_3 B_2 B_1 B_0$) with an initial Carry-In ($C_0$), producing a 4-bit sum ($S_3 S_2 S_1 S_0$) and Carry-Out ($C_4$). This is the foundational arithmetic core of every CPU ALU.
+
+### Key Pins (DIP-16)
+* **Power**: Pin 16 ($V_{CC}$), Pin 8 (GND).
+* **Inputs A**: $A_1$ (Pin 5), $A_2$ (Pin 3), $A_3$ (Pin 14), $A_4$ (Pin 12).
+* **Inputs B**: $B_1$ (Pin 6), $B_2$ (Pin 2), $B_3$ (Pin 15), $B_4$ (Pin 11).
+* **Outputs**: $S_1$ (Pin 4), $S_2$ (Pin 1), $S_3$ (Pin 13), $S_4$ (Pin 10), $C_4$ (Pin 9).
+""",
+        "components": [
+            { "name": "74LS283 4-Bit Binary Full Adder", "type": "IC", "value": "DIP-16 Arithmetic Unit", "package": "DIP-16", "pinout": "Pins 1-8 Left, Pins 9-16 Right", "quantity": 1, "image_id": "ic_74ls283" },
+            { "name": "4x Output Indicator LEDs", "type": "LED Array", "value": "3mm Red LEDs", "package": "Radial", "pinout": "Anode/Cathode", "quantity": 4, "image_id": "led_red" },
+            { "name": "Resistor Network (330Ω)", "type": "Resistor", "value": "330 Ω", "package": "Axial", "pinout": "Passive", "quantity": 4, "image_id": "resistor_330" },
+            { "name": "Jumper Wire Kit", "type": "Wire", "value": "Assorted Colors", "package": "M-M", "pinout": "Connecting bus", "quantity": 10, "image_id": "jumper_wires" }
+        ],
+        "initial_schematic": {
+            "components": [
+                { "id": "U1", "type": "IC_DIP16", "pin_start_left": "E5", "pin_start_right": "F5" }
+            ],
+            "target_connections": [
+                { "step": 1, "action": "PLACE_COMPONENT", "component_id": "U1", "from": "E5", "to": "F12", "color": "darkgray", "description": "Place the 74LS283 DIP-16 adder across center divider spanning rows 5 to 12.", "spoken_instruction": "Seat the 74LS283 adder across the center trough between rows 5 and 12." },
+                { "step": 2, "action": "DRAW_WIRE", "from": "A12", "to": "POWER_MINUS_12", "color": "black", "description": "Connect Pin 8 (GND, row 12 left) to negative rail.", "spoken_instruction": "Tie Pin 8 in row 12 to the ground rail." },
+                { "step": 3, "action": "DRAW_WIRE", "from": "J5", "to": "POWER_PLUS_5", "color": "red", "description": "Connect Pin 16 (VCC, row 5 right) to +5V rail.", "spoken_instruction": "Connect Pin 16 in row 5 on the right side to the positive rail." },
+                { "step": 4, "action": "DRAW_WIRE", "from": "A11", "to": "POWER_MINUS_11", "color": "black", "description": "Tie Pin 7 (Carry In C0, row 11) to GND for zero initial carry.", "spoken_instruction": "Ground Pin 7 in row 11 to set initial Carry-In to zero." },
+                { "step": 5, "action": "DRAW_WIRE", "from": "B9", "to": "POWER_PLUS_9", "color": "orange", "description": "Set A1 (Pin 5, row 9) HIGH (binary 1).", "spoken_instruction": "Set input A1 High by tying pin 5 in row 9 to 5 volts." },
+                { "step": 6, "action": "DRAW_WIRE", "from": "B10", "to": "POWER_PLUS_10", "color": "orange", "description": "Set B1 (Pin 6, row 10) HIGH (binary 1).", "spoken_instruction": "Set input B1 High by tying pin 6 in row 10 to 5 volts. 1 plus 1 equals binary 10." },
+                { "step": 7, "action": "DRAW_WIRE", "from": "B8", "to": "B18", "color": "yellow", "description": "Route Sum S1 (Pin 4, row 8) to LED display row 18.", "spoken_instruction": "Connect Sum bit 1 from pin 4 in row 8 to indicator row 18." },
+                { "step": 8, "action": "DRAW_WIRE", "from": "B5", "to": "B22", "color": "yellow", "description": "Route Sum S2 (Pin 1, row 5) to LED display row 22.", "spoken_instruction": "Connect Sum bit 2 from pin 1 in row 5 to indicator row 22. Sum bit 2 lights up with carry generation!" }
+            ]
+        }
+    },
+
+    # =========================================================================
+    # LEVEL 4: COMPUTER ARCHITECTURE & MCUs
+    # =========================================================================
+    {
+        "id": "arch_01_cpu_register",
+        "level": 4,
+        "level_title": "Level 4: Computer Architecture & MCUs",
+        "topic": "CPU Registers & Memory",
+        "title": "8-Bit CPU Register with 74LS377 Octal D-Flip-Flop",
+        "difficulty": "Advanced",
+        "summary": "Build the foundational A/B general purpose registers of an 8-bit breadboard CPU computer.",
+        "problem_text": """## Challenge 7: 8-Bit CPU Register
+
+In computer architecture (such as the SAP-1 or Ben Eater 8-bit CPU), the CPU registers store data words between arithmetic operations. 
+
+The **74LS377** contains eight positive-edge-triggered D-type flip-flops with a common clock enable ($\\overline{E}$) and clock input ($CLK$).
+* When $\\overline{E} = 0$, incoming data on $D_0 \\dots D_7$ is latched into the register on the rising clock edge.
+* When $\\overline{E} = 1$, the register ignores clock pulses and retains its stored state indefinitely.
+""",
+        "components": [
+            { "name": "74LS377 Octal D-Type Flip-Flop", "type": "IC", "value": "DIP-20 Package", "package": "DIP-20", "pinout": "Pin 1: Enable, Pin 10: GND, Pin 11: CLK, Pin 20: VCC", "quantity": 1, "image_id": "ic_74ls377" },
+            { "name": "8-Bit LED Bargraph or LEDs", "type": "Display", "value": "Red Bar Graph", "package": "DIP-16", "pinout": "Anodes/Cathodes", "quantity": 1, "image_id": "led_bargraph" },
+            { "name": "330Ω SIP Resistor Array", "type": "Resistor", "value": "8x 330Ω Isolated", "package": "SIP-9", "pinout": "Common bus", "quantity": 1, "image_id": "resistor_sip" },
+            { "name": "Tactile Pushbutton", "type": "Switch", "value": "6mm Momentary", "package": "Through-Hole", "pinout": "SPST-NO", "quantity": 1, "image_id": "switch_push" }
+        ],
+        "initial_schematic": {
+            "components": [
+                { "id": "U1", "type": "IC_DIP20", "pin_start_left": "E4", "pin_start_right": "F4" }
+            ],
+            "target_connections": [
+                { "step": 1, "action": "PLACE_COMPONENT", "component_id": "U1", "from": "E4", "to": "F13", "color": "darkgray", "description": "Place the 74LS377 register IC spanning rows 4 to 13 across the center trough.", "spoken_instruction": "Seat the 74LS377 register IC across rows 4 to 13 with the notch facing row 1." },
+                { "step": 2, "action": "DRAW_WIRE", "from": "A13", "to": "POWER_MINUS_13", "color": "black", "description": "Connect Pin 10 (GND, row 13 left) to ground rail.", "spoken_instruction": "Ground Pin 10 in row 13." },
+                { "step": 3, "action": "DRAW_WIRE", "from": "J4", "to": "POWER_PLUS_4", "color": "red", "description": "Connect Pin 20 (VCC, row 4 right) to +5V rail.", "spoken_instruction": "Connect Pin 20 in row 4 to the positive 5 volt rail." },
+                { "step": 4, "action": "DRAW_WIRE", "from": "A4", "to": "POWER_MINUS_4", "color": "black", "description": "Tie Pin 1 (Enable /E, row 4 left) to GND to enable data latching.", "spoken_instruction": "Tie Pin 1 in row 4 to ground to enable register data write." },
+                { "step": 5, "action": "DRAW_WIRE", "from": "J13", "to": "POWER_PLUS_13", "color": "yellow", "description": "Route Clock signal line to Pin 11 (row 13 right).", "spoken_instruction": "Route your master clock signal into Pin 11 in row 13." },
+                { "step": 6, "action": "DRAW_WIRE", "from": "B5", "to": "POWER_PLUS_5", "color": "orange", "description": "Set Data Bit 0 (Pin 3, row 5 left) to HIGH.", "spoken_instruction": "Set Data input D0 high by tying pin 3 to 5 volts." },
+                { "step": 7, "action": "DRAW_WIRE", "from": "B6", "to": "B20", "color": "green", "description": "Route Output Q0 (Pin 2, row 4 left) to output indicator LED bus.", "spoken_instruction": "Connect Output Q0 to your LED register display bus. On the rising edge of the clock, the bit is latched into CPU memory!" }
+            ]
+        }
+    }
+]
+
+def seed_database():
+    print("=================================================================")
+    print("       VENTUNO CIRCUITS LAB — CURRICULUM SEEDER & SYNC           ")
+    print("=================================================================")
+
+    # 1. Ensure local JSON cache directory exists
+    os.makedirs(os.path.dirname(OFFLINE_JSON_PATH), exist_ok=True)
+    with open(OFFLINE_JSON_PATH, "w", encoding="utf-8") as f:
+        json.dump(CURRICULUM_DATA, f, indent=2)
+    print(f"[JSON] Saved {len(CURRICULUM_DATA)} rich challenges to {OFFLINE_JSON_PATH}")
+
+    # 2. Attempt LanceDB synchronization if installed
+    try:
+        import lancedb
+        os.makedirs(LANCEDB_DIR, exist_ok=True)
+        db = lancedb.connect(LANCEDB_DIR)
+        
+        # Flatten structure for LanceDB tabular representation
+        records = []
+        for prob in CURRICULUM_DATA:
+            records.append({
+                "id": prob["id"],
+                "level": int(prob["level"]),
+                "level_title": prob["level_title"],
+                "topic": prob["topic"],
+                "title": prob["title"],
+                "difficulty": prob["difficulty"],
+                "summary": prob["summary"],
+                "problem_text": prob["problem_text"],
+                "components_json": json.dumps(prob["components"]),
+                "initial_schematic_json": json.dumps(prob["initial_schematic"]),
+                # Dummy vector representation for offline embedding compatibility
+                "vector": [0.01 * (i + 1) for i in range(384)]
+            })
+
+        table_name = "electronics_curriculum"
+        try:
+            db.drop_table(table_name)
+        except Exception:
+            pass
+
+        db.create_table(table_name, data=records)
+        print(f"[LANCEDB] Successfully created and seeded '{table_name}' table in {LANCEDB_DIR}")
+    except Exception as e:
+        print(f"[LANCEDB NOTICE] LanceDB sync notice: {e} (Offline JSON fallback is active and ready)")
+
+    print("[SUCCESS] Electronics curriculum data pipeline initialized successfully!")
+
+if __name__ == "__main__":
+    seed_database()

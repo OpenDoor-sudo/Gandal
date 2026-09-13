@@ -1538,6 +1538,33 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if self.path.startswith('/offline_sims/'):
             self.path = '/antigravity_labs' + self.path
 
+        # Circuits Lab: Curriculum Catalog API
+        if clean_path == '/api/circuits/curriculum':
+            try:
+                curriculum_file = os.path.join(PROJECT_ROOT, "antigravity_labs", "circuits_lab", "data", "curriculum.json")
+                if os.path.exists(curriculum_file):
+                    with open(curriculum_file, "r", encoding="utf-8") as cf:
+                        probs = json.load(cf)
+                    res_bytes = json.dumps({"success": True, "problems": probs}).encode('utf-8')
+                else:
+                    res_bytes = json.dumps({"success": True, "problems": []}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+
         # Virtual Labs: PubChem / ChEMBL Search API
         if clean_path == '/api/v1/chemistry/database/search':
             query_params = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
@@ -3573,6 +3600,61 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 else:
                     res = {"success": False, "error": "SymPy solver not loaded"}
                 res_bytes = json.dumps(res).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+
+        # Circuits Lab: Socratic Question / AI Walkthrough Debugging
+        if clean_path == '/api/circuits/ask':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                ask_data = json.loads(post_data) if post_data else {}
+                question = ask_data.get("question", "")
+                problem_title = ask_data.get("problemTitle", "Circuit Lab")
+                step_info = f"Step {ask_data.get('currentStep', 1)} of {ask_data.get('totalSteps', 1)}"
+
+                # Baseline Socratic Electronics Teacher guidance
+                answer = (
+                    f"For {problem_title} ({step_info}): Verify that all VCC and GND connections are firmly seated. "
+                    "Always verify component polarity (like LED anode/cathode or the notch on pin 1 of the IC) "
+                    "before powering the rail."
+                )
+
+                # Query Gemini if GOOGLE_API_KEY is configured
+                if os.environ.get("GOOGLE_API_KEY"):
+                    try:
+                        from google import genai
+                        g_client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
+                        prompt = (
+                            f"You are a master electrical engineering instructor guiding a student building on a physical breadboard. "
+                            f"Active Challenge: {problem_title} ({step_info}). "
+                            f"Student asked: '{question}'. "
+                            f"Provide a concise, encouraging, 2-3 sentence Socratic explanation or debugging tip without giving away the full answer."
+                        )
+                        g_res = g_client.models.generate_content(
+                            model="gemini-2.5-flash",
+                            contents=prompt
+                        )
+                        if g_res and g_res.text:
+                            answer = g_res.text.strip()
+                    except Exception as _g_err:
+                        pass
+
+                res_bytes = json.dumps({"success": True, "answer": answer}).encode('utf-8')
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(res_bytes)))
