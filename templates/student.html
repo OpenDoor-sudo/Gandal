@@ -502,22 +502,9 @@
             width: 100%;
         }
 
-        .quiz-submit-btn:hover {
+            .quiz-submit-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
-        }
-            color: #ffffff;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-
-        .quiz-submit-btn:hover {
-            opacity: 0.9;
         }
 
         .quiz-result-box {
@@ -791,8 +778,7 @@
                     </div>
 
                     <div style="position: relative; width: 100%; display: flex; flex-direction: column; background: #000000; border-radius: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);">
-                        <video id="studentVideoPlayer" style="width: 100%; max-height: 480px; object-fit: contain; background: #000; outline: none; cursor: pointer;" onclick="toggleCustomPlayPause()">
-                            <source id="videoSourceEl" src="" type="video/mp4">
+                        <video id="studentVideoPlayer" playsinline webkit-playsinline preload="auto" style="width: 100%; max-height: 480px; object-fit: contain; background: #000; outline: none; cursor: pointer;" onclick="toggleCustomPlayPause()">
                             Your browser does not support the video tag.
                         </video>
                     </div>
@@ -920,6 +906,10 @@
                     <div class="chat-bubble ai">
                         Welcome to your classroom cockpit. Once you select your MCQ answers in Tab 2, upload your handwritten derivation work here to receive evaluation credits!
                     </div>
+                </div>
+                <div style="display:flex; gap:8px; padding: 0.75rem 1rem; border-top: 1px solid var(--border-color);">
+                    <input id="studentChatInput" class="auth-input" placeholder="Ask Gandho…" style="flex:1; margin:0;" onkeydown="if(event.key==='Enter'){sendStudentChatText();}" />
+                    <button type="button" class="upload-btn" style="width:auto; padding: 0.75rem 1rem;" onclick="sendStudentChatText()">Send</button>
                 </div>
             </div>
 
@@ -1426,6 +1416,12 @@
                 }
                 streamPath += `/${encodeURIComponent(vidFileName)}`;
                 vid.src = streamPath;
+                vid.setAttribute("poster", "/static/gandho_avatar.svg");
+                vid.onerror = function () {
+                    if (streamPath.toLowerCase().endsWith(".mp4")) {
+                        vid.src = streamPath.replace(/\.mp4$/i, ".mp3");
+                    }
+                };
 
                 // In classroom mode on student desks, mute video audio so projector plays master sound
                 if (!isProjectorHost) {
@@ -1962,8 +1958,10 @@
             }
 
             let html = '';
+            window._quizAnswerKey = {};
             questionsList.forEach((q, idx) => {
-                const qId = q.id || (idx + 1);
+                const qId = String(q.id || (idx + 1));
+                if (q.correct) window._quizAnswerKey[qId] = String(q.correct).toUpperCase();
                 const qText = q.question;
                 const opts = q.options || {};
                 html += `<div class="question-card">
@@ -2019,13 +2017,15 @@
 
             console.log("[SUBMIT EVALUATION] Answers:", answers);
 
-            // Local immediate calculation for instant feedback & DB sync
             let correctCount = 0;
             const totalCount = cards.length;
-            cards.forEach((card, idx) => {
+            const key = window._quizAnswerKey || {};
+            cards.forEach((card) => {
                 const checked = card.querySelector('input[type="radio"]:checked');
-                // Option A is correct for sample demo questions
-                if (checked && checked.value === "A") {
+                const name = checked && checked.name;
+                const qId = name ? name.replace('q', '') : '';
+                const expected = (key[qId] || key[String(qId)] || '').toString().toUpperCase();
+                if (checked && expected && checked.value.toUpperCase() === expected) {
                     correctCount++;
                 }
             });
@@ -2120,41 +2120,47 @@
                     try { await lkStudentRoom.disconnect(); } catch(e) {}
                     lkStudentRoom = null;
                 }
-                const roomRand = Math.floor(1000 + Math.random() * 9000);
-                const roomName = `socratic_tutor_room_${roomRand}`;
                 const sMode = (authStudyMode === 'pod' ? 'POD' : 'CLASSROOM');
                 const sName = currentStudentId || 'Student';
-                const res = await fetch(`/token?room=${encodeURIComponent(roomName)}&identity=${encodeURIComponent(sName)}&name=${encodeURIComponent(sName)}&mode=${encodeURIComponent(sMode)}&video_id=${encodeURIComponent(activeVideoId)}`);
+                const res = await fetch(`/token?identity=${encodeURIComponent(sName)}&name=${encodeURIComponent(sName)}&mode=${encodeURIComponent(sMode)}&video_id=${encodeURIComponent(activeVideoId)}&online=${navigator.onLine ? "1" : "0"}`);
                 const tokenData = await res.json();
                 const token = tokenData.token;
-                const wsUrl = "wss://gandaledu-uqy2on78.livekit.cloud";
+                const roomUsed = tokenData.room || 'socratic_tutor_room';
+                const urls = [tokenData.url || tokenData.livekitUrl, ...(tokenData.fallbacks || [])].filter(Boolean);
+                const wsUrl = urls[0] || "ws://localhost:7880";
+                console.log("[STUDENT LIVEKIT] Token", { url: wsUrl, room: roomUsed, engine: tokenData.engine, model: tokenData.model, dispatched: tokenData.agent_dispatched });
 
                 lkStudentRoom = new LivekitClient.Room({
                     adaptiveStream: true,
                     dynacast: true,
+                    autoSubscribe: true,
+                    webAudioMix: false,
                     audioCaptureDefaults: {
                         autoGainControl: true,
                         echoCancellation: true,
                         noiseSuppression: true,
                     },
+                    audioPreset: LivekitClient.AudioPresets.speech,
                     publishDefaults: {
                         audioPreset: LivekitClient.AudioPresets.speech,
-                        dtx: true,
+                        dtx: false,
                     },
                 });
 
                 lkStudentRoom.on(LivekitClient.RoomEvent.Connected, () => {
-                    console.log("[STUDENT LIVEKIT] Connected to room successfully:", roomName);
+                    console.log("[STUDENT LIVEKIT] Connected to room successfully:", roomUsed);
                     lkStudentRoom.startAudio().catch(e => console.warn("[START AUDIO WARN]", e));
                 });
 
-                lkStudentRoom.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
-                    if (track.kind === "audio") {
+                lkStudentRoom.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                    if (track.kind === "audio" && !(participant && participant.isLocal)) {
                         console.log("[STUDENT LIVEKIT] Tutor audio track subscribed. Attaching and playing...");
                         if (lkStudentAudioEl) lkStudentAudioEl.remove();
                         lkStudentAudioEl = track.attach();
                         lkStudentAudioEl.autoplay = true;
                         lkStudentAudioEl.playsInline = true;
+                        lkStudentAudioEl.muted = false;
+                        lkStudentAudioEl.volume = 1;
                         lkStudentAudioEl.setAttribute("playsinline", "true");
                         lkStudentAudioEl.setAttribute("webkit-playsinline", "true");
                         document.body.appendChild(lkStudentAudioEl);
@@ -2176,14 +2182,26 @@
                     }
                 });
 
-                await lkStudentRoom.connect(wsUrl, token);
+                let connected = false;
+                let lastErr = null;
+                for (const candidate of urls.length ? urls : [wsUrl]) {
+                    try {
+                        await lkStudentRoom.connect(candidate, token);
+                        connected = true;
+                        break;
+                    } catch (e) {
+                        lastErr = e;
+                        console.warn("[STUDENT LIVEKIT] connect failed", candidate, e);
+                    }
+                }
+                if (!connected) throw lastErr || new Error("LiveKit connect failed");
                 await lkStudentRoom.startAudio();
                 await lkStudentRoom.localParticipant.setMicrophoneEnabled(true, {
                     echoCancellation: true,
                     noiseSuppression: true,
                     autoGainControl: true,
                 });
-                console.log("[STUDENT LIVEKIT] Connected and mic live in room:", roomName);
+                console.log("[STUDENT LIVEKIT] Connected and mic live in room:", roomUsed);
             } catch (err) {
                 console.error("[STUDENT LIVEKIT ERROR]", err);
             }
@@ -2202,6 +2220,24 @@
                 }
             } catch (e) {
                 console.warn("[STUDENT LIVEKIT STOP]", e);
+            }
+        }
+
+        function sendStudentChatText() {
+            const input = document.getElementById('studentChatInput');
+            const val = (input && input.value || '').trim();
+            if (!val) return;
+            appendStudentChatMessage(currentStudentId || "You", val);
+            input.value = '';
+            if (wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+                wsSocket.send(JSON.stringify({
+                    action: "RAISE_HAND",
+                    question: val,
+                    student_id: currentStudentId,
+                    video_id: activeVideoId,
+                    mode: "chat_typed",
+                    locale: "fr_FR"
+                }));
             }
         }
 
@@ -2235,6 +2271,16 @@
                     }));
                 }
                 await startStudentLiveKitSession();
+                if (wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+                    wsSocket.send(JSON.stringify({
+                        action: "RAISE_HAND",
+                        question: "The student raised the microphone. Greet them as Gandho and tutor the current lesson Socratically.",
+                        student_id: currentStudentId,
+                        video_id: activeVideoId,
+                        mode: "voice",
+                        locale: "fr_FR"
+                    }));
+                }
             } else {
                 isMicStreaming = false;
                 if (btn) btn.classList.remove('active-streaming');
@@ -2291,6 +2337,14 @@
 
         function handleServerMessage(data) {
             const vid = document.getElementById('studentVideoPlayer');
+            const tutorText = data.text || (data.a2ui_payload && data.a2ui_payload.text) || (data.a2ui_payload && data.a2ui_payload.data && data.a2ui_payload.data.socratic_text);
+            if ((data.action === "CHAT_RESPONSE" || data.a2ui_payload) && tutorText) {
+                appendStudentChatMessage("Gandho (Tutor)", tutorText);
+                try {
+                    const audio = new Audio(`/api/tts?locale=fr_FR&text=${encodeURIComponent(tutorText)}`);
+                    audio.play().catch(() => {});
+                } catch (e) {}
+            }
             if (data.action === "POD_MEDIA_CONTROL") {
                 if (vid) {
                     isRemoteMediaControl = true;
@@ -2382,15 +2436,25 @@
             if (modal) modal.style.display = 'none';
         }
 
-        function verifyProctorPin() {
+        async function verifyProctorPin() {
             const pinInput = document.getElementById('proctorPinInput');
             const pinVal = (pinInput ? pinInput.value : '').trim();
-            // Default PIN 1234 or admin
-            if (pinVal === '1234' || pinVal.toLowerCase() === 'admin') {
-                document.getElementById('proctorPinView').style.display = 'none';
-                document.getElementById('proctorControlsView').style.display = 'block';
-                loadProctorCurrentMode();
-            } else {
+            try {
+                const res = await fetch('/api/verify_proctor_pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: pinVal })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('proctorPinView').style.display = 'none';
+                    document.getElementById('proctorControlsView').style.display = 'block';
+                    document.getElementById('proctorPinError').style.display = 'none';
+                    loadProctorCurrentMode();
+                } else {
+                    document.getElementById('proctorPinError').style.display = 'block';
+                }
+            } catch (e) {
                 document.getElementById('proctorPinError').style.display = 'block';
             }
         }
@@ -2525,7 +2589,7 @@
             <div id="proctorPinView" style="padding: 24px; display: flex; flex-direction: column; gap: 14px;">
                 <p style="margin: 0; font-size: 0.85rem; color: #a1a1aa;">Enter Teacher / Admin PIN to modify classroom configuration:</p>
                 <div style="display: flex; gap: 10px;">
-                    <input type="password" id="proctorPinInput" placeholder="Enter PIN (Default: 1234)" style="flex: 1; padding: 10px 14px; background: #15151c; border: 1px solid #333344; color: #fff; border-radius: 8px; font-size: 0.9rem; outline: none;" onkeydown="if(event.key==='Enter') verifyProctorPin()">
+                    <input type="password" id="proctorPinInput" placeholder="Enter PIN" style="flex: 1; padding: 10px 14px; background: #15151c; border: 1px solid #333344; color: #fff; border-radius: 8px; font-size: 0.9rem; outline: none;" onkeydown="if(event.key==='Enter') verifyProctorPin()">
                     <button onclick="verifyProctorPin()" style="background: #a855f7; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer;">Unlock</button>
                 </div>
                 <div id="proctorPinError" style="display: none; color: #f87171; font-size: 0.8rem;">Incorrect PIN. Please try again.</div>

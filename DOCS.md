@@ -2,7 +2,7 @@
 
 > **System Name**: Ventuno AI Socratic Tutor (Codename: **GANDHO**)  
 > **Target Platform**: Arduino Ventuno Q Edge Hardware & Web Ecosystem  
-> **Core Architecture**: Dual-Engine (Online Gemini 3.1 Live WebRTC + 100% Offline Local Gemma 4 NPU / Hugging Face S2S Framework) + Hybrid RAG (Retrieval-Augmented Generation)  
+> **Core Architecture**: Dual-Engine (Online Gemini Flash Live via LiveKit + offline Whisper/LLM/Kokoro cascade) + Hybrid RAG  
 > **Pedagogical Philosophy**: Socratic Guidance (Guiding students through critical questioning rather than direct answer dumps)
 
 ---
@@ -16,7 +16,7 @@
 5. [Database Schemas & Data Storage](#5-database-schemas--data-storage)
 6. [Detailed Feature & Subsystem Breakdown](#6-detailed-feature--subsystem-breakdown)
    - [6.1 Dual-Mode Socratic Voice Agent (GANDHO: Online & Offline)](#61-dual-mode-socratic-voice-agent-gandho-online--offline)
-   - [6.2 Hugging Face Speech-to-Speech (S2S) Offline Framework & Gemma 4 NPU Acceleration](#62-hugging-face-speech-to-speech-s2s-offline-framework--gemma-4-npu-acceleration)
+   - [6.2 Offline Gemma 4 E4B native audio + Kokoro, Gemini Flash Live fallback](#62-offline-gemma-4-e4b-native-audio--kokoro-gemini-flash-live-fallback)
    - [6.3 Video Player & Hardened Synced Textbook Drawer](#63-video-player--hardened-synced-textbook-drawer)
    - [6.4 Split Study Workspace & Spatius 3D Avatar Engine](#64-split-study-workspace--spatius-3d-avatar-engine)
    - [6.5 Document Picture-in-Picture (PiP) & Docking](#65-document-picture-in-picture-pip--docking)
@@ -30,13 +30,8 @@
    - [6.13 Omni Graph Engine (Calculus & Mathematical Function Grapher)](#613-omni-graph-engine-calculus--mathematical-function-grapher---port-8085)
    - [6.14 App Launcher Menu & Streamlined Top Navigation](#614-app-launcher-menu--streamlined-top-navigation)
    - [6.15 Hardened Video Startup Sequence & Performance Architecture](#615-hardened-video-startup-sequence--performance-architecture)
-   - [6.16 Voice Agent "Lab Telekinesis" & Live Simulation Control](#616-voice-agent-lab-telekinesis--live-simulation-control)
-   - [6.17 Zero-Asset Procedural Web Audio Engine (lab_audio.js)](#617-zero-asset-procedural-web-audio-engine-labaudiojs)
-   - [6.18 Interactive Lab Challenges & Gamified Badges Engine (lab_challenges.js)](#618-interactive-lab-challenges--gamified-badges-engine-labchallengesjs)
-   - [6.19 Dynamic Network Health Watcher & Auto-Failover Orchestrator (run_agent.py)](#619-dynamic-network-health-watcher--auto-failover-orchestrator-runagentpy)
 7. [Offline Pre-Processing & Device Ingestion Pipeline](#7-offline-pre-processing--device-ingestion-pipeline)
 8. [Setup, Execution & Maintenance Commands](#8-setup-execution--maintenance-commands)
-9. [System Modularity & Architectural Boundary Report](#9-system-modularity--architectural-boundary-report)
 
 ---
 
@@ -45,9 +40,9 @@
 The **Ventuno AI Socratic Tutor System** is a state-of-the-art educational platform designed to empower K-12 and higher-education students through personalized, interactive Socratic learning. Named **GANDHO** (the Socratic Tutor), the AI system acts as a personal mentor, asking probing questions, offering step-by-step hints, evaluating mastery through 85%+ gated assessments, and observing the student's work via camera and screen sharing.
 
 ### Key Innovations:
-- **Dual-Engine Voice Agent**:
-  - **Online Mode**: High-fidelity multimodal streaming using `gemini-3.1-flash-live-preview` via LiveKit WebRTC.
-  - **Offline Mode**: 100% local, low-latency, full-duplex voice agent using Hugging Face S2S principles, Silero VAD micro-chunking, local Gemma 4 E4B on the Qualcomm Hexagon NPU, and local Kokoro-82M TTS.
+- **Dual-Engine Voice Agent** (one LiveKit worker):
+  - **Offline (Ventuno Q)**: Gemma 4 E4B native audio in + Kokoro TTS out. No Faster-Whisper. Pin with `FORCE_OFFLINE=1`.
+  - **Online / fallback**: Gemini Flash Live two-way duplex when the student is online, or when Gemma cannot complete a turn.
 - **OKF Student Memory Graph (`student_memory.py`)**: Persistent, model-agnostic student personalization reading/writing Markdown profile graphs (`subject_*.md`, `session_state.md`) in `student_profiles/`.
 - **Interactive 3D WebGL Avatar**: Lip-synced 3D character powered by the Spatius WebGL engine.
 - **Gated Progression**: Students must pass 85%+ evaluation assessments before unlocking subsequent lessons in a subject track.
@@ -84,16 +79,16 @@ The production system targets the **Arduino Ventuno Q** edge AI compute board wi
 
 ### **Backend Server (`display_client.py` & Auxiliary Daemons)**:
 - **Framework**: Python 3.14+ web server running on `http://127.0.0.1:8000` (WebSocket coordinator on port `8001`).
-- **Session Synchronization**: Synchronizes active lesson state bidirectionally via `/get_active_session`, `/save_active_session`, and absolute path `c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json`.
-- **Media Delivery**: Threaded HTTP server supporting RFC 7233 byte-range streaming (`206 Partial Content`) for high-bitrate MP4 lecture playback and seek restoration.
+- **Session Synchronization**: Writes active lesson state to `active_session.json` in the project root (`/get_active_session`, `/save_active_session`).
+- **Media Delivery**: Threaded HTTP server supporting RFC 7233 byte-range streaming (`206 Partial Content`) for lecture playback and seek restoration.
 - **Telemetry Bridge**: UDP Socket Receiver on port `9999` for hardware hand-raise signals; forwarder on port `8002` to orchestrator.
 - **AI Orchestration & Translation**: `orchestrator.py` & `qwen_omni_client.py` for local LLM health checks; Gemma 4 translation proxy with locale-equality bypass (`active_locale == instructor_locale`).
 - **Graphing Microservice**: `server.py` inside `antigravity_labs/omni_graph_engine/` running on `http://127.0.0.1:8085`.
 
 ### **LiveKit Voice Agent Stack (`livekit_stack/agent/`)**:
-- **Online Agent (`tutor_agent.py`)**: `gemini-3.1-flash-live-preview` via `livekit.plugins.google.realtime` (`mutable = True` hotpatch applied).
-- **Offline Agent (`tutor_agent_offline.py`)**: `FasterWhisperSTT` (local INT8 Whisper) + `SileroVAD` + OpenAI-compatible local LLM endpoint (`http://localhost:8080/v1` for Gemma 4) + `Kokoro-82M` local TTS.
-- **Watcher (`run_agent.py`)**: Auto-restart wrapper supporting `--offline` flag to toggle agent modes.
+- **Online Agent (`tutor_agent.py`)**: LiveKit dispatcher. Gemini Flash Live (`gemini-3.1-flash-live-preview`) when the student is online; Gemma 4 E4B native audio + Kokoro when offline.
+- **Offline path (`tutor_agent_offline.py`)**: Silero VAD + Gemma 4 E4B native-audio STT (Hugging Face `google/gemma-4-E4B-it` or `GEMMA_AUDIO_URL`) + local Gemma text LLM + Kokoro-82M TTS. No Faster-Whisper.
+- **Watcher (`run_agent.py`)**: Auto-restart wrapper. `--offline` / `FORCE_OFFLINE=1` pins the Gemma+Kokoro path.
 
 ---
 
@@ -134,7 +129,7 @@ flowchart TB
 
     subgraph AgentStack ["LiveKit Voice Agent Stack"]
         OnlineAgent["tutor_agent.py\n(Gemini 3.1 Flash Live)"]
-        OfflineAgent["tutor_agent_offline.py\n(Gemma 4 E4B + Kokoro + VAD)"]
+        OfflineAgent["tutor_agent_offline.py\n(Gemma 4 E4B native audio + Kokoro)"]
     end
 
     Sensor -->|UDP Signal| UDP
@@ -198,18 +193,30 @@ The system relies on **SQLite (`vault.db`)** for relational metadata, **LanceDB*
 - **Personalization via OKF**: Greets the student by name (**Alseny**) and reads student memory profiles from `student_memory.py` (`subject_*.md`, `session_state.md`).
 - **Socratic Method**: Never gives away direct answers. Asks guiding questions, breaks down problems step-by-step, and encourages critical thinking.
 
-### 6.2 Hugging Face Speech-to-Speech (S2S) Offline Framework & Gemma 4 NPU Acceleration
-- **Framework Integration**: Built upon Hugging Face S2S architecture principles for real-time full-duplex voice interaction.
-- **Barge-In (Interruption)**: Silero VAD micro-chunk listening continuously monitors input audio. Detecting human speech instantly flushes the playout buffer and halts ongoing LLM generation.
-- **NPU Execution**: Offloads quantized Gemma 4 E4B to the Qualcomm Hexagon NPU (40 TOPS), leaving CPU memory and compute free for Kokoro TTS and LanceDB vector search.
+### 6.2 Offline Gemma 4 E4B native audio + Kokoro, Gemini Flash Live fallback
+- **Speech in**: Hugging Face Gemma 4 E4B (`google/gemma-4-E4B-it`) native audio encoder. Set `GEMMA_AUDIO_URL` for a sidecar, or `GEMMA_LOAD_LOCAL=1` to load weights in-process. Faster-Whisper is not used.
+- **Speech out**: Kokoro-82M OpenAI-compat TTS (`KOKORO_URL`, compose service `kokoro-tts` on `:8880`).
+- **Reasoning**: Same Gemma E4B over OpenAI-compat (`LOCAL_LLM_URL`, Ollama/llama.cpp).
+- **LiveKit**: One worker (`tutor_agent.py`) owns the room. Policy in `voice_policy.py`:
+  - `FORCE_OFFLINE=1` / `--offline` → always Gemma + Kokoro
+  - student online (`navigator.onLine` saved on `/token`, or Gemini host reachable + API key) → Gemini Flash Live
+  - Gemma/Kokoro crash mid-job + student online → Gemini Flash Live
+- **Barge-in**: Silero VAD + LiveKit `allow_interruptions` on the Gemma path; Gemini Live is native duplex.
 
 ### 6.3 Video Player & Hardened Synced Textbook Drawer
 - **Video Playback**: Custom video player with timeline synchronization.
 - **Hardened Textbook Drawer (`📖`)**: Clicking the Book Icon on the video player or header calls `toggleTextbook(true)`, which **hardens and re-syncs** the drawer PDF to the exact textbook of the currently playing lecture video, even if a custom book (e.g. Baltasar Gracián) was opened inside the drawer earlier.
 
-### 6.4 Split Study Workspace & Spatius 3D Avatar Engine
-- **Workspace Access**: Clicking **`[📚 Espaces d'Étude]`** opens a side-by-side study environment featuring the 3D avatar on the left and a dual PDF/Whiteboard pane on the right.
-- **WebGL Context Preservation**: Whenever `#avatarImgBox` is reparented in the DOM tree, `window.spatiusAvatarManager.stopAvatar()` is called, followed by `startAvatar()` to rebuild the WebGL canvas without context loss.
+### 6.4 Split Study Workspace & Spatius 3D Avatar
+- **Workspace Access**: `[📚 Espaces d'Étude]` opens the split study environment (avatar panel + PDF/whiteboard).
+- **Spatius is not a local offline renderer.** Motion data comes from Spatius cloud (~10–15 KB/s); the 3DGS model (5–10 MB) renders in the browser via WebGL/WebGPU.
+- **You do not need a paid custom avatar to try it.** Free Studio accounts can copy a **public avatar-id** from the Avatar Library. The no-account [Playground](https://playground.spatius.ai/) is evaluation-only and does not give API credentials.
+- **What you must do**:
+  1. Create a free app at [app.spatius.ai](https://app.spatius.ai/) (API Key + App ID).
+  2. Copy a public `avatar-id` (or create one; custom creation is paid after the free-tier one-time slot).
+  3. Put `SPATIUS_API_KEY`, `SPATIUS_APP_ID`, `SPATIUS_AVATAR_ID` in `.env` (see `env.example`).
+  4. The LiveKit **worker** must run `livekit-plugins-spatius` (`AvatarSession.start`) so lip-sync motion is published into the room. A public avatar ID in the browser alone is not enough.
+- **WebGL Context Preservation**: Reparenting `#avatarImgBox` still calls `stopAvatar()` then `startAvatar()`.
 
 ### 6.5 Document Picture-in-Picture (PiP) & Docking
 - **Popout Button (`🗗 Popout`)**: Detaches `#avatarImgBox` into a floating, always-on-top OS window via Browser Document PiP API.
@@ -288,46 +295,6 @@ The system relies on **SQLite (`vault.db`)** for relational metadata, **LanceDB*
 - **Autoplay Resilience**:
   - Catches browser autoplay restrictions (`NotAllowedError`) without throwing unhandled exceptions, cleanly restoring the Play icon `▶` state instead of leaving frozen pause bars.
 
-### 6.16 Voice Agent "Lab Telekinesis" & Live Simulation Control
-- **Multimodal Control Architecture**: Empowers both the online Gemini 3.1 Live agent and local offline voice agent to directly manipulate the Virtual Labs simulation canvas via spoken natural language.
-- **Function Tooling (`tutor_agent.py`)**: Registered `@llm.function_tool` `control_virtual_lab` enabling the model to invoke:
-  - `action="drop_balls"`: Simultaneously unpins and drops suspended Galileo spheres with cyan velocity vector tracking.
-  - `action="set_gravity"`: Adjusts gravitational field constant $g$ (Earth $9.8\text{ m/s}^2$, Moon $1.6\text{ m/s}^2$, Jupiter $24.8\text{ m/s}^2$) and synchronizes UI slider values.
-  - `action="switch_mode"`: Shifts Calculus Lab modes dynamically (`'waves'`, `'kinematics'`, `'orbital'`).
-  - `action="reset"`, `action="pause"`: Manages physical simulation timelines.
-- **Offline Natural Language Parsing (`tutor_agent_offline.py`)**: Employs an instant regex/keyword pattern matcher detecting commands like *"lâche les balles"*, *"drop both spheres"*, *"set gravity to moon"*, and *"switch to orbital mode"* during offline Ollama/Piper sessions.
-- **Dual-Transport Synchronization**:
-  - **LiveKit Data Channel**: Publishes JSON payloads across WebRTC topic `"lab-control"` with sub-millisecond local latency.
-  - **HTTP & WebSocket Broadcast (`display_client.py`)**: Exposes `POST /api/v1/lab/command`, updates `latest_lab_command` in `active_session.json`, and broadcasts `{"action": "LAB_CONTROL"}` to all connected browser sockets on port `8001`.
-- **Client Execution**: Dispatchers in `virtual_labs.js`, `physics_view.js`, and `math_physics.js` execute physical modifications and display animated purple Gandho voice feedback toasts (`🎙️ Gandho: Dropped both spheres!`).
-
-### 6.17 Zero-Asset Procedural Web Audio Engine (`lab_audio.js`)
-- **Zero-Download Footprint**: 100% offline procedural synthesis generated dynamically via the browser's native `AudioContext`. Requires zero MP3/WAV file downloads, eliminating edge storage bloat and caching latency.
-- **Physics-Linked Impact Audio (`playImpactThud(mass, velocity)`)**: Dual-oscillator (sine + triangle) pitch-drop synthesis. Fundamental frequency and gain are dynamically parameterized based on kinetic energy and mass: heavier masses produce low-frequency bass thuds ($40\text{--}70\text{ Hz}$), while light spheres produce higher-pitched clacks ($150\text{--}250\text{ Hz}$).
-- **Continuous Standing Wave Drone (`setWaveDrone(frequency, active)`)**: Dual detuned sine wave oscillators linked to physical standing wave frequencies ($f$) passed through a resonant lowpass filter ($1200\text{ Hz}$) with smooth exponential gain transitions ($0.05\text{s}$ ramping).
-- **Explosive Projectile Launch (`playCannonLaunch()`)**: Bandpass-filtered white noise burst synthesized via procedural buffer combined with a rapidly descending sine pitch glide ($240\text{ Hz} \to 40\text{ Hz}$).
-- **Procedural Victory Chimes (`playSuccessChime()`)**: Ascending 4-note major triad arpeggio ($\text{C}_5, \text{E}_5, \text{G}_5, \text{C}_6$) rendered with decaying bell envelopes for earned challenge badges.
-
-### 6.18 Interactive Lab Challenges & Gamified Badges Engine (`lab_challenges.js`)
-- **Curriculum Mission Objectives**: Real-time evaluation of experimental conditions across Physics and Calculus labs:
-  - 🌕 **Galileo on the Moon (`moon_drop`)**: Set gravity to Lunar ($1.6\text{ m/s}^2$) and release both spheres (+100 XP).
-  - 🪐 **Jupiter High-G (`jupiter_slam`)**: Simulate Jupiter gravity ($24.8\text{ m/s}^2$) and analyze impact kinetics (+150 XP).
-  - 🌊 **Resonant Harmonics (`standing_resonance`)**: Tune standing wave frequency to $6.0\text{ Hz}$ with amplitude $\ge 30\text{ px}$ (+100 XP).
-  - 🎯 **Artillery Marksman (`sniper_range`)**: Achieve projectile flight range $\ge 120\text{ m}$ with initial velocity $35\text{ m/s}$ (+125 XP).
-  - 🛰️ **Low Earth Orbit (`iss_orbit`)**: Stabilize satellite circular orbit at $400\text{ km}$ ISS altitude with exact orbital velocity $v = \sqrt{GM/r}$ (+150 XP).
-- **Persistent Student Ledger**: Backed by SQLite table `student_badges` in `vault.db` with REST endpoints:
-  - `POST /api/v1/badges/award`: Idempotently awards badges with timestamps and XP.
-  - `GET /api/v1/badges/list`: Retrieves all student badges and historical unlock data.
-- **Interactive UI Panel**: Slide-in neon celebration toasts and a collapsible right-hand Mission Drawer updating completion criteria live as simulation variables change.
-
-### 6.19 Dynamic Network Health Watcher & Auto-Failover Orchestrator (`run_agent.py`)
-- **Continuous Connectivity Monitoring**: Performs socket-level probe checks against Google Gemini endpoints (`generativelanguage.googleapis.com:443`) with a 3.0-second timeout.
-- **Dynamic Mode Resolution**:
-  - Automatically launches online `tutor_agent.py` when internet connectivity is verified.
-  - Gracefully fails over to offline `tutor_agent_offline.py` (Ollama Qwen-2.5 + Piper TTS) when internet disconnects.
-- **Self-Healing Background Watcher**: Continuously polls network health every 12 seconds in a background daemon thread. When network status changes, terminates the active child process and smoothly pivots between online and offline modes without user intervention.
-- **Manual Overrides**: Retains explicit CLI control (`--online` / `--offline` flags) for testing and development.
-
 ---
 
 ## 7. Offline Pre-Processing & Device Ingestion Pipeline
@@ -365,11 +332,10 @@ python display_client.py
 python antigravity_labs/omni_graph_engine/server.py 8085
 ```
 
-### **Start LiveKit Voice Agent (Online Mode - Gemini 3.1 Flash Live)**:
+### **Start LiveKit Voice Agent (auto: Gemma+Kokoro offline, Gemini Live when online)**:
 ```bash
 python livekit_stack/agent/run_agent.py start
-# or in dev mode:
-python livekit_stack/agent/run_agent.py dev
+python livekit_stack/agent/run_agent.py --offline start   # pin Gemma E4B + Kokoro
 ```
 
 ### **Ingest Curriculum, Books, and Audiobooks (one-shot bake)**:
@@ -379,45 +345,21 @@ python ingest_curriculum.py
 python ingest_pdf.py --pdf "path/to/Professor_Book.pdf" --title "Advanced Cell Biology" --subject "Biology" --author "Prof. Smith"
 ```
 
-### **Start LiveKit Voice Agent (Offline Mode - Local Gemma 4 NPU + Kokoro)**:
+### **Docker (LiveKit + Gemma sidecar + Kokoro + optional Gemini)**:
 ```bash
-python livekit_stack/agent/run_agent.py --offline start
-# or in dev mode:
-python livekit_stack/agent/run_agent.py --offline dev
+cd livekit_stack
+# Auto policy (Gemini when student is online and GOOGLE_API_KEY is set)
+GOOGLE_API_KEY=... LIVEKIT_URL=ws://localhost:7880 docker compose up --build
+
+# Pin on-device Gemma native audio + Kokoro
+FORCE_OFFLINE=1 docker compose up --build
 ```
+Set `LIVEKIT_URL` in `.env` for both `display_client.py` and compose. Point `GEMMA_AUDIO_URL` at a Gemma 4 E4B native-audio sidecar, or set `GEMMA_LOAD_LOCAL=1` on Ventuno Q.
 
 ### **Check Active Session State API**:
 ```bash
 python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/get_active_session').read().decode())"
 ```
-
----
-
-## 9. System Modularity & Architectural Boundary Report
-
-An architectural review of the repository reveals how modularity is structured across both the frontend and backend layers:
-
-### 🧩 Fully Modular Subsystems (Decoupled, Swappable, Zero-Leaking)
-
-| Subsystem | Location | Coupling Level | Architectural Isolation & Contract |
-| :--- | :--- | :--- | :--- |
-| **Procedural Audio Engine** | `antigravity_labs/web_labs_package/src/audio/lab_audio.js` | **Zero (100% Standalone)** | Pure Web Audio API class. Exports a singleton `labAudio` with no DOM or CSS requirements. Imported by any simulation or component without side effects. |
-| **Gamification & Badges Engine** | `antigravity_labs/web_labs_package/src/challenges/lab_challenges.js` | **Decoupled** | Autonomous state machine managing missions, progress counters, XP rewards, and celebration banners. Mounts into any arbitrary container via `renderSidebarPanel(topicId, mountEl)`. Communicates with backend exclusively via REST (`/api/v1/badges/*`). |
-| **Virtual Labs Modular Suite** | `antigravity_labs/web_labs_package/src/` | **Modular ES6 Architecture** | Split into sub-packages (`audio/`, `challenges/`, `chemistry/`, `physics/`). Root `virtual_labs.js` acts as a dynamic entry point mounting into any DOM root (`mountVirtualLabs(containerElement)`). |
-| **Science Backend Solvers** | `antigravity_labs/chemistry_backend/` | **Standalone Microservice** | Pure computational Python layer isolating RDKit, ChemPy, and SymPy. Can run as an independent REST microservice or local library. |
-| **Omni Graph Engine** | `antigravity_labs/omni_graph_engine/` | **Isolated Microservice** | Runs on its own dedicated port (`8085`) with independent routes, Canvas 2D/WebGL engines, and SymPy numerical pipelines. |
-| **Voice Agent Failover Watcher** | `livekit_stack/agent/run_agent.py` | **Process-Level Decoupled** | Monitors cloud network health and dynamically swaps child processes between `tutor_agent.py` (Gemini) and `tutor_agent_offline.py` (Ollama/Piper). |
-
-### 🏛️ Monolithic Core Shells (By Design for Edge Appliance Deployments)
-
-1. **`index.html` (The Classroom Dashboard Shell)**:
-   - **Role**: Acts as the single-page application (SPA) orchestrator for the hardware appliance.
-   - **Design Rationale**: Bundles HTML, glassmorphic layout tokens, Spatius 3D WebGL avatar canvas, video player, and WebSocket transport in a zero-build file to run directly on the Jetson/Ventuno hardware without requiring Node.js, Webpack, or npm runtime dependencies.
-   - **Modularity Boundary**: Rather than inlining lab code, `index.html` dynamically lazy-loads `virtual_labs.js` via native ES module `import()` only when the student switches to the Virtual Labs view.
-
-2. **`display_client.py` (The Edge Device Hub)**:
-   - **Role**: Unifies local HTTP serving (`port 8000`), WebSocket broadcasting (`port 8001`), UDP hardware signals (`port 9999`), and SQLite database operations (`vault.db`).
-   - **Modularity Boundary**: Acts as an API gateway dispatching to domain solvers (`science_solvers`), vector RAG (`orchestrator`), and session persistence (`active_session.json`).
 
 ---
 *Documentation maintained by Ventuno AI Engineering Team.*

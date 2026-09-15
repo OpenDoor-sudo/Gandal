@@ -149,6 +149,21 @@ if [ "$RIVA_HEALTHY" = false ]; then
 fi
 
 # 8. Process Execution & Redirection (Backgrounded)
+
+# ------------------------------------------------------------------------------
+# LOCAL-FIRST voice stack (Ventuno Q)
+# Gemma 4 E4B @ :8080, Kokoro TTS @ :8880, LiveKit @ :7880, HF S2S bridge
+# Online Gemini Live is fallback only (ONLINE_MODE=1 / --online).
+# ------------------------------------------------------------------------------
+export OFFLINE_MODE="${OFFLINE_MODE:-1}"
+export LIVEKIT_URL="${LIVEKIT_URL:-ws://127.0.0.1:7880}"
+export LOCAL_LLM_URL="${LOCAL_LLM_URL:-http://localhost:8080/v1}"
+export KOKORO_TTS_URL="${KOKORO_TTS_URL:-http://localhost:8880/v1}"
+export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
+export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
+echo "[VOICE] OFFLINE_MODE=$OFFLINE_MODE LIVEKIT_URL=$LIVEKIT_URL"
+echo "[VOICE] LOCAL_LLM_URL=$LOCAL_LLM_URL KOKORO_TTS_URL=$KOKORO_TTS_URL"
+
 echo "[APPLIANCE] Launching dashboard server display_client.py..."
 PID_DISPLAY=$(pgrep -f "display_client.py")
 if [ -n "$PID_DISPLAY" ]; then
@@ -183,5 +198,20 @@ nohup python3 -u sentry_vision.py > sentry_vision.log 2>&1 &
 echo "  [SUCCESS] sentry_vision.py backgrounded (PID: $!, logging to sentry_vision.log)"
 
 echo "======================================================================"
+
+# 9. Local-first LiveKit tutor agent (Gemma + Kokoro / HF S2S)
+if [ -f "livekit_stack/agent/run_agent.py" ]; then
+  echo "[VOICE] Launching offline LiveKit tutor agent..."
+  PID_AGENT=$(pgrep -f "run_agent.py" || true)
+  if [ -n "$PID_AGENT" ]; then
+    kill $PID_AGENT 2>/dev/null || true
+    sleep 1
+  fi
+  nohup python3 -u livekit_stack/agent/run_agent.py start > tutor_agent.log 2>&1 &
+  echo "  [SUCCESS] Offline tutor agent backgrounded (PID: $!, log: tutor_agent.log)"
+else
+  echo "  [INFO] livekit_stack/agent/run_agent.py not found — skip voice agent boot."
+fi
+
 echo "   NVIDIA JETSON ORIN NANO SUPER — HEADLESS APPLIANCE ACTIVE          "
 echo "======================================================================"

@@ -712,6 +712,9 @@
                     <h1>Fleet Control Console <span class="badge">Active</span></h1>
                 </div>
                 <div class="header-actions">
+                    <button class="parent-link-btn" onclick="openProctorPinModal()" title="Change classroom proctor PIN">
+                        <span>Set Proctor PIN</span>
+                    </button>
                     <button class="parent-link-btn" onclick="generateParentLink()" title="Generate Parent Progress Report Link">
                         <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
                         <span>Generate Parent Link</span>
@@ -916,6 +919,23 @@
                     </div>
                 </div>
 
+            </div>
+
+            <div id="fleetView" class="dashboard-card" style="display: none; width: 100%;">
+                <div class="card-header"><h3>Student Fleet</h3><span class="status-indicator">Live roster</span></div>
+                <div id="fleetRosterBody" class="progress-list"></div>
+            </div>
+            <div id="vaultView" class="dashboard-card" style="display: none; width: 100%;">
+                <div class="card-header"><h3>Handwriting Vault</h3><span class="status-indicator">Notebooks + submissions</span></div>
+                <div id="vaultGridBody" class="vault-grid"></div>
+            </div>
+            <div id="trafficView" class="dashboard-card" style="display: none; width: 100%;">
+                <div class="card-header"><h3>Traffic Control</h3><span class="status-indicator">Sockets &amp; pods</span></div>
+                <div id="trafficBody" class="mesh-stats-grid"></div>
+            </div>
+            <div id="networkLogsView" class="dashboard-card" style="display: none; width: 100%;">
+                <div class="card-header"><h3>Network Logs</h3><span class="status-indicator">Live events</span></div>
+                <div id="networkLogsBody" class="mesh-log-panel"></div>
             </div>
 
             <!-- Teacher Management View -->
@@ -1510,31 +1530,119 @@
         }
 
         // Sidebar Navigation click visual feedback
+        function hideAdminViews() {
+            ['analyticsView','teacherView','feedbackView','fleetView','vaultView','trafficView','networkLogsView'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.style.display = 'none';
+            });
+        }
+
         function selectNavItem(name, element) {
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.classList.remove('active');
             });
             element.classList.add('active');
-            showToast("Navigation", `Switched tab context to '${name}'`);
-            
-            const analyticsView = document.getElementById('analyticsView');
-            const teacherView = document.getElementById('teacherView');
-            const feedbackView = document.getElementById('feedbackView');
-            
+            hideAdminViews();
+
             if (name === 'Teacher Management') {
-                if (analyticsView) analyticsView.style.display = 'none';
-                if (teacherView) teacherView.style.display = 'block';
-                if (feedbackView) feedbackView.style.display = 'none';
+                document.getElementById('teacherView').style.display = 'block';
                 loadFullCurriculumCatalog();
             } else if (name === 'Student Feedback') {
-                if (analyticsView) analyticsView.style.display = 'none';
-                if (teacherView) teacherView.style.display = 'none';
-                if (feedbackView) feedbackView.style.display = 'block';
+                document.getElementById('feedbackView').style.display = 'block';
                 loadAdminFeedbackData();
+            } else if (name === 'Student Fleet') {
+                document.getElementById('fleetView').style.display = 'block';
+                loadFleetRoster();
+            } else if (name === 'Handwriting Vault') {
+                document.getElementById('vaultView').style.display = 'block';
+                loadHandwritingVault();
+            } else if (name === 'Traffic Control') {
+                document.getElementById('trafficView').style.display = 'block';
+                loadTrafficControl();
+            } else if (name === 'Network Logs') {
+                document.getElementById('networkLogsView').style.display = 'block';
+                loadNetworkLogsView();
             } else {
+                const analyticsView = document.getElementById('analyticsView');
                 if (analyticsView) analyticsView.style.display = 'grid';
-                if (teacherView) teacherView.style.display = 'none';
-                if (feedbackView) feedbackView.style.display = 'none';
+                loadFleetMetrics();
+            }
+        }
+
+        async function loadFleetRoster() {
+            const body = document.getElementById('fleetRosterBody');
+            body.innerHTML = 'Loading roster…';
+            try {
+                const [fleetRes, statsRes] = await Promise.all([fetch('/api/get_fleet_students'), fetch('/api/stats')]);
+                const fleet = await fleetRes.json();
+                const stats = await statsRes.json();
+                const mastery = stats.mastery || [];
+                const mastered = mastery.filter(m => m.mastery_achieved).length;
+                const ratio = mastery.length ? Math.round(mastered / mastery.length * 100) : 0;
+                const rows = (fleet.fleet || []).map(s => {
+                    return `<div class="progress-row" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #222;">
+                        <strong style="color:#fff;min-width:120px;">${s.student_id}</strong>
+                        <span style="color:#a1a1aa;font-size:0.8rem;">${s.track || ''}</span>
+                        <span style="margin-left:auto;color:#c084fc;">${s.deployment_type} · ${s.status} · ${ratio}%</span>
+                    </div>`;
+                }).join('') || '<div style="color:#888;">No profiles in vault.db</div>';
+                body.innerHTML = rows;
+            } catch (e) {
+                body.innerHTML = 'Failed to load fleet: ' + e;
+            }
+        }
+
+        async function loadHandwritingVault() {
+            const body = document.getElementById('vaultGridBody');
+            body.innerHTML = 'Loading notebooks…';
+            try {
+                const res = await fetch('/api/saved_notebooks');
+                const data = await res.json();
+                const cards = (data.notebooks || []).map(n => {
+                    const mb = (n.bytes / (1024*1024)).toFixed(2);
+                    return `<div class="pdf-card" onclick="window.open('${n.url}', '_blank')">
+                        <div class="pdf-details">
+                            <span class="pdf-filename">${n.filename}</span>
+                            <span class="pdf-meta">${mb} MB</span>
+                        </div>
+                    </div>`;
+                }).join('');
+                const arch = (data.archives || []).slice(0, 12).map(a => {
+                    const label = a.image_path || a.video_id || a.user_id || JSON.stringify(a).slice(0,80);
+                    return `<div class="pdf-card"><div class="pdf-details"><span class="pdf-filename">${label}</span><span class="pdf-meta">archive</span></div></div>`;
+                }).join('');
+                body.innerHTML = cards + arch || '<div style="color:#888;">No notebooks on disk.</div>';
+            } catch (e) {
+                body.innerHTML = 'Vault error: ' + e;
+            }
+        }
+
+        async function loadTrafficControl() {
+            const body = document.getElementById('trafficBody');
+            try {
+                const res = await fetch('/api/get_network_logs');
+                const data = await res.json();
+                body.innerHTML = `
+                    <div class="mesh-stat"><span class="label">WS clients</span><strong>${data.ws_clients || 0}</strong></div>
+                    <div class="mesh-stat"><span class="label">Pods</span><strong>${(data.pods || []).length}</strong></div>
+                    <div class="mesh-stat"><span class="label">Mic</span><strong>${data.active_mic_speaker || 'idle'}</strong></div>
+                    <div class="mesh-stat"><span class="label">Mode</span><strong>${data.mode || ''}</strong></div>
+                `;
+            } catch (e) {
+                body.innerHTML = 'Traffic error: ' + e;
+            }
+        }
+
+        async function loadNetworkLogsView() {
+            const body = document.getElementById('networkLogsBody');
+            try {
+                const res = await fetch('/api/get_network_logs');
+                const data = await res.json();
+                const logs = data.logs || [];
+                body.innerHTML = logs.length ? logs.map(l => `<div class="mesh-log-entry"><span class="time">[${l.time}]</span><span class="msg">${l.msg}</span></div>`).join('') : '<div class="mesh-log-entry"><span class="msg">No events yet. Raise-hand, class mode, and WS joins will appear here.</span></div>';
+            } catch (e) {
+                body.innerHTML = 'Log error: ' + e;
             }
         }
 
@@ -2056,11 +2164,38 @@
         }
 
         // Deploy Patch CTA button visual simulation
-        function deployPatch() {
-            showToast("Deploy Patch", "Deploying system updates and curriculum RAG weights...");
-            setTimeout(() => {
-                showToast("Patch Success", "System patch version 1.4.2 deployed successfully to all active terminals.");
-            }, 1500);
+        async function openProctorPinModal() {
+            const current = prompt("Current proctor PIN (default until changed: 1234)");
+            if (current === null) return;
+            const next = prompt("New PIN (min 4 characters)");
+            if (!next) return;
+            try {
+                const res = await fetch('/api/set_proctor_pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_pin: current, new_pin: next })
+                });
+                const data = await res.json();
+                if (data.success) showToast("PIN updated", "Classroom Settings will now require the new PIN.");
+                else showToast("PIN error", data.error || "Could not update PIN");
+            } catch (e) {
+                showToast("PIN error", String(e));
+            }
+        }
+
+        async function deployPatch() {
+            showToast("Deploy Patch", "Refreshing connected terminals and curriculum cache...");
+            try {
+                const res = await fetch('/api/deploy_patch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ version: 'live' })
+                });
+                const data = await res.json();
+                showToast("Patch Success", `Patch v${data.version || "?"} — ${data.curriculum_files || 0} files, ${data.clients || 0} clients notified.`);
+            } catch (e) {
+                showToast("Patch Error", String(e));
+            }
         }
 
         // Fetch Live SQLite metrics from /api/stats
@@ -2082,6 +2217,7 @@
                 const totalMastery = mastery.length;
                 const masteredCount = mastery.filter(m => m.mastery_achieved).length;
                 const masteryRatio = totalMastery > 0 ? (masteredCount / totalMastery * 100).toFixed(1) : "0.0";
+                const ratioNum = parseFloat(masteryRatio) || 0;
 
                 // Update text metrics
                 document.getElementById('activeTerminalsVal').innerText = totalUsers;
@@ -2098,13 +2234,12 @@
                 }
 
                 users.forEach(user => {
-                    let score = 0;
-                    if (user.user_id === "student_01") {
-                        score = 80;
-                    } else if (user.user_id === "student_02") {
-                        score = 45;
-                    } else {
-                        score = 60;
+                    let score = ratioNum;
+                    const userEvals = (data.evaluations || []).filter(ev => (ev.video_id || '').includes(user.user_id));
+                    if (userEvals.length) {
+                        score = Math.round(userEvals.reduce((a, ev) => a + (ev.raw_score || 0), 0) / userEvals.length);
+                    } else if (totalMastery > 0) {
+                        score = parseFloat(masteryRatio);
                     }
 
                     const isClassroom = user.user_id.includes(':') || user.user_id.startsWith('STU-') || user.user_id.startsWith('PHYS-') || user.user_id.startsWith('CLASS-');
@@ -2146,30 +2281,24 @@
         
         function runLiveLogsSim() {
             const logsPanel = document.getElementById('meshLogs');
-            setInterval(() => {
-                const now = new Date();
-                const timeStr = "[" + now.toTimeString().split(' ')[0] + "]";
-                const randomMsg = simulatedLogs[Math.floor(Math.random() * simulatedLogs.length)];
-                
-                const entry = document.createElement('div');
-                entry.className = 'mesh-log-entry';
-                entry.innerHTML = `
-                    <span class="time">${timeStr}</span>
-                    <span class="msg">${randomMsg}</span>
-                `;
-                logsPanel.appendChild(entry);
-                logsPanel.scrollTop = logsPanel.scrollHeight;
-
-                // Keep log screen compact (limit to 12 rows)
-                while (logsPanel.childElementCount > 12) {
-                    logsPanel.removeChild(logsPanel.firstChild);
-                }
-            }, 3000);
+            const tick = async () => {
+                if (!logsPanel) return;
+                try {
+                    const res = await fetch('/api/get_network_logs');
+                    const data = await res.json();
+                    const logs = data.logs || [];
+                    logsPanel.innerHTML = logs.slice(-12).map(l =>
+                        `<div class="mesh-log-entry"><span class="time">[${l.time}]</span><span class="msg">${l.msg}</span></div>`
+                    ).join('') || `<div class="mesh-log-entry"><span class="msg">Waiting for live WS/UDP events… (${data.ws_clients || 0} clients)</span></div>`;
+                } catch (e) {}
+            };
+            tick();
+            setInterval(tick, 4000);
         }
 
         // Generate Parent Link and copy to clipboard
         async function generateParentLink() {
-            const link = "http://localhost:8000/report";
+            const link = window.location.origin + "/report";
             try {
                 await navigator.clipboard.writeText(link);
                 showToast("Link Generated", "Parent progress report link copied to clipboard!");

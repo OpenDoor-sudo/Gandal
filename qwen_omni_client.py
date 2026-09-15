@@ -16,7 +16,10 @@ def load_env():
             with open(env_path, "r", encoding="utf-8") as f:
                 for line in f:
                     if line.strip() and not line.startswith("#"):
-                        parts = line.strip().split("=", 1)
+                        line = line.strip()
+                        if line.lower().startswith("export "):
+                            line = line[7:].strip()
+                        parts = line.split("=", 1)
                         if len(parts) == 2:
                             k, v = parts
                             k_clean = k.strip()
@@ -1114,13 +1117,31 @@ def generate_chapters_from_text(source_text, locale="en_US"):
 
 def generate_flashcards_from_text(source_text, locale="en_US"):
     lang = "French" if str(locale).lower().startswith("fr") else "English"
-    content = query_llm_text(
-        "Output ONLY a JSON list. No markdown.",
+    user_prompt = (
         f"Create 5 Socratic study flashcards in {lang}. "
         'Each item: {"front": "...", "back": "...", "hint": "..."}.\n'
-        f"Text:\n{source_text[:8000]}",
+        f"Text:\n{source_text[:8000]}"
+    )
+    content = query_llm_text(
+        "Output ONLY a JSON list. No markdown.",
+        user_prompt,
     )
     parsed = parse_llm_json_list(content)
+    if not parsed:
+        google_key = os.environ.get("GOOGLE_API_KEY", "").strip()
+        if google_key:
+            try:
+                from google import genai
+                from google.genai import types
+                client = genai.Client(api_key=google_key)
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=user_prompt,
+                    config=types.GenerateContentConfig(response_mime_type="application/json"),
+                )
+                parsed = parse_llm_json_list(response.text)
+            except Exception as e:
+                print(f"[QWEN OMNI] Gemini flashcard generation failed: {e}")
     if not parsed:
         return []
     cards = []

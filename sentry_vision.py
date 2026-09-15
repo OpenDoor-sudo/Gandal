@@ -1,7 +1,6 @@
-# sentry_vision.py - Camera Presence Tracking Service
-# Hardware: NVIDIA Jetson Orin Nano Super Dev Kit
-# OCR Camera:  Raspberry Pi Camera Module 3 (Standard)  → CSI port 0 / sensor-id=0
-# Webcam Camera: Raspberry Pi Camera Module 3 (Wide-Angle) → CSI port 1 / sensor-id=1
+# sentry_vision.py — presence tracking for Arduino Ventuno Q
+# Desk camera: sentry_vision_desk_01 (USB or CSI as wired on the Ventuno Q).
+# Desktop simulation: CAMERA_CAPTURE_SOURCE=mock
 #
 # The Orin carrier board exposes two native 22-pin RPi-compatible MIPI CSI-2
 # ports.  Both cameras are accessed via the nvarguscamerasrc GStreamer element.

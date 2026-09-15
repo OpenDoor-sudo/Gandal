@@ -4,8 +4,8 @@
  * Right: Step-by-Step Instructions, Objective, Gandho Voice, and Auto-Grading
  */
 
-import { ChemApiClient } from "./chem_api.js";
-import { GandhoLabVoiceAssistant } from "../gandho_voice_helper.js";
+import { ChemApiClient } from "./chem_api.js?v=20260328b";
+import { GandhoLabVoiceAssistant } from "../gandho_voice_helper.js?v=20260328b";
 
 export class ChemistryBench {
   constructor(containerElement, initialMission = "titration") {

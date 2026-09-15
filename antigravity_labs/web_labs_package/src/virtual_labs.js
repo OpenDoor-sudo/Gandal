@@ -3,15 +3,17 @@
  * Provides complete Curriculum Topic Matrix:
  * - Physics Mechanics, Kinematics & SymPy Wave Calculus
  * - Chemistry Bench, RDKit Organic Molecule Designer & PubChem Database
- * - 100% Offline Simulation Viewer & Gandho Socratic Voice Assistant
+ * - Simulation HTML locale Viewer & Gandho Socratic Voice Assistant
  */
 
-import { ChemistryBench } from "./chemistry/chem_bench.js";
-import { PhysicsView } from "./physics/physics_view.js";
-import { RdkitViewer } from "./chemistry/rdkit_viewer.js";
-import { MathPhysicsLab } from "./physics/math_physics.js";
-import { PubchemInspector } from "./chemistry/pubchem_inspector.js";
-import { GandhoLabVoiceAssistant } from "./gandho_voice_helper.js";
+import { ChemistryBench } from "./chemistry/chem_bench.js?v=20260328c";
+import { PhysicsCanvasView } from "./physics/physics_canvas_view.js?v=20260328c";
+import { RdkitViewer } from "./chemistry/rdkit_viewer.js?v=20260328c";
+import { MathPhysicsLab } from "./physics/math_physics.js?v=20260328c";
+import { PubchemInspector } from "./chemistry/pubchem_inspector.js?v=20260328c";
+import { GandhoLabVoiceAssistant } from "./gandho_voice_helper.js?v=20260328c";
+import { saveLabsProgress, getLabsProgress } from "../../shared/lab_progress_store.js";
+import { challengeManager } from "./challenges/lab_challenges.js";
 
 export class VirtualLabsApp {
   constructor(rootContainer) {
@@ -19,6 +21,13 @@ export class VirtualLabsApp {
     this.currentView = "hub";
     this.activeSubModule = null;
     this.activeFilter = "all";
+    if (typeof window !== "undefined" && !window._gandhoBadgeRibbonBound) {
+      window._gandhoBadgeRibbonBound = true;
+      window.addEventListener("gandho-badge-unlock", () => {
+        const slot = document.querySelector("#labAtelierRibbon");
+        if (slot) challengeManager.renderAtelierRibbon(slot);
+      });
+    }
 
     this.topicsCatalog = [
       // --- Physics Topics ---
@@ -74,18 +83,17 @@ export class VirtualLabsApp {
         grade: "Grades 9–12",
         desc: "Aim and fire the cannon! Adjust launch angle, velocity, and air drag to calculate horizontal range and peak trajectory height.",
         icon: "🚀",
-        tags: ["100% Offline Sim", "Kinematics", "Angle & Velocity"]
+        tags: ["Local HTML sim", "Kinematics", "Angle & Velocity"]
       },
       {
         id: "phys_circuits",
         subject: "physics",
-        type: "offline_sim",
-        simPath: "/antigravity_labs/offline_sims/circuit_kit.html",
-        title: "DC Circuit Construction & Ohm's Law",
+        type: "circuits_atelier",
+        title: "Circuits Atelier — Breadboard 3D & Ohm's Law",
         grade: "Grades 6–12",
-        desc: "Build active DC circuits with batteries, resistors, and lightbulbs. Test Ohm's Law (V = IR) and observe real-time electron flow animation.",
+        desc: "Open the Circuits Atelier for guided 3D breadboard builds (LED, resistors, timers, logic). Dual virtual/physical modes with voice walkthrough.",
         icon: "⚡",
-        tags: ["100% Offline Sim", "Ohm's Law (V=IR)", "Electricity"]
+        tags: ["Circuits Atelier", "Ohm's Law (V=IR)", "Breadboard 3D"]
       },
 
       // --- Chemistry Topics ---
@@ -97,7 +105,7 @@ export class VirtualLabsApp {
         grade: "Grades 9–12",
         desc: "Titrate 1.0 M HCl with 1.0 M NaOH. Use Phenolphthalein to identify stoichiometric equivalence at exact pH 7.00 without overshooting.",
         icon: "⚗️",
-        tags: ["ChemPy Microservice", "Equivalence (pH 7)", "Practice Mission"],
+        tags: ["Chemistry bench (local)", "Equivalence (pH 7)", "Practice Mission"],
         missionKey: "titration"
       },
       {
@@ -151,7 +159,7 @@ export class VirtualLabsApp {
         grade: "Grades 7–12",
         desc: "Master the Law of Conservation of Mass! Adjust stoichiometric coefficients to synthesize water (H₂ + O₂ ➔ H₂O) and balance atom tallies.",
         icon: "⚖️",
-        tags: ["100% Offline Sim", "Stoichiometry", "Conservation of Mass"]
+        tags: ["Local HTML sim", "Stoichiometry", "Conservation of Mass"]
       },
       {
         id: "chem_gas_laws",
@@ -162,7 +170,7 @@ export class VirtualLabsApp {
         grade: "Grades 9–12",
         desc: "Pump molecules into an enclosed gas chamber. Heat or cool the gas, move the piston to adjust volume, and watch the pressure gauge react.",
         icon: "💨",
-        tags: ["100% Offline Sim", "Ideal Gas Law", "PV = nRT"]
+        tags: ["Local HTML sim", "Ideal Gas Law", "PV = nRT"]
       }
     ];
 
@@ -194,13 +202,14 @@ export class VirtualLabsApp {
         <!-- Top Navigation Bar -->
         <div class="labs-top-bar">
           <div class="title-group">
-            <h2>🧪 STEM Virtual Lab Center</h2>
-            <span class="lab-badge">K-12 Interactive Lab Studio</span>
+            <h2>🧪 Atelier STEM</h2>
+            <span class="lab-badge">Labs interactifs · voix Gandho</span>
           </div>
           <div style="display: flex; align-items: center; gap: 14px;">
+            <div id="labAtelierRibbon"></div>
             <div id="hubGandhoMicSlot"></div>
             <div style="font-size: 0.85rem; color: #a1a1aa;">
-              100% Offline Local Appliance
+              Guide local · solveurs optionnels
             </div>
           </div>
         </div>
@@ -208,9 +217,9 @@ export class VirtualLabsApp {
         <!-- Hub Body -->
         <div class="stem-hub-container">
           <div class="stem-hub-hero">
-            <h1>STEM Curriculum & Virtual Lab Lessons</h1>
+            <h1>Choisis une expérience</h1>
             <p>
-              Select an experiment module below to begin interactive practice. Equipped with real-time solvers (ChemPy, RDKit, SymPy/SciPy, PubChem/ChEMBL) and Socratic voice tutoring.
+              Parle à Gandho pour lâcher les sphères, changer la gravité, ou passer en ondes / tir / orbite. Les missions du labo s’affichent à droite et tes badges restent sauvegardés.
             </p>
           </div>
 
@@ -248,7 +257,7 @@ export class VirtualLabsApp {
 
                 <div class="topic-footer">
                   <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                    ${t.tags.map(tag => `<span class="card-tag">${tag}</span>`).join('')}
+                    ${t.tags.map(tag => `<span class="card-tag">${tag}</span>`).join('')}${getLabsProgress(t.id)?.completed ? '<span class="card-tag" style="border-color:#2dd4bf;color:#2dd4bf;">Done</span>' : ''}
                   </div>
                   <span style="font-size: 1.1rem; color: #a855f7; font-weight: bold;">➔</span>
                 </div>
@@ -258,6 +267,8 @@ export class VirtualLabsApp {
         </div>
       </div>
     `;
+
+    challengeManager.renderAtelierRibbon(this.root.querySelector("#labAtelierRibbon"));
 
     // Gandho mic button in Hub
     const micSlot = this.root.querySelector("#hubGandhoMicSlot");
@@ -286,37 +297,86 @@ export class VirtualLabsApp {
   }
 
   launchTopic(topic) {
-    window.currentSocraticLabContext = {
-      experiment_id: topic.id,
-      title: topic.title,
-      subject: topic.subject,
-      grade: topic.grade,
-      description: topic.desc,
-      status: `Student is working on ${topic.title}`
-    };
-    if (typeof window.updateActiveViewState === "function") {
-      window.updateActiveViewState();
-    }
+    try {
+      window.currentSocraticLabContext = {
+        experiment_id: topic.id,
+        title: topic.title,
+        subject: topic.subject,
+        grade: topic.grade,
+        description: topic.desc,
+        status: `Student is working on ${topic.title}`
+      };
+      if (typeof window.updateActiveViewState === "function") {
+        window.updateActiveViewState();
+      }
 
-    if (topic.type === "rdkit") {
-      this.launchRdkit();
-    } else if (topic.type === "math_physics") {
-      this.launchMathPhysics();
-    } else if (topic.type === "pubchem") {
-      this.launchPubchem();
-    } else if (topic.type === "offline_sim") {
-      this.launchOfflineSim(topic);
-    } else if (topic.subject === "chemistry") {
-      this.launchChemistry(topic.missionKey);
-    } else if (topic.subject === "physics") {
-      this.launchPhysics(topic.missionKey);
+      try {
+        saveLabsProgress(topic.id, { visits: null });
+        if (typeof window.refreshLauncherProgressDots === "function") {
+          window.refreshLauncherProgressDots();
+        }
+      } catch (_) {}
+
+      if (topic.type === "circuits_atelier") {
+        if (typeof window.selectLauncherTab === "function") {
+          window.selectLauncherTab("circuits_lab");
+        } else if (typeof window.switchView === "function") {
+          window.switchView("circuits_lab");
+        }
+        return;
+      }
+
+      if (topic.type === "rdkit") {
+        this.launchRdkit();
+      } else if (topic.type === "math_physics") {
+        this.launchMathPhysics();
+      } else if (topic.type === "pubchem") {
+        this.launchPubchem();
+      } else if (topic.type === "offline_sim") {
+        this.launchOfflineSim(topic);
+      } else if (topic.subject === "chemistry") {
+        this.launchChemistry(topic.missionKey);
+      } else if (topic.subject === "physics") {
+        this.launchPhysics(topic.missionKey);
+      }
+    } catch (err) {
+      console.error("[VIRTUAL LABS] Failed to open topic", topic && topic.id, err);
+      this.root.innerHTML = `
+        <div class="virtual-labs-wrapper" style="padding:32px;">
+          <button type="button" id="btnBackToHub" class="lab-btn-back">← Back to Lab Center</button>
+          <h2 style="margin-top:24px;">This lab could not open</h2>
+          <p style="color:#a1a1aa;">${String(err && err.message ? err.message : err)}</p>
+        </div>`;
+      const back = this.root.querySelector("#btnBackToHub");
+      if (back) back.addEventListener("click", () => this.renderHub());
     }
+  }
+
+  bindLabChrome(backLabel) {
+    const back = this.root.querySelector("#btnBackToHub");
+    if (back) {
+      if (backLabel) back.textContent = backLabel;
+      back.addEventListener("click", () => {
+        if (this.activeSubModule && typeof this.activeSubModule.stopLoop === "function") {
+          this.activeSubModule.stopLoop();
+        }
+        this.activeSubModule = null;
+        this.renderHub();
+      });
+    }
+    const bar = this.root.querySelector(".labs-top-bar");
+    if (bar && !bar.querySelector("#labAtelierRibbon")) {
+      const slot = document.createElement("div");
+      slot.id = "labAtelierRibbon";
+      bar.appendChild(slot);
+    }
+    challengeManager.renderAtelierRibbon(this.root.querySelector("#labAtelierRibbon"));
   }
 
   launchRdkit() {
     this.currentView = "rdkit";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
@@ -330,7 +390,7 @@ export class VirtualLabsApp {
       </div>
     `;
 
-    this.root.querySelector("#btnBackToHub").addEventListener("click", () => this.renderHub());
+    this.bindLabChrome("← Retour à l’atelier");
     const subContainer = this.root.querySelector("#subViewContainer");
     this.activeSubModule = new RdkitViewer(subContainer);
   }
@@ -338,7 +398,7 @@ export class VirtualLabsApp {
   launchMathPhysics() {
     this.currentView = "math_physics";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
@@ -352,7 +412,7 @@ export class VirtualLabsApp {
       </div>
     `;
 
-    this.root.querySelector("#btnBackToHub").addEventListener("click", () => this.renderHub());
+    this.bindLabChrome("← Retour à l’atelier");
     const subContainer = this.root.querySelector("#subViewContainer");
     this.activeSubModule = new MathPhysicsLab(subContainer);
   }
@@ -360,7 +420,7 @@ export class VirtualLabsApp {
   launchPubchem() {
     this.currentView = "pubchem";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
@@ -374,7 +434,7 @@ export class VirtualLabsApp {
       </div>
     `;
 
-    this.root.querySelector("#btnBackToHub").addEventListener("click", () => this.renderHub());
+    this.bindLabChrome("← Retour à l’atelier");
     const subContainer = this.root.querySelector("#subViewContainer");
     this.activeSubModule = new PubchemInspector(subContainer);
   }
@@ -382,7 +442,7 @@ export class VirtualLabsApp {
   launchChemistry(missionKey = "titration") {
     this.currentView = "chemistry";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
@@ -396,7 +456,7 @@ export class VirtualLabsApp {
       </div>
     `;
 
-    this.root.querySelector("#btnBackToHub").addEventListener("click", () => this.renderHub());
+    this.bindLabChrome("← Retour à l’atelier");
     const subContainer = this.root.querySelector("#subViewContainer");
     this.activeSubModule = new ChemistryBench(subContainer, missionKey);
   }
@@ -404,7 +464,7 @@ export class VirtualLabsApp {
   launchPhysics(missionKey = "free_fall") {
     this.currentView = "physics";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
@@ -418,32 +478,32 @@ export class VirtualLabsApp {
       </div>
     `;
 
-    this.root.querySelector("#btnBackToHub").addEventListener("click", () => this.renderHub());
+    this.bindLabChrome("← Retour à l’atelier");
     const subContainer = this.root.querySelector("#subViewContainer");
-    this.activeSubModule = new PhysicsView(subContainer, missionKey);
+    this.activeSubModule = new PhysicsCanvasView(subContainer, missionKey);
   }
 
   launchOfflineSim(topic) {
     this.currentView = "offline_sim";
     this.root.innerHTML = `
-      <div class="virtual-labs-wrapper" style="height: 100%; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="virtual-labs-wrapper" style="height: 100vh; overflow: hidden; display: flex; flex-direction: column;">
         <div class="labs-top-bar" style="flex-shrink: 0;">
           <div class="title-group">
             <button type="button" id="btnBackToHub" class="lab-btn-back">
               ← Back to Lab Center
             </button>
             <h2>${topic.icon} ${topic.title}</h2>
-            <span class="lab-badge">100% Offline Simulation</span>
+            <span class="lab-badge">Simulation HTML locale</span>
           </div>
           <div id="offlineSimGandhoSlot"></div>
         </div>
-        <div class="offline-sim-container" style="flex: 1; width: 100%; height: 100%; min-height: 0; display: flex; overflow: hidden;">
+        <div class="offline-sim-container" style="flex: 1; width: 100%; height: calc(100vh - 65px); display: flex; overflow: hidden;">
           <iframe class="offline-sim-iframe" src="${topic.simPath}" style="width: 100%; height: 100%; flex: 1; border: none; display: block;"></iframe>
         </div>
       </div>
     `;
 
-    this.root.querySelector("#btnBackToHub").addEventListener("click", () => this.renderHub());
+    this.bindLabChrome("← Retour à l’atelier");
 
     const micSlot = this.root.querySelector("#offlineSimGandhoSlot");
     if (micSlot) {
@@ -454,15 +514,23 @@ export class VirtualLabsApp {
     }
   }
 
-  executeVoiceCommand(cmd) {
-    console.log("[VIRTUAL LABS VOICE ROUTER]", cmd);
-    if (!cmd) return;
+  destroy() {
+    try {
+      if (this.activeSubModule && typeof this.activeSubModule.stopLoop === "function") {
+        this.activeSubModule.stopLoop();
+      }
+    } catch (_) {}
+    this.activeSubModule = null;
+    this.root.innerHTML = "";
+  }
 
+  executeVoiceCommand(cmd) {
+    if (!cmd) return;
     if ((cmd.action === "SWITCH_LAB" || cmd.action === "OPEN_LAB") && cmd.topicId) {
-      this.launchModule(cmd.topicId);
+      const topic = (this.topicsCatalog || []).find((t) => t.id === cmd.topicId);
+      if (topic) this.launchTopic(topic);
       return;
     }
-
     if (this.activeSubModule && typeof this.activeSubModule.executeVoiceCommand === "function") {
       this.activeSubModule.executeVoiceCommand(cmd);
     }

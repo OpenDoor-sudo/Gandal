@@ -853,6 +853,11 @@
                 { time: "04:30", title: "12th Grade: Physics - Thermodynamics", video_id: "vid_physics_02", chapter_id: "physics_pendulums" },
                 { time: "08:45", title: "12th Grade: Physics - Wave Optics", video_id: "vid_physics_03", chapter_id: "physics_pendulums" }
             ],
+            "k12/12th_SM/Economics": [
+                { time: "00:00", title: "01 Les problèmes démographiques", video_id: "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques", chapter_id: "Extraeconomiques" },
+                { time: "00:00", title: "02 Les problèmes sanitaires", video_id: "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires", chapter_id: "Extraeconomiques" },
+                { time: "00:00", title: "03 Problèmes alimentaires", video_id: "vid_economics_extraeconomiques_03_probl_mes_alimentaires", chapter_id: "Extraeconomiques" }
+            ],
             "College": [
                 { time: "01:15", title: "College: Advanced Physics - Pendulum Harmonics", video_id: "vid_physics_01", chapter_id: "physics_pendulums" },
                 { time: "04:30", title: "College: Advanced Physics - Period Calculation", video_id: "vid_physics_02", chapter_id: "physics_pendulums" },
@@ -903,7 +908,9 @@
             document.getElementById('metaStudentTrack').innerText = data.student_track + " Curriculum";
 
             const track = data.student_track || "College";
-            const chapters = CURRICULA_CONFIG[track] || CURRICULA_CONFIG["College"];
+            const chapters = CURRICULA_CONFIG[track]
+                || CURRICULA_CONFIG["k12/12th_SM/Economics"]
+                || CURRICULA_CONFIG["College"];
 
             // Calculate progress ring
             // Progress is calculated as: how many unique chapters in this track have a record with mastery_achieved = true OR evaluation passed = true
@@ -945,7 +952,24 @@
             document.getElementById('progressSummaryDesc').innerHTML = 
                 `Student has mastered <strong>${completedCount} of ${totalChapters}</strong> chapters in the <strong>${track}</strong> learning path.`;
 
-            // Hydrate completed badges
+            const masteredRows = (data.mastery || []).filter(m => m.mastery_achieved);
+            document.querySelectorAll('.badge-card').forEach((el, i) => {
+                if (masteredRows[i]) el.classList.add('active');
+            });
+
+            if (data.notebooks && data.notebooks.length) {
+                const gal = document.getElementById('notebookGallery');
+                if (gal) {
+                    gal.innerHTML = data.notebooks.map(n => {
+                        const mb = ((n.bytes || 0) / (1024 * 1024)).toFixed(2);
+                        return `<div class="notebook-card" onclick="loadPdfPreview('${n.url}', this)">
+                            <div class="notebook-details"><h5>${n.filename}</h5><span>${mb} MB</span></div>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            // Hydrate completed badges (legacy IDs still updated when those videos exist)
             // Badge 1: Harmonics Master (vid_physics_01)
             const physics01Mastered = (data.mastery && data.mastery.some(m => m.video_id === 'vid_physics_01' && m.mastery_achieved)) ||
                                      (data.evaluations && data.evaluations.some(e => e.video_id === 'vid_physics_01' && e.passed));

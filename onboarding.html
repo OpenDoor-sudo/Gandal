@@ -2400,8 +2400,16 @@
                             "locale": chosenLocale
                         }));
                     } else {
-                        console.warn("[WS] Connection offline. Falling back to local redirect.");
-                        setTimeout(dissolveVeil, 500);
+                        console.warn("[WS] Connection offline. Falling back to HTTP onboarding.");
+                        fetch('/api/onboarding_submit', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                name: studentName,
+                                track: serializedTrack,
+                                locale: chosenLocale
+                            })
+                        }).finally(() => setTimeout(dissolveVeil, 400));
                     }
                 });
             } catch (e) {

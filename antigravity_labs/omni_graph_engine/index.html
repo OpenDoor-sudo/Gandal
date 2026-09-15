@@ -57,7 +57,7 @@
           />
 
           <!-- Right Action Button: Microphone (Voice to Math) -->
-          <button type="button" class="pill-icon-btn pill-mic-btn" id="btnVoiceInput" title="Speak math formula">
+          <button type="button" class="pill-icon-btn pill-mic-btn" id="btnVoiceInput" title="Speak a math formula" aria-label="Speak a math formula">
             <!-- Sleek Voice / Broadcast Wave Icon (matching user reference) -->
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="2.2" fill="currentColor"></circle>
@@ -66,6 +66,8 @@
             </svg>
           </button>
         </div>
+
+        <div class="graph-voice-status" id="graphVoiceStatus" hidden></div>
 
         <!-- Active Multi-Curve Legend & Comparison Chips -->
         <div class="active-curves-bar" id="activeCurvesBar"></div>
@@ -187,6 +189,23 @@
     };
     let currentRenderedVars = [];
 
+    const voiceStatusEl = document.getElementById("graphVoiceStatus");
+    let voiceStatusTimer = null;
+    const showVoiceStatus = (text, isError = false) => {
+      if (!voiceStatusEl) return;
+      voiceStatusEl.hidden = !text;
+      voiceStatusEl.textContent = text || "";
+      voiceStatusEl.classList.toggle("error", Boolean(isError));
+      if (voiceStatusTimer) clearTimeout(voiceStatusTimer);
+      if (text && !isError) {
+        voiceStatusTimer = setTimeout(() => {
+          if (!btnVoice?.classList.contains("listening")) {
+            voiceStatusEl.hidden = true;
+          }
+        }, 4000);
+      }
+    };
+
     // Initialize Master Engine
     const engine = new OmniGraphEngine({
       container: mountPoint,
@@ -206,18 +225,30 @@
         if (btnVoice) {
           if (isListening) {
             btnVoice.classList.add("listening");
-            btnVoice.title = "Listening to formula... Click to stop";
+            btnVoice.title = "Listening… click to stop";
+            formulaInput.dataset.prevVoiceValue = formulaInput.value;
+            formulaInput.value = "";
+            formulaInput.placeholder = "Listening… speak, then click the mic";
+            showVoiceStatus("Listening — speak your formula, then click the mic to stop.");
           } else {
             btnVoice.classList.remove("listening");
-            btnVoice.title = "Speak math formula";
+            btnVoice.title = "Speak a math formula";
+            formulaInput.placeholder = "Graph anything...";
           }
         }
       },
+      onVoiceError: (err) => {
+        const message = (err && (err.message || err.error)) || "Voice input failed.";
+        showVoiceStatus(String(message), true);
+      },
+      onVoiceStatus: (msg) => {
+        if (msg) showVoiceStatus(msg);
+      },
       onVoiceTranscript: (mathFormula, rawText, isFinal) => {
-        if (mathFormula) {
-          formulaInput.value = mathFormula;
-          triggerPlot();
-        }
+        const spoken = (rawText || mathFormula || "").trim();
+        if (!spoken) return;
+        formulaInput.value = spoken;
+        showVoiceStatus((isFinal ? "You said: " : "Hearing: ") + spoken);
       },
       onOcrLoading: (isLoading, msg) => {
         console.log("OCR:", isLoading, msg);
@@ -252,11 +283,26 @@
     engine.loadScene("general-math", { formula: formulaInput.value });
 
     // Formula Input Events: Enter key, live typing, and change
+    const publishGraphContext = (formula) => {
+      const payload = {
+        type: "GANDHO_GRAPH_CONTEXT",
+        title: "STEM Graphs",
+        formula: formula || "",
+        scene: "",
+      };
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(payload, "*");
+        }
+      } catch (err) {}
+    };
+
     const triggerPlot = () => {
       const val = formulaInput.value.trim();
       if (val) {
         engine.plotFormula(val);
       }
+      publishGraphContext(val);
     };
 
     formulaInput.addEventListener("keydown", (e) => {
@@ -286,7 +332,9 @@
 
     // Voice Input Toggle on Mic Icon Click
     if (btnVoice) {
-      btnVoice.addEventListener("click", () => {
+      btnVoice.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         engine.toggleVoice();
       });
     }

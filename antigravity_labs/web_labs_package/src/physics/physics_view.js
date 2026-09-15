@@ -4,8 +4,8 @@
  * Right: Step-by-Step Instructions, Telemetry, Sliders, Gandho Voice, and Auto-Grading
  */
 
-import { PhysicsWorld, PhysicsBody } from "./physics_engine.js";
-import { GandhoLabVoiceAssistant } from "../gandho_voice_helper.js";
+import { PhysicsWorld, PhysicsBody } from "./physics_engine.js?v=20260328c";
+import { GandhoLabVoiceAssistant } from "../gandho_voice_helper.js?v=20260328c";
 import { labAudio } from "../audio/lab_audio.js";
 import { challengeManager } from "../challenges/lab_challenges.js";
 
@@ -20,6 +20,9 @@ export class PhysicsView {
     this.showLabels = true;
     this.currentMissionKey = initialMission;
     this.isSuspendedAtTop = false;
+    this.hasDropped = false;
+    this.peakKinetic = 0;
+    this.ballsLandedTogether = false;
     labAudio.playCannonLaunch();
 
     this.missions = {
@@ -114,10 +117,36 @@ export class PhysicsView {
 
     this.render();
     this.initCanvas();
-    this.bindEvents();
     this.initGandhoVoice();
-    this.loadMission(this.currentMissionKey);
+    try {
+      this.loadMission(this.currentMissionKey);
+    } catch (err) {
+      console.error("[PhysicsView] Failed to load mission:", err);
+    }
+    if (!this.world.bodies.length) {
+      try {
+        const m = this.missions[this.currentMissionKey] || this.missions.free_fall;
+        m.setup(this.world, this);
+      } catch (err2) {
+        console.error("[PhysicsView] Fallback mission setup failed:", err2);
+      }
+    }
+    try {
+      this.bindEvents();
+    } catch (err) {
+      console.error("[PhysicsView] Failed to bind events:", err);
+    }
     this.startLoop();
+    // Re-measure after layout settles (full-width labs pane)
+    requestAnimationFrame(() => {
+      this.resizeCanvas();
+      if (!this.world.bodies.length) {
+        try {
+          const m = this.missions[this.currentMissionKey] || this.missions.free_fall;
+          m.setup(this.world, this);
+        } catch (_) {}
+      }
+    });
   }
 
   initGandhoVoice() {
@@ -137,7 +166,7 @@ export class PhysicsView {
     this.container.innerHTML = `
       <div class="lab-split-workspace">
         <!-- LEFT: Full-Height Canvas Lab Space -->
-        <div class="lab-split-left" id="canvasBox" style="padding: 0 !important; padding-bottom: 0 !important; overflow: hidden !important; height: 100%;">
+        <div class="lab-split-left" id="canvasBox">
           <canvas id="physicsCanvas" style="width: 100%; height: 100%; touch-action: none; cursor: crosshair; display: block;"></canvas>
 
           <!-- Floating Telemetry HUD -->
@@ -255,7 +284,6 @@ export class PhysicsView {
             </div>
           </div>
 
-          <!-- Lab Missions & Badges Panel -->
           <div id="physChallengesMount"></div>
 
           <!-- Check & Grade Lab Button -->
@@ -274,31 +302,19 @@ export class PhysicsView {
     this.ctx = this.canvas.getContext("2d");
     this.world.onImpact = (mass, vel) => labAudio.playImpactThud(mass, vel);
     this.resizeCanvas();
-    window.addEventListener("resize", () => {
-      this.resizeCanvas();
-      if (this.ctx) this.draw();
-    });
-    if (window.ResizeObserver && this.canvas.parentElement) {
-      this.resizeObserver = new ResizeObserver(() => {
-        this.resizeCanvas();
-        if (this.ctx) this.draw();
-      });
-      this.resizeObserver.observe(this.canvas.parentElement);
-    }
+    window.addEventListener("resize", () => this.resizeCanvas());
   }
 
   resizeCanvas() {
     if (!this.canvas || !this.canvas.parentElement) return;
-    const parent = this.canvas.parentElement;
-    const width = parent.clientWidth > 50 ? parent.clientWidth : (Math.floor(parent.getBoundingClientRect().width) || 800);
-    const height = parent.clientHeight > 50 ? parent.clientHeight : (Math.floor(parent.getBoundingClientRect().height) || 600);
+    const rect = this.canvas.parentElement.getBoundingClientRect();
+    const width = Math.floor(rect.width) || 800;
+    const height = Math.floor(rect.height) || 600;
 
     // Direct 1:1 pixel coordinate matching with CSS!
-    if (this.canvas.width !== width || this.canvas.height !== height) {
-      this.canvas.width = width;
-      this.canvas.height = height;
-      this.world.setDimensions(width, height);
-    }
+    this.canvas.width = width;
+    this.canvas.height = height;
+    this.world.setDimensions(width, height);
   }
 
   bindEvents() {
@@ -306,11 +322,9 @@ export class PhysicsView {
 
     const getCanvasPos = (e) => {
       const rect = canvas.getBoundingClientRect();
-      const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
-      const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
       return {
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
       };
     };
 
@@ -348,21 +362,21 @@ export class PhysicsView {
     canvas.addEventListener("pointercancel", handlePointerUp);
 
     // Release / Drop Both Balls Button
-    this.container.querySelector("#btnReleaseDrop").addEventListener("click", () => {
+    this.container.querySelector("#btnReleaseDrop")?.addEventListener("click", () => {
       labAudio.playClick();
       this.releaseSuspendedBalls();
     });
 
     // Spawning Buttons
-    this.container.querySelector("#btnSpawnBall").addEventListener("click", () => {
+    this.container.querySelector("#btnSpawnBall")?.addEventListener("click", () => {
       labAudio.playClick();
       this.spawnBall(this.world.width * 0.5, 90, 1.0, "#818cf8", "1kg Ball");
     });
-    this.container.querySelector("#btnSpawnHeavyBox").addEventListener("click", () => {
+    this.container.querySelector("#btnSpawnHeavyBox")?.addEventListener("click", () => {
       labAudio.playClick();
       this.spawnBox(this.world.width * 0.5, 90, 5.0, "#f43f5e", "5kg Box");
     });
-    this.container.querySelector("#btnSpawnBouncy").addEventListener("click", () => {
+    this.container.querySelector("#btnSpawnBouncy")?.addEventListener("click", () => {
       labAudio.playClick();
       const b = this.spawnBall(this.world.width * 0.5, 90, 0.8, "#38bdf8", "SuperBall");
       b.restitution = 0.98;
@@ -371,7 +385,7 @@ export class PhysicsView {
     // Sliders
     const gravSlider = this.container.querySelector("#gravitySlider");
     const gravLabel = this.container.querySelector("#gravityLabel");
-    gravSlider.addEventListener("input", (e) => {
+    gravSlider?.addEventListener("input", (e) => {
       const val = parseFloat(e.target.value);
       this.world.gravityY = val;
       const ms2 = (val / 100).toFixed(1);
@@ -386,7 +400,7 @@ export class PhysicsView {
 
     const restSlider = this.container.querySelector("#restitutionSlider");
     const restLabel = this.container.querySelector("#restitutionLabel");
-    restSlider.addEventListener("input", (e) => {
+    restSlider?.addEventListener("input", (e) => {
       const val = parseFloat(e.target.value);
       this.world.globalRestitution = val;
       restLabel.innerText = val.toFixed(2);
@@ -394,7 +408,7 @@ export class PhysicsView {
 
     const frictSlider = this.container.querySelector("#frictionSlider");
     const frictLabel = this.container.querySelector("#frictionLabel");
-    frictSlider.addEventListener("input", (e) => {
+    frictSlider?.addEventListener("input", (e) => {
       const val = parseFloat(e.target.value);
       this.world.globalFriction = val;
       frictLabel.innerText = val.toFixed(2);
@@ -402,7 +416,7 @@ export class PhysicsView {
 
     // Pause & Reset
     const pauseBtn = this.container.querySelector("#btnPause");
-    pauseBtn.addEventListener("click", () => {
+    pauseBtn?.addEventListener("click", () => {
       if (this.timeScale > 0) {
         this.timeScale = 0;
         pauseBtn.innerText = "▶️ Resume";
@@ -414,7 +428,7 @@ export class PhysicsView {
       }
     });
 
-    this.container.querySelector("#btnReset").addEventListener("click", () => {
+    this.container.querySelector("#btnReset")?.addEventListener("click", () => {
       this.loadMission(this.currentMissionKey);
     });
 
@@ -429,19 +443,20 @@ export class PhysicsView {
     });
 
     // Grade Lab
-    this.container.querySelector("#btnPhysCheckGrade").addEventListener("click", () => {
+    this.container.querySelector("#btnPhysCheckGrade")?.addEventListener("click", () => {
       this.gradeCurrentMission();
     });
   }
 
   releaseSuspendedBalls() {
-    this.isSuspendedAtTop = false;
+    this.hasDropped = true;
     labAudio.playCannonLaunch();
     let releasedCount = 0;
     for (const b of this.world.bodies) {
+      if (!b || typeof b.x !== "number" || typeof b.y !== "number") continue;
       if (b.isStatic) {
         b.isStatic = false;
-        b.invMass = 1.0 / b.mass;
+        b.invMass = b.mass > 0 && isFinite(b.mass) ? 1.0 / b.mass : 0;
         b.vy = 50; // Initial drop impulse
         releasedCount++;
       }
@@ -453,7 +468,6 @@ export class PhysicsView {
     }
     const btn = this.container.querySelector("#btnReleaseDrop");
     if (btn) btn.innerText = "🔄 Reset & Drop Again";
-    this.broadcastTelemetry();
   }
 
   loadMission(missionKey) {
@@ -464,14 +478,21 @@ export class PhysicsView {
     this.resizeCanvas();
     m.setup(this.world, this);
 
-    this.container.querySelector("#physMissionBadge").innerText = `${m.grade} • Interactive Practice`;
-    this.container.querySelector("#physMissionTitle").innerText = m.title;
-    this.container.querySelector("#physMissionGoal").innerText = m.goal;
-    this.container.querySelector("#physTargetLabel").innerText = `${m.targetLabel}:`;
-    this.container.querySelector("#physTargetVal").innerText = m.targetVal;
+    const setText = (sel, value) => {
+      const el = this.container.querySelector(sel);
+      if (el) el.innerText = value;
+    };
+    setText("#physMissionBadge", `${m.grade || m.level || ""} • Interactive Practice`);
+    setText("#physMissionTitle", m.title || "");
+    setText("#physMissionGoal", m.goal || "");
+    setText("#physTargetLabel", `${m.targetLabel || "Target"}:`);
+    setText("#physTargetVal", m.targetVal || "");
 
     const stepsList = this.container.querySelector("#physMissionSteps");
-    stepsList.innerHTML = m.steps.map(s => `<li style="margin-bottom:8px;"><span style="color:#818cf8; font-weight:bold;">▸</span> <span>${s}</span></li>`).join('');
+    if (stepsList) {
+      stepsList.innerHTML = (m.steps || []).map(s => `<li style="margin-bottom:8px;"><span style="color:#818cf8; font-weight:bold;">▸</span> <span>${s}</span></li>`).join('');
+    }
+    console.log("[PhysicsView] Mission loaded:", missionKey, "bodies=", this.world.bodies.length, "canvas=", this.canvas?.width, this.canvas?.height);
 
     const btnDrop = this.container.querySelector("#btnReleaseDrop");
     if (btnDrop) {
@@ -485,34 +506,40 @@ export class PhysicsView {
       status.style.color = "#10b981";
     }
 
+    this.hasDropped = false;
+    this.peakKinetic = 0;
+    this.ballsLandedTogether = false;
     const chMount = this.container.querySelector("#physChallengesMount");
     if (chMount) {
-      challengeManager.renderSidebarPanel(this.currentMissionKey === "free_fall" ? "phys_free_fall" : "phys_momentum", chMount);
+      challengeManager.renderSidebarPanel(
+        this.currentMissionKey === "momentum" ? "phys_momentum" : "phys_free_fall",
+        chMount,
+      );
     }
-
     this.broadcastTelemetry();
-    if (this.ctx) {
-      this.draw();
-      this.updateTelemetry();
-    }
   }
 
   broadcastTelemetry() {
     try {
-      const bodies = this.world.bodies.map(b => `${b.label || 'Sphere'} (${b.mass}kg, vel_y: ${b.vy ? b.vy.toFixed(1) : 0} m/s, y: ${b.y ? b.y.toFixed(0) : 0}px)`);
-      const gY = this.world.gravityY !== undefined ? this.world.gravityY : (this.world.gravity ? this.world.gravity.y : 980);
+      const bodies = (this.world?.bodies || []).map(b => {
+        if (!b) return "unknown";
+        const vy = typeof b.vy === "number" ? b.vy.toFixed(1) : "0";
+        const y = typeof b.y === "number" ? b.y.toFixed(0) : "0";
+        return `${b.label || "Sphere"} (${b.mass || 0}kg, vel_y: ${vy} m/s, y: ${y}px)`;
+      });
+      const g = (this.world && typeof this.world.gravityY === "number") ? this.world.gravityY : 980;
       window.currentSocraticLabContext = {
         experiment_id: "phys_" + this.currentMissionKey,
         title: "Physics Mechanics: " + (this.currentMissionKey === "free_fall" ? "Gravity & Free Fall (Galileo)" : (this.currentMissionKey === "momentum" ? "Momentum & Elastic Collisions" : "Planetary Gravity")),
-        gravity: (gY / 100).toFixed(1) + " m/s²",
+        gravity: ((g || 0) / 100).toFixed(1) + " m/s²",
         bodies_on_canvas: bodies,
         status: this.isSuspendedAtTop ? "Spheres suspended at top ready to drop" : "Spheres in active physical motion"
       };
       if (typeof window.updateActiveViewState === "function") {
         window.updateActiveViewState();
       }
-    } catch (e) {
-      console.warn("Error broadcasting physics telemetry:", e);
+    } catch (err) {
+      console.warn("[PhysicsView] broadcastTelemetry skipped:", err);
     }
   }
 
@@ -574,11 +601,6 @@ export class PhysicsView {
   stopLoop() {
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-      this.resizeObserver = null;
     }
   }
 
@@ -589,54 +611,26 @@ export class PhysicsView {
 
     ctx.clearRect(0, 0, w, h);
 
-    // Visible background grid
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+    // Grid
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
     ctx.lineWidth = 1;
     for (let x = 0; x < w; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
     for (let y = 0; y < h; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
 
-    // Laboratory Floor Platform
-    const floorY = Math.max(100, h - (this.world.floorOffset || 64));
-
-    // Floor Base Fill
-    ctx.fillStyle = "rgba(18, 18, 26, 0.95)";
-    ctx.fillRect(0, floorY, w, h - floorY);
-
-    // Floor Glowing Boundary
-    ctx.strokeStyle = "rgba(99, 102, 241, 0.75)";
-    ctx.lineWidth = 3;
+    // Floor line
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(0, floorY);
-    ctx.lineTo(w, floorY);
+    ctx.moveTo(0, h - 2);
+    ctx.lineTo(w, h - 2);
     ctx.stroke();
-
-    // Floor hash pattern
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
-    ctx.lineWidth = 1;
-    for (let x = 0; x < w; x += 28) {
-      ctx.beginPath();
-      ctx.moveTo(x, floorY);
-      ctx.lineTo(x + 14, h);
-      ctx.stroke();
-    }
-
-    // Floor label
-    ctx.fillStyle = "rgba(161, 161, 170, 0.7)";
-    ctx.font = "bold 11px monospace";
-    ctx.textAlign = "right";
-    ctx.fillText("LABORATORY FLOOR (Ground Plane)", w - 20, floorY + 22);
 
     // Bodies
     for (const b of this.world.bodies) {
-      if (!Number.isFinite(b.x) || !Number.isFinite(b.y)) {
-        b.x = w * 0.5;
-        b.y = 120;
-        b.vx = 0;
-        b.vy = 0;
-      }
+      if (!b || typeof b.x !== "number" || typeof b.y !== "number") continue;
       ctx.save();
 
-      // Glowing shadow
+      // Soft glow shadow
       ctx.shadowColor = b.isGrabbed ? "#ffffff" : b.color;
       ctx.shadowBlur = b.isGrabbed ? 20 : 10;
 
@@ -736,20 +730,35 @@ export class PhysicsView {
     if (hudBodies) hudBodies.innerText = bodies.length;
     if (hudKE) hudKE.innerText = `${(totalKE / 1000).toFixed(2)} J`;
     if (hudMaxV) hudMaxV.innerText = `${(maxSpeed / 100).toFixed(1)} m/s`;
+
+    const keJ = totalKE / 1000;
+    if (keJ > this.peakKinetic) this.peakKinetic = keJ;
+    const dynamic = bodies.filter((b) => !b.isStatic);
+    const floorY = this.world.height || 0;
+    const nearFloor = dynamic.filter((b) => (b.y + (b.radius || 20)) > floorY - 12);
+    this.ballsLandedTogether = this.hasDropped && nearFloor.length >= 2;
+    const topicId =
+      this.currentMissionKey === "momentum" ? "phys_momentum" : "phys_free_fall";
+    if (challengeManager.checkState(topicId, {
+      gravity: this.world.gravityY / 100,
+      hasDropped: this.hasDropped,
+      ballsLandedTogether: this.ballsLandedTogether,
+      peakKinetic: this.peakKinetic,
+    })) {
+      challengeManager.renderSidebarPanel(topicId, this.container.querySelector("#physChallengesMount"));
+    }
   }
 
   executeVoiceCommand(cmd) {
     if (!cmd) return;
     const action = (cmd.action || "").toLowerCase();
     const val = typeof cmd.value === "number" ? cmd.value : parseFloat(cmd.value || 0);
-    console.log("[PHYSICS VOICE CMD]", cmd);
-
     if (action.includes("drop") || action.includes("lâche") || action.includes("lache") || action.includes("release")) {
       this.releaseSuspendedBalls();
-      this.showVoiceToast("🎙️ Gandho: Dropped both spheres!");
+      this.showVoiceToast("Gandho : les deux sphères sont lâchées.");
     } else if (action.includes("gravity") || action.includes("gravité") || action.includes("gravite")) {
       let g = 980;
-      if (val > 0) g = val * 100;
+      if (val > 0) g = val * (val < 80 ? 100 : 1);
       else if (cmd.preset === "moon" || action.includes("moon") || action.includes("lune")) g = 160;
       else if (cmd.preset === "jupiter" || action.includes("jupiter")) g = 2480;
       else if (cmd.preset === "earth" || action.includes("earth") || action.includes("terre")) g = 980;
@@ -757,42 +766,30 @@ export class PhysicsView {
       const gravSlider = this.container.querySelector("#gravitySlider");
       if (gravSlider) gravSlider.value = g;
       const gravLabel = this.container.querySelector("#gravityLabel");
-      if (gravLabel) gravLabel.innerText = `${(g/100).toFixed(1)} m/s²`;
+      if (gravLabel) gravLabel.innerText = `${(g / 100).toFixed(1)} m/s²`;
+      const hudG = this.container.querySelector("#hudGravityVal");
+      if (hudG) hudG.innerText = `${(g / 100).toFixed(1)} m/s²`;
       this.updateTelemetry();
-      this.showVoiceToast(`🎙️ Gandho: Gravity set to ${(g/100).toFixed(1)} m/s²!`);
+      this.showVoiceToast(`Gandho : gravité réglée à ${(g / 100).toFixed(1)} m/s².`);
     } else if (action.includes("reset") || action.includes("réinitialiser") || action.includes("reinit")) {
       this.loadMission(this.currentMissionKey);
-      this.showVoiceToast("🎙️ Gandho: Simulation reset.");
+      this.showVoiceToast("Gandho : simulation réinitialisée.");
     } else if (action.includes("pause") || action.includes("stop")) {
-      const btn = this.container.querySelector("#btnTogglePause");
+      const btn = this.container.querySelector("#btnPause");
       if (btn) btn.click();
-      this.showVoiceToast("🎙️ Gandho: Simulation paused/resumed.");
+      this.showVoiceToast("Gandho : simulation en pause ou reprise.");
     }
   }
 
   showVoiceToast(msg) {
+    this.container.querySelectorAll(".lab-gandho-toast").forEach((el) => el.remove());
     const toast = document.createElement("div");
-    toast.style.cssText = `
-      position: absolute;
-      bottom: 80px;
-      left: 20px;
-      background: linear-gradient(135deg, #9333ea, #a855f7);
-      color: #ffffff;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 10px 16px;
-      border-radius: 20px;
-      box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
-      z-index: 100;
-      pointer-events: none;
-      animation: fadeIn 0.3s ease;
-    `;
+    toast.className = "lab-gandho-toast";
     toast.innerText = msg;
     this.container.appendChild(toast);
     setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.4s ease';
-      setTimeout(() => toast.remove(), 400);
+      toast.classList.add("is-leaving");
+      setTimeout(() => toast.remove(), 350);
     }, 3200);
   }
 }

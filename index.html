@@ -23,21 +23,12 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7"></script>
     <!-- LiveKit Client SDK for real-time voice streaming (loaded locally) -->
     <script src="/livekit_stack/static/livekit-client.umd.min.js"></script>
-    <!-- Spatius SDK ES Modules (Dynamic CDN Loading) -->
-    <script type="importmap">
-      {
-        "imports": {
-          "@spatialwalk/avatarkit": "https://cdn.jsdelivr.net/npm/@spatialwalk/avatarkit@latest/dist/index.js",
-          "@spatialwalk/avatarkit-rtc": "https://cdn.jsdelivr.net/npm/@spatialwalk/avatarkit-rtc@latest/dist/index.js"
-        }
-      }
-    </script>
+    <!-- Spatius AvatarKit is vendored under /static/spatius/avatarkit (WASM inlined). -->
     <!-- Antigravity STEM Virtual Labs Stylesheet -->
     <link rel="stylesheet" href="/antigravity_labs/web_labs_package/labs.css" />
-    <!-- Three.js and OrbitControls for Circuits 3D Breadboard Lab -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <!-- Antigravity STEM Circuits 3D Lab Stylesheet -->
+    <!-- Circuits Atelier — local Three.js + copper theme -->
+    <script src="/antigravity_labs/circuits_lab/lib/three.min.js"></script>
+    <script src="/antigravity_labs/circuits_lab/lib/OrbitControls.js"></script>
     <link rel="stylesheet" href="/antigravity_labs/circuits_lab/circuits.css" />
     <style>
       /* Brute-force input spinner override */
@@ -388,8 +379,8 @@
       }
 
       .icon-box-circuits {
-        background: linear-gradient(135deg, #f59e0b, #d97706);
-        color: #ffffff;
+        background: linear-gradient(145deg, #d4a574, #8f5f34);
+        color: #1a1208;
       }
 
       .launcher-item-content {
@@ -423,6 +414,23 @@
         transition: opacity 0.15s ease;
       }
 
+      .launcher-progress-dots {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        margin-left: 6px;
+        vertical-align: middle;
+      }
+      .launcher-progress-dots .lp-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: rgba(148, 163, 184, 0.35);
+      }
+      .launcher-progress-dots .lp-dot.is-on {
+        background: #2dd4bf;
+        box-shadow: 0 0 6px rgba(45, 212, 191, 0.55);
+      }
       .launcher-menu-item.active .launcher-item-active-check {
         opacity: 1;
       }
@@ -528,7 +536,38 @@
         box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
       }
 
-      /* Custom video element and overlay stream */
+      /* Lecture fills the 16:9 stage. Absolute so a 0-height in-flow
+         video cannot leave only the black wrapper visible while audio plays. */
+      .video-wrapper > video#lectureVideoPlayer {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: #000;
+        z-index: 1;
+        transform: translateZ(0);
+      }
+      .video-wrapper > video#lectureVideoPlayer::-webkit-media-controls {
+        display: none !important;
+      }
+      .lecture-visual-frame {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: none;
+        background: #0b0b0d;
+        z-index: 2;
+      }
+      .video-wrapper.audio-lesson .lecture-visual-frame {
+        display: block;
+      }
+      .video-wrapper.audio-lesson > video#lectureVideoPlayer {
+        opacity: 0;
+        pointer-events: none;
+      }
       .video-wrapper video {
         width: 100%;
         height: 100%;
@@ -616,6 +655,14 @@
         object-fit: cover;
       }
 
+      #avatarImgBox canvas {
+        position: absolute;
+        inset: 0;
+        width: 100% !important;
+        height: 100% !important;
+        display: block;
+      }
+
       /* Custom styled video controller overlay */
       .custom-video-controls {
         position: absolute;
@@ -631,7 +678,7 @@
         display: flex;
         align-items: center;
         gap: 12px;
-        z-index: 5;
+        z-index: 6;
         box-sizing: border-box;
       }
 
@@ -656,15 +703,27 @@
         height: 18px;
       }
 
+      .video-wrapper > video#lectureVideoPlayer::-webkit-media-controls,
+      .video-wrapper > video#lectureVideoPlayer::-webkit-media-controls-enclosure,
+      .video-wrapper > video#lectureVideoPlayer::-webkit-media-controls-panel {
+        display: none !important;
+        opacity: 0 !important;
+        height: 0 !important;
+      }
+
       .control-time {
         font-family: "Geist", monospace;
         font-size: 0.75rem;
         color: var(--on-surface-variant);
         flex-shrink: 0;
+        white-space: nowrap;
+        min-width: 7.2em;
+        z-index: 7;
       }
 
       .progress-bar-slider {
         flex: 1;
+        min-width: 0;
         height: 4px;
         background-color: rgba(255, 255, 255, 0.2);
         border-radius: var(--radius-full);
@@ -2007,12 +2066,12 @@
 
       /* Sidebar Styling */
       .bibliotheque-sidebar {
-        width: 320px;
-        background-color: #0c0e0f;
-        border-right: 1px solid #494552;
+        width: 300px;
+        background-color: #0a0a0c;
+        border-right: 1px solid rgba(255, 255, 255, 0.08);
         display: flex;
         flex-direction: column;
-        padding: 24px;
+        padding: 18px 16px 14px;
         box-sizing: border-box;
         flex-shrink: 0;
       }
@@ -2037,12 +2096,99 @@
       }
 
       .sidebar-import-card {
-        background-color: #1a1c1d;
-        border: 1px solid #494552;
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 24px;
+        background-color: #141418;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 0;
+        margin-bottom: 16px;
         box-sizing: border-box;
+        overflow: hidden;
+      }
+
+      .sidebar-import-card summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 10px 12px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #c4b5fd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .sidebar-import-card summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .sidebar-import-card .import-body {
+        padding: 0 12px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .lib-subject {
+        margin-bottom: 14px;
+      }
+
+      .lib-subject-head {
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #71717a;
+        padding: 4px 4px 8px;
+      }
+
+      .lib-book {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 10px;
+        background: #141418;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 10px;
+        margin-bottom: 6px;
+        cursor: pointer;
+      }
+
+      .lib-book.active {
+        border-color: #a855f7;
+        background: rgba(168, 85, 247, 0.12);
+      }
+
+      .lib-book-copy {
+        min-width: 0;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .lib-book-chip {
+        align-self: flex-start;
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 999px;
+      }
+
+      .lib-book-chip.review {
+        background: rgba(34, 197, 94, 0.16);
+        color: #4ade80;
+      }
+
+      .lib-book-chip.continue {
+        background: rgba(168, 85, 247, 0.18);
+        color: #d8b4fe;
+      }
+
+      .lib-book-chip.locked {
+        background: rgba(239, 68, 68, 0.14);
+        color: #f87171;
       }
 
       .import-title {
@@ -2388,31 +2534,80 @@
       /* Document Body Area */
       .bibliotheque-body {
         flex: 1;
-        background-color: #0c0e0f;
-        background-image: radial-gradient(
-          rgba(255, 255, 255, 0.05) 1px,
-          transparent 1px
-        );
-        background-size: 20px 20px;
+        background-color: #09090b;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 24px;
+        align-items: stretch;
+        justify-content: stretch;
+        gap: 16px;
+        padding: 16px 18px 18px;
         box-sizing: border-box;
         overflow: hidden;
       }
 
       .pdf-canvas-container {
-        width: 100%;
+        flex: 1;
+        width: auto;
         height: 100%;
-        max-width: 900px;
+        max-width: none;
         background-color: #ffffff;
-        border: 1px solid #494552;
-        border-radius: 16px;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        min-width: 0;
+      }
+
+      .studydesk-tutor-rail {
+        width: 240px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .studydesk-avatar-box {
+        position: relative;
+        flex: 1;
+        min-height: 280px;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(168, 85, 247, 0.45);
+        background: #08080a;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+      }
+
+      .studydesk-avatar-box img,
+      .studydesk-avatar-box canvas {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .studydesk-avatar-meta {
+        position: absolute;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(8, 8, 12, 0.82);
+        backdrop-filter: blur(8px);
+      }
+
+      .studydesk-avatar-name {
+        font-size: 0.78rem;
+        font-weight: 800;
+        color: #fff;
+      }
+
+      .studydesk-avatar-status {
+        font-size: 0.65rem;
+        color: #c4b5fd;
+        margin-top: 2px;
+        line-height: 1.35;
       }
 
       .pdf-iframe {
@@ -3964,7 +4159,7 @@
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 2v7.31L4.69 18.06A2 2 0 0 0 6.42 21h11.16a2 2 0 0 0 1.73-2.94L14 9.31V2"></path><line x1="8.5" y1="2" x2="15.5" y2="2"></line><line x1="7" y1="15" x2="17" y2="15"></line></svg>
                 </div>
                 <div class="launcher-item-content">
-                  <div class="launcher-item-title">🧪 Virtual Labs</div>
+                  <div class="launcher-item-title">🧪 Virtual Labs <span class="launcher-progress-dots" data-progress-for="virtual_labs" title="Progress"></span></div>
                   <div class="launcher-item-desc">STEM Chemistry, Physics, RDKit & PubChem</div>
                 </div>
                 <div class="launcher-item-active-check">✓</div>
@@ -3982,14 +4177,14 @@
                 <div class="launcher-item-active-check">✓</div>
               </div>
 
-              <!-- 4. Circuits -->
+              <!-- 4. Circuits Atelier -->
               <div class="launcher-menu-item nav-item" role="menuitem" data-view="circuits_lab" onclick="selectLauncherTab('circuits_lab', this)">
                 <div class="launcher-item-icon-box icon-box-circuits">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="7" width="18" height="12" rx="1.5"></rect><line x1="3" y1="11" x2="21" y2="11"></line><circle cx="7" cy="15" r="1" fill="currentColor"></circle><circle cx="11" cy="15" r="1" fill="currentColor"></circle><circle cx="15" cy="15" r="1" fill="currentColor"></circle></svg>
                 </div>
                 <div class="launcher-item-content">
-                  <div class="launcher-item-title">⚡ Circuits</div>
-                  <div class="launcher-item-desc">3D Breadboard, Dual-Mode Build & AI Guide</div>
+                  <div class="launcher-item-title">Circuits <span class="launcher-progress-dots" data-progress-for="circuits_lab" title="Progress"></span></div>
+                  <div class="launcher-item-desc">Breadboard 3D, montage dual & guide vocal</div>
                 </div>
                 <div class="launcher-item-active-check">✓</div>
               </div>
@@ -4085,19 +4280,17 @@
                 loop
                 muted
                 playsinline
-                style="width: 100%; height: 100%; object-fit: cover"
-              >
-                <source src="" type="video/mp4" />
-              </video>
+                style="width: 100%; height: 100%; object-fit: cover; display: none"
+              ></video>
               <img
                 id="tutorWebcamAvatar"
                 style="
                   width: 100%;
                   height: 100%;
                   object-fit: cover;
-                  display: none;
+                  display: block;
                 "
-                src=""
+                src="/static/professor_evans_avatar.png"
               />
               <!-- Metallic head visualizer representation -->
               <svg
@@ -4133,13 +4326,19 @@
             <!-- Native video element -->
             <video
               id="lectureVideoPlayer"
-              src=""
               playsinline
+              webkit-playsinline
+              preload="auto"
+              controlslist="nodownload nofullscreen noremoteplayback"
+              disablepictureinpicture
               ontimeupdate="onVideoProgressUpdate()"
               onseeking="clearEmittedTranscriptsForBackwardsSeek()"
-            >
-              <source src="" type="video/mp4" />
-            </video>
+            ></video>
+            <iframe
+              id="lectureVisualFrame"
+              class="lecture-visual-frame"
+              title="Lesson slides"
+            ></iframe>
 
             <!-- Custom styled control overlay -->
             <div class="custom-video-controls">
@@ -5243,6 +5442,7 @@
                 <img
                   id="socraticAvatarImg"
                   src="/static/professor_evans_avatar.png"
+                  onerror="this.onerror=null;this.src='/static/gandho_avatar.svg';"
                   style="
                     width: 100%;
                     height: 100%;
@@ -5252,7 +5452,7 @@
                 />
                 <canvas
                   id="spatiusAvatarCanvas"
-                  style="width: 100%; height: 100%; display: none"
+                  style="width: 100%; height: 100%; display: none; position: absolute; inset: 0;"
                 ></canvas>
               </div>
               <div
@@ -5622,8 +5822,8 @@
         </div>
 
         <!-- VIEW 4: DEDICATED REVISION & RE-WATCH LIBRARY VIEW -->
-        <div class="view-pane" id="revisionLibraryPane" style="padding: 24px; overflow-y: auto; height: 100%; box-sizing: border-box; background: #09090b;">
-          <div style="max-width: 1100px; margin: 0 auto;">
+        <div class="view-pane" id="revisionLibraryPane" style="padding: 24px 32px 40px; overflow-y: auto; height: 100%; box-sizing: border-box; background: #09090b;">
+          <div style="max-width: 1480px; margin: 0 auto; width: 100%;">
             <!-- Header Hero Banner -->
             <div style="background: linear-gradient(135deg, rgba(168,85,247,0.15) 0%, rgba(59,130,246,0.15) 100%); border: 1px solid rgba(168,85,247,0.3); border-radius: 16px; padding: 24px; margin-bottom: 24px;">
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
@@ -5674,17 +5874,17 @@
         </div>
 
         <!-- VIEW 5: VIRTUAL LABS (STEM CHEMISTRY, PHYSICS, RDKIT & PUBCHEM) -->
-        <div class="view-pane" id="virtualLabsPane" style="padding: 0; overflow: hidden; height: 100%; box-sizing: border-box; background: #09090b;">
-          <div id="virtualLabsMountPoint" style="width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;"></div>
+        <div class="view-pane" id="virtualLabsPane" style="padding: 0; overflow-y: auto; height: 100%; box-sizing: border-box; background: #09090b;">
+          <div id="virtualLabsMountPoint" style="width: 100%; min-height: 100%; display: flex; flex-direction: column;"></div>
         </div>
 
         <!-- VIEW 6: STEM GRAPHS (INTERACTIVE GRAPHING & SIMULATOR) -->
         <div class="view-pane" id="stemGraphsPane" style="padding: 0; overflow: hidden; height: 100%; box-sizing: border-box; background: #09090b;">
-          <iframe id="stemGraphsIframe" src="/antigravity_labs/omni_graph_engine/index.html" style="width: 100%; height: 100%; border: none; display: block;" allow="microphone"></iframe>
+          <iframe id="stemGraphsIframe" src="/antigravity_labs/omni_graph_engine/index.html" style="width: 100%; height: 100%; border: none; display: block;" allow="microphone; autoplay" allowfullscreen></iframe>
         </div>
 
-        <!-- VIEW 7: CIRCUITS LAB (3D BREADBOARD WALKTHROUGH & DUAL BUILD) -->
-        <div class="view-pane" id="circuitsLabPane" style="padding: 0; overflow: hidden; height: 100%; box-sizing: border-box; background: #09090b;">
+        <!-- VIEW 7: CIRCUITS ATELIER (3D BREADBOARD WALKTHROUGH) -->
+        <div class="view-pane" id="circuitsLabPane" style="padding: 0; overflow: hidden; height: 100%; box-sizing: border-box; background: #0b0d11;">
           <div id="circuitsLabMountPoint" style="width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden;"></div>
         </div>
       </div>
@@ -5838,7 +6038,7 @@
                 margin-bottom: 8px;
               "
             >
-              <span id="flashcardDeckTitle">Study Stack: Calculus of ML</span>
+              <span id="flashcardDeckTitle">Study Stack: Economics</span>
               <span id="flashcardDeckCount">12 / 48 cards</span>
             </div>
 
@@ -6414,12 +6614,13 @@
       <div class="bibliotheque-sidebar">
         <div class="sidebar-brand">
           <span class="brand-title">Bibliothèque</span>
-          <span class="brand-subtitle">Study Materials</span>
+          <span class="brand-subtitle">Cours, manuels et révision</span>
         </div>
 
         <!-- Book Upload / Import Interface -->
-        <div class="sidebar-import-card">
-          <div class="import-title">Import Book / Audiobook</div>
+        <details class="sidebar-import-card">
+          <summary>Importer un PDF / audiobook <span style="opacity:0.6">+</span></summary>
+          <div class="import-body">
           <div style="display: flex; flex-direction: column; gap: 8px">
             <div
               style="
@@ -6512,7 +6713,8 @@
               Parsing, transcribing & indexing file...
             </div>
           </div>
-        </div>
+          </div>
+        </details>
 
         <!-- Subject groups list (dynamically populated) -->
         <div
@@ -6534,19 +6736,16 @@
         <!-- Top Header Bar -->
         <div class="bibliotheque-topbar">
           <div class="topbar-left">
-            <span class="app-logo">StudyDesk Pro</span>
+            <span class="app-logo">StudyDesk</span>
             <span class="sync-badge"
-              ><span class="sync-dot"></span>AUTO SYNC ACTIVE</span
+              ><span class="sync-dot"></span>SYNC</span
             >
           </div>
           <div class="topbar-center">
-            <div class="topbar-tabs">
-              <span class="tab-item active">Dashboard</span>
-            </div>
             <div class="topbar-search">
               <input
                 type="text"
-                placeholder="Search resources..."
+                placeholder="Rechercher un cours..."
                 id="librarySearchInput"
                 oninput="filterLibraryBooks(this.value)"
               />
@@ -6589,14 +6788,7 @@
               Textbook: Classical Mechanics
             </div>
             <div class="doc-file-id" id="pdfPageIndicator">
-              Page 1 - Dynamic Synchronization Active
-            </div>
-          </div>
-          <div class="subbar-right">
-            <div class="toolbar-controls">
-              <span class="page-selector">1 / 1</span>
-              <button class="tool-btn">−</button>
-              <button class="tool-btn">+</button>
+              Choisissez un cours dans la bibliothèque
             </div>
           </div>
         </div>
@@ -6606,6 +6798,22 @@
           <div class="pdf-canvas-container">
             <iframe class="pdf-iframe" id="pdfIframe" src=""></iframe>
           </div>
+          <aside class="studydesk-tutor-rail" aria-label="Tutor Spatius">
+            <div class="studydesk-avatar-box" id="studyDeskAvatarBox">
+              <img
+                id="studyDeskAvatarImg"
+                src="/static/professor_evans_avatar.png"
+                onerror="this.onerror=null;this.src='/static/gandho_avatar.svg';"
+                alt="Gandho"
+              />
+              <div class="studydesk-avatar-meta">
+                <div class="studydesk-avatar-name">Gandho</div>
+                <div class="studydesk-avatar-status" id="studyDeskAvatarStatus">
+                  Avatar Spatius
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     </div>
@@ -8638,11 +8846,40 @@
           );
         };
 
+        window.notifyTutorHandRaise = function (origin) {
+          const payload = {
+            action: "RAISE_HAND",
+            question:
+              origin === "mic" || origin === "voice"
+                ? "The student raised the microphone. Greet them as Gandho and tutor the current lesson Socratically."
+                : "",
+            video_id:
+              window.ACTIVE_DATABASE_VIDEO_ID ||
+              (typeof activeVideoId !== "undefined" ? activeVideoId : ""),
+            timestamp: "",
+            mode: "voice",
+            locale: window.ACTIVE_DATABASE_LOCALE || "fr_FR",
+          };
+          const send = () => {
+            if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+              wsConnection.send(JSON.stringify(payload));
+            }
+          };
+          if (wsConnection && wsConnection.readyState === WebSocket.OPEN) send();
+          else setTimeout(send, 500);
+        };
+
         wsConnection.onmessage = function (evt) {
           console.log("Received data: " + evt.data);
           try {
             const payload = JSON.parse(evt.data);
             if (!payload) return;
+
+            if (payload.action === "DEPLOY_PATCH") {
+              showToastNotification("Patch Applied", payload.message || "Clients refreshed.");
+              setTimeout(() => window.location.reload(), 600);
+              return;
+            }
 
             if (payload.action === "DEPLOYMENT_MODE_CHANGED") {
               console.log("[WS] Deployment mode changed to:", payload.mode);
@@ -8756,10 +8993,13 @@
                   }
                 }
 
-                // Speak socratic hint if triggered by mic/raise hand (only for physical/simulated GPIO buttons)
-                if (a2ui.action === "SOCRATIC_HINT") {
-                  if (a2ui.mode === "typed") {
-                    speakSocraticHint(a2ui.data.socratic_text);
+                // Speak socratic hint for typed queries, and for voice if LiveKit audio is not live
+                if (a2ui.action === "SOCRATIC_HINT" || (a2ui.data && a2ui.data.socratic_text && a2ui.mode === "voice")) {
+                  const lkLive = window.lkRoom && window.lkRoom.state === "connected";
+                  if (a2ui.mode === "typed" || a2ui.mode === "chat_typed" || !lkLive) {
+                    if (typeof speakSocraticHint === "function" && a2ui.data && a2ui.data.socratic_text) {
+                      speakSocraticHint(a2ui.data.socratic_text);
+                    }
                   }
                 }
               } else if (a2ui.action === "NO_RELEVANT_MATCH") {
@@ -8933,9 +9173,117 @@
         if (btn) btn.setAttribute("aria-expanded", "false");
       }
 
+      
+      function destroyStemModuleInstances(exceptView) {
+        if (exceptView !== "circuits_lab" && window.circuitsLabInstance) {
+          try { window.circuitsLabInstance.destroy?.(); } catch (e) {}
+          window.circuitsLabInstance = null;
+          const mp = document.getElementById("circuitsLabMountPoint");
+          if (mp) mp.innerHTML = "";
+        }
+        if (exceptView !== "virtual_labs" && window.virtualLabsInstance) {
+          try { window.virtualLabsInstance.destroy?.(); } catch (e) {}
+          window.virtualLabsInstance = null;
+          const mp = document.getElementById("virtualLabsMountPoint");
+          if (mp) mp.innerHTML = "";
+        }
+      }
+
+      async function refreshLauncherProgressDots() {
+        try {
+          const mod = await import("/antigravity_labs/shared/lab_progress_store.js?v=" + Date.now());
+          const summary = mod.getLauncherProgressSummary();
+          const circuitsDots = document.querySelector('[data-progress-for="circuits_lab"]');
+          const labsDots = document.querySelector('[data-progress-for="virtual_labs"]');
+          const paint = (el, count, maxShow = 5) => {
+            if (!el) return;
+            const n = Math.min(maxShow, Math.max(0, count | 0));
+            el.innerHTML = Array.from({ length: maxShow }, (_, i) =>
+              `<span class="lp-dot ${i < n ? "is-on" : ""}"></span>`
+            ).join("");
+            el.title = count ? `${count} complété(s)` : "Aucun progrès encore";
+          };
+          paint(circuitsDots, summary.circuitsCompleted || 0);
+          paint(labsDots, summary.labsCompleted || 0);
+        } catch (err) {
+          console.warn("Launcher progress dots unavailable:", err);
+        }
+      }
+      window.refreshLauncherProgressDots = refreshLauncherProgressDots;
+
       function selectLauncherTab(viewName, element) {
         closeAppLauncherMenu();
         switchView(viewName, element);
+      }
+      window.selectLauncherTab = selectLauncherTab;
+
+
+      const LESSON_VIDEO_VIEWS = {
+        dashboard: true,
+        courses: true
+      };
+      const BACKGROUND_MODULE_VIEWS = {
+        virtual_labs: true,
+        stem_graphs: true,
+        revision_library: true,
+        library: true,
+        circuits_lab: true
+      };
+      window.currentAppView = window.currentAppView || "dashboard";
+      window.wasLessonPlayingBeforeModuleView = false;
+
+      function pauseLessonForModuleSwitch() {
+        const video = document.getElementById("lectureVideoPlayer");
+        if (video && !video.paused && !video.ended) {
+          window.wasLessonPlayingBeforeModuleView = true;
+          try {
+            video.pause();
+          } catch (err) {}
+          const btn = document.getElementById("playControlBtn");
+          if (btn) {
+            btn.innerHTML =
+              '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+          }
+        }
+        if (typeof activeLectureAudio !== "undefined" && activeLectureAudio && !activeLectureAudio.paused) {
+          window.wasLessonPlayingBeforeModuleView = true;
+          try {
+            activeLectureAudio.pause();
+          } catch (err) {}
+        }
+      }
+
+      function resumeLessonAfterModuleSwitch() {
+        if (!window.wasLessonPlayingBeforeModuleView) return;
+        if (typeof isConversationSessionActive !== "undefined" && isConversationSessionActive) {
+          return;
+        }
+        const video = document.getElementById("lectureVideoPlayer");
+        if (video && video.paused && !video.ended) {
+          video
+            .play()
+            .then(() => {
+              const btn = document.getElementById("playControlBtn");
+              if (btn) {
+                btn.innerHTML =
+                  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+              }
+            })
+            .catch((err) => {
+              console.warn("Could not resume lesson video after returning from a module:", err);
+            });
+        }
+        window.wasLessonPlayingBeforeModuleView = false;
+      }
+
+      function syncLessonPlaybackForView(viewName) {
+        const previousView = window.currentAppView || "dashboard";
+        window.currentAppView = viewName;
+        if (LESSON_VIDEO_VIEWS[previousView] && BACKGROUND_MODULE_VIEWS[viewName]) {
+          pauseLessonForModuleSwitch();
+        } else if (BACKGROUND_MODULE_VIEWS[previousView] && LESSON_VIDEO_VIEWS[viewName]) {
+          resumeLessonAfterModuleSwitch();
+        }
       }
 
       document.addEventListener("click", function (e) {
@@ -8953,6 +9301,8 @@
 
       // View Toggling logic
       function switchView(viewName, element) {
+        syncLessonPlaybackForView(viewName);
+        destroyStemModuleInstances(viewName);
         document
           .querySelectorAll(".nav-item")
           .forEach((item) => {
@@ -9018,7 +9368,7 @@
           document.getElementById("libraryPane").classList.add("active");
           if (typeof updateActiveViewState === "function") updateActiveViewState();
         } else if (viewName === "revision_library") {
-          document.body.classList.remove("full-width-labs");
+          document.body.classList.add("full-width-labs");
           window.isVirtualLabsActive = false;
           window.isStemGraphsActive = false;
           window.isCircuitsLabActive = false;
@@ -9034,11 +9384,13 @@
           const labsPane = document.getElementById("virtualLabsPane");
           if (labsPane) labsPane.classList.add("active");
           const mountPoint = document.getElementById("virtualLabsMountPoint");
-          if (mountPoint && !window.virtualLabsInstance) {
+          if (mountPoint) {
             import("/antigravity_labs/web_labs_package/src/virtual_labs.js?v=" + Date.now()).then((mod) => {
-              if (!window.virtualLabsInstance) {
-                window.virtualLabsInstance = mod.mountVirtualLabs(mountPoint);
+              if (window.virtualLabsInstance && typeof window.virtualLabsInstance.destroy === "function") {
+                try { window.virtualLabsInstance.destroy(); } catch (e) {}
               }
+              mountPoint.innerHTML = "";
+              window.virtualLabsInstance = mod.mountVirtualLabs(mountPoint);
             }).catch((err) => {
               console.error("Failed to dynamically load Virtual Labs module:", err);
             });
@@ -9060,18 +9412,27 @@
           const circuitsPane = document.getElementById("circuitsLabPane");
           if (circuitsPane) circuitsPane.classList.add("active");
           const mountPoint = document.getElementById("circuitsLabMountPoint");
-          if (mountPoint && !window.circuitsLabInstance) {
+          if (mountPoint) {
             import("/antigravity_labs/circuits_lab/src/circuits_lab.js?v=" + Date.now()).then((mod) => {
-              if (!window.circuitsLabInstance) {
-                window.circuitsLabInstance = mod.mountCircuitsLab(mountPoint);
+              if (window.circuitsLabInstance && typeof window.circuitsLabInstance.destroy === "function") {
+                try { window.circuitsLabInstance.destroy(); } catch (e) {}
               }
+              mountPoint.innerHTML = "";
+              window.circuitsLabInstance = mod.mountCircuitsLab(mountPoint);
+              refreshLauncherProgressDots();
             }).catch((err) => {
               console.error("Failed to dynamically load Circuits Lab module:", err);
             });
           }
           if (typeof updateActiveViewState === "function") updateActiveViewState();
         }
+        if (typeof syncGandhoFabVisibility === "function") syncGandhoFabVisibility();
       }
+
+      window.switchView = switchView;
+      window.selectLauncherTab = selectLauncherTab;
+      refreshLauncherProgressDots();
+      window.addEventListener("gandal-lab-progress", () => refreshLauncherProgressDots());
 
       window.activeRevisionSubjectFilter = "all";
       window.revisionVisibleCount = 4;
@@ -9098,6 +9459,134 @@
         renderRevisionLibraryGrid();
       }
 
+      function revisionVideoIdsMatch(a, b) {
+        if (!a || !b) return false;
+        if (a === b) return true;
+        const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+        const na = norm(a);
+        const nb = norm(b);
+        return na === nb || na.includes(nb) || nb.includes(na);
+      }
+
+      function isRevisionLessonCompleted(lessonId) {
+        if (!lessonId) return false;
+        if (localStorage.getItem("completed_videos_" + lessonId) === "true") return true;
+        const mastery = window.dbMastery || [];
+        if (mastery.some((m) => revisionVideoIdsMatch(m.video_id, lessonId) && m.mastery_achieved)) {
+          return true;
+        }
+        const evals = window.dbEvaluations || [];
+        return evals.some((e) => revisionVideoIdsMatch(e.video_id, lessonId) && (e.passed || (e.raw_score != null && e.raw_score >= 85) || (e.score != null && e.score >= 85)));
+      }
+
+      function isRevisionLessonUnlocked(lesson, subjectLessons) {
+        if (isRevisionLessonCompleted(lesson.id)) return true;
+        if (Number(lesson.idx) === 0) return true;
+        if (localStorage.getItem("unlocked_videos_" + lesson.id) === "true") return true;
+        if (typeof activeVideoId !== "undefined" && revisionVideoIdsMatch(activeVideoId, lesson.id)) return true;
+        const tree = window.dbCurriculum || [];
+        if (tree.some((t) => revisionVideoIdsMatch(t.video_id, lesson.id) && t.unlocked)) return true;
+        const prev = (subjectLessons || []).find((item) => item.subject === lesson.subject && Number(item.idx) === Number(lesson.idx) - 1);
+        return !!(prev && isRevisionLessonCompleted(prev.id));
+      }
+
+      function getRevisionLessonCatalog(isFr) {
+        const french = isFr === undefined
+          ? String(window.ACTIVE_DATABASE_LOCALE || "fr_FR").startsWith("fr")
+          : isFr;
+        return [
+          {
+            id: "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques",
+            subject: "Economics",
+            subjectTitle: french ? "Économie • Démographie" : "Economics • Demographics",
+            title: french ? "01_Les Problèmes Démographiques" : "01_Demographic Problems",
+            desc: french ? "Analyse des causes de la croissance démographique, théorie malthusienne et impact sur l'économie." : "Analysis of demographic drivers, Malthusian model, and economic consequences.",
+            duration: "15 min",
+            idx: 0
+          },
+          {
+            id: "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires",
+            subject: "Economics",
+            subjectTitle: french ? "Économie • Santé Publique" : "Economics • Public Health",
+            title: french ? "02_Les Problèmes Sanitaires" : "02_Health Problems",
+            desc: french ? "Étude des grandes endémies (paludisme, Ebola, COVID-19, VIH) et impact sur la productivité du travail." : "Study of mass endemics (malaria, Ebola, COVID-19, HIV) and impacts on labor productivity.",
+            duration: "12 min",
+            idx: 1
+          },
+          {
+            id: "vid_economics_extraeconomiques_03_probl_mes_alimentaires",
+            subject: "Economics",
+            subjectTitle: french ? "Économie • Sécurité Alimentaire" : "Economics • Food Security",
+            title: french ? "03_Problèmes Alimentaires" : "03_Food Problems",
+            desc: french ? "Analyse de la sous-alimentation, sécurité alimentaire et rôles des agences (FAO, FIDA, PAM)." : "Analysis of malnutrition, food security, and international agency roles (FAO, WFP).",
+            duration: "10 min",
+            idx: 2
+          },
+          {
+            id: "vid_chemistry_organic_chemistry_chemistry",
+            subject: "Chemistry",
+            subjectTitle: french ? "Chimie Organique" : "Organic Chemistry",
+            title: french ? "Chimie : Cations d'Alkylammonium" : "Chemistry: Alkylammonium Cations",
+            desc: french ? "Équilibres aqueux, couples acide/base et comportement des amines en solution." : "Aqueous equilibria, conjugate acid/base pairs, and amine behavior.",
+            duration: "18 min",
+            idx: 0
+          },
+          {
+            id: "vid_economics_extraeconomiques_04_probl_mes_urbanisation",
+            subject: "Economics",
+            subjectTitle: french ? "Économie • Urbanisation" : "Economics • Urbanization",
+            title: french ? "04_Problèmes d'Urbanisation" : "04_Urbanization Problems",
+            desc: french ? "Évolution des zones urbaines, défis des bidonvilles, infrastructures et politiques d'aménagement." : "Urban growth, informal settlement challenges, infrastructure, and development policies.",
+            duration: "14 min",
+            idx: 3
+          },
+          {
+            id: "vid_chemistry_02_amines",
+            subject: "Chemistry",
+            subjectTitle: french ? "Chimie • Amines & Réactions" : "Chemistry • Amines",
+            title: french ? "Chimie : Synthèse et Réactivité des Amines" : "Chemistry: Amine Synthesis & Reactivity",
+            desc: french ? "Propriétés nucléophiles des amines, alkylation d'Hofmann et réactions d'élimination." : "Nucleophilic properties of amines, Hofmann alkylation, and elimination reactions.",
+            duration: "16 min",
+            idx: 1
+          },
+          {
+            id: "vid_philosophy_01",
+            subject: "Philosophy",
+            subjectTitle: french ? "Philosophie • Éthique" : "Philosophy • Ethics",
+            title: french ? "Stoïcisme et Morale Contemporaine" : "Stoicism & Contemporary Ethics",
+            desc: french ? "Philosophie antique, contrôle des désirs et sagesse pratique selon Épictète et Marc Aurèle." : "Ancient philosophy, control of desires, and practical wisdom according to Epictetus.",
+            duration: "20 min",
+            idx: 0
+          },
+          {
+            id: "vid_physics_01",
+            subject: "Physics",
+            subjectTitle: french ? "Physique • Mécanique" : "Physics • Mechanics",
+            title: french ? "Mouvement dans un Champ Pesant" : "Motion in a Gravitational Field",
+            desc: french ? "Équations horaires, trajectoires paraboliques et conservation de l'énergie mécanique." : "Time equations, parabolic trajectories, and mechanical energy conservation.",
+            duration: "15 min",
+            idx: 0
+          }
+        ];
+      }
+
+      function markRevisionLessonCompleted(videoId) {
+        if (!videoId) return;
+        localStorage.setItem("completed_videos_" + videoId, "true");
+        const catalog = getRevisionLessonCatalog();
+        window.revisionLessonCatalog = catalog;
+        const current = catalog.find((lesson) => revisionVideoIdsMatch(lesson.id, videoId));
+        if (current) {
+          const next = catalog.find((lesson) => lesson.subject === current.subject && Number(lesson.idx) === Number(current.idx) + 1);
+          if (next) {
+            localStorage.setItem("unlocked_videos_" + next.id, "true");
+          }
+        }
+        if (typeof renderRevisionLibraryGrid === "function") {
+          renderRevisionLibraryGrid();
+        }
+      }
+
       function renderRevisionLibraryGrid() {
         const grid = document.getElementById("revisionCardsGrid");
         const seeMoreContainer = document.getElementById("revisionSeeMoreContainer");
@@ -9108,82 +9597,8 @@
         const activeLoc = window.ACTIVE_DATABASE_LOCALE || "fr_FR";
         const isFr = activeLoc.startsWith("fr");
 
-        const allLessons = [
-          {
-            id: "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques",
-            subject: "Economics",
-            subjectTitle: isFr ? "Économie • Démographie" : "Economics • Demographics",
-            title: isFr ? "01_Les Problèmes Démographiques" : "01_Demographic Problems",
-            desc: isFr ? "Analyse des causes de la croissance démographique, théorie malthusienne et impact sur l'économie." : "Analysis of demographic drivers, Malthusian model, and economic consequences.",
-            duration: "15 min",
-            idx: 0
-          },
-          {
-            id: "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires",
-            subject: "Economics",
-            subjectTitle: isFr ? "Économie • Santé Publique" : "Economics • Public Health",
-            title: isFr ? "02_Les Problèmes Sanitaires" : "02_Health Problems",
-            desc: isFr ? "Étude des grandes endémies (paludisme, Ebola, COVID-19, VIH) et impact sur la productivité du travail." : "Study of mass endemics (malaria, Ebola, COVID-19, HIV) and impacts on labor productivity.",
-            duration: "12 min",
-            idx: 1
-          },
-          {
-            id: "vid_economics_extraeconomiques_03_probl_mes_alimentaires",
-            subject: "Economics",
-            subjectTitle: isFr ? "Économie • Sécurité Alimentaire" : "Economics • Food Security",
-            title: isFr ? "03_Problèmes Alimentaires" : "03_Food Problems",
-            desc: isFr ? "Analyse de la sous-alimentation, sécurité alimentaire et rôles des agences (FAO, FIDA, PAM)." : "Analysis of malnutrition, food security, and international agency roles (FAO, WFP).",
-            duration: "10 min",
-            idx: 2
-          },
-          {
-            id: "vid_chemistry_organic_chemistry_chemistry",
-            subject: "Chemistry",
-            subjectTitle: isFr ? "Chimie Organique" : "Organic Chemistry",
-            title: isFr ? "Chimie : Cations d'Alkylammonium" : "Chemistry: Alkylammonium Cations",
-            desc: isFr ? "Équilibres aqueux, couples acide/base et comportement des amines en solution." : "Aqueous equilibria, conjugate acid/base pairs, and amine behavior.",
-            duration: "18 min",
-            idx: 0
-          },
-          {
-            id: "vid_economics_extraeconomiques_04_probl_mes_urbanisation",
-            subject: "Economics",
-            subjectTitle: isFr ? "Économie • Urbanisation" : "Economics • Urbanization",
-            title: isFr ? "04_Problèmes d'Urbanisation" : "04_Urbanization Problems",
-            desc: isFr ? "Évolution des zones urbaines, défis des bidonvilles, infrastructures et politiques d'aménagement." : "Urban growth, informal settlement challenges, infrastructure, and development policies.",
-            duration: "14 min",
-            idx: 3
-          },
-          {
-            id: "vid_chemistry_02_amines",
-            subject: "Chemistry",
-            subjectTitle: isFr ? "Chimie • Amines & Réactions" : "Chemistry • Amines",
-            title: isFr ? "Chimie : Synthèse et Réactivité des Amines" : "Chemistry: Amine Synthesis & Reactivity",
-            desc: isFr ? "Propriétés nucléophiles des amines, alkylation d'Hofmann et réactions d'élimination." : "Nucleophilic properties of amines, Hofmann alkylation, and elimination reactions.",
-            duration: "16 min",
-            idx: 1
-          },
-          {
-            id: "vid_philosophy_01",
-            subject: "Philosophy",
-            subjectTitle: isFr ? "Philosophie • Éthique" : "Philosophy • Ethics",
-            title: isFr ? "Stoïcisme et Morale Contemporaine" : "Stoicism & Contemporary Ethics",
-            desc: isFr ? "Philosophie antique, contrôle des désirs et sagesse pratique selon Épictète et Marc Aurèle." : "Ancient philosophy, control of desires, and practical wisdom according to Epictetus.",
-            duration: "20 min",
-            idx: 0
-          },
-          {
-            id: "vid_physics_01",
-            subject: "Physics",
-            subjectTitle: isFr ? "Physique • Mécanique" : "Physics • Mechanics",
-            title: isFr ? "Mouvement dans un Champ Pesant" : "Motion in a Gravitational Field",
-            desc: isFr ? "Équations horaires, trajectoires paraboliques et conservation de l'énergie mécanique." : "Time equations, parabolic trajectories, and mechanical energy conservation.",
-            duration: "15 min",
-            idx: 0
-          }
-        ];
-
-        let unlockedCount = 0;
+        const allLessons = getRevisionLessonCatalog(isFr);
+        window.revisionLessonCatalog = allLessons;
 
         const filteredLessons = allLessons.filter((lesson) => {
           if (window.activeRevisionSubjectFilter !== "all" && lesson.subject !== window.activeRevisionSubjectFilter) return false;
@@ -9195,21 +9610,19 @@
         const visibleLessons = filteredLessons.slice(0, limit);
 
         visibleLessons.forEach((lesson) => {
-          const isCompleted = (lesson.id === "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques" || localStorage.getItem("completed_videos_" + lesson.id) === "true");
-          const isSanitaireUnlocked = true;
-          const isUnlocked = isCompleted || (lesson.id.includes("sanitaire") && isSanitaireUnlocked);
+          const subjectLessons = allLessons.filter((item) => item.subject === lesson.subject);
+          const isCompleted = isRevisionLessonCompleted(lesson.id);
+          const isUnlocked = isRevisionLessonUnlocked(lesson, subjectLessons);
 
           let badgeHtml = "";
           let btnHtml = "";
 
           if (isCompleted) {
-            unlockedCount++;
             badgeHtml = `<span style="font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(34,197,94,0.15); color: #4ade80;">✓ VALIDÉ (85%+)</span>`;
-            btnHtml = `<button type="button" onclick="selectRevisionLesson('${lesson.subject}', '${lesson.id}')" style="background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); border: none; color: #ffffff; padding: 7px 14px; border-radius: 8px; font-weight: 700; font-size: 0.75rem; cursor: pointer;">▶ REVOIR CE COURS</button>`;
+            btnHtml = `<button type="button" onclick="selectRevisionLesson('${lesson.subject}', '${lesson.id}')" style="background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%); border: none; color: #ffffff; padding: 7px 14px; border-radius: 8px; font-weight: 700; font-size: 0.75rem; cursor: pointer;">▶ ${isFr ? "REVOIR LES COURS" : "REWATCH LESSON"}</button>`;
           } else if (isUnlocked) {
-            unlockedCount++;
-            badgeHtml = `<span style="font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(168,85,247,0.15); color: #c084fc;">▶ COURS ACTUEL</span>`;
-            btnHtml = `<button type="button" onclick="selectRevisionLesson('${lesson.subject}', '${lesson.id}')" style="background: #18181b; border: 1px solid #a855f7; color: #c084fc; padding: 7px 14px; border-radius: 8px; font-weight: 700; font-size: 0.75rem; cursor: pointer;">▶ CONTINUER LE COURS</button>`;
+            badgeHtml = `<span style="font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(168,85,247,0.15); color: #c084fc;">▶ ${isFr ? "CONTINUER LES COURS" : "CONTINUE"}</span>`;
+            btnHtml = `<button type="button" onclick="selectRevisionLesson('${lesson.subject}', '${lesson.id}')" style="background: #18181b; border: 1px solid #a855f7; color: #c084fc; padding: 7px 14px; border-radius: 8px; font-weight: 700; font-size: 0.75rem; cursor: pointer;">▶ ${isFr ? "CONTINUER LES COURS" : "CONTINUE LESSON"}</button>`;
           } else {
             badgeHtml = `<span style="font-size: 0.68rem; font-weight: 800; padding: 3px 8px; border-radius: 6px; background: rgba(239,68,68,0.15); color: #f87171;">🔒 VERROUILLÉ</span>`;
             btnHtml = `<button type="button" disabled style="background: #18181b; border: 1px solid #27272a; color: #71717a; padding: 7px 14px; border-radius: 8px; font-weight: 700; font-size: 0.75rem; cursor: not-allowed;">🔒 VERROUILLÉ</button>`;
@@ -9254,7 +9667,13 @@
         }
 
         const countEl = document.getElementById("revisionUnlockedCount");
-        if (countEl) countEl.innerText = `${unlockedCount} / ${allLessons.length} Leçons Débloquées`;
+        if (countEl) {
+          const unlockedCount = allLessons.filter((lesson) => {
+            const subjectLessons = allLessons.filter((item) => item.subject === lesson.subject);
+            return isRevisionLessonUnlocked(lesson, subjectLessons);
+          }).length;
+          countEl.innerText = `${unlockedCount} / ${allLessons.length} Leçons Débloquées`;
+        }
       }
 
       function selectRevisionLesson(subject, videoId) {
@@ -9699,6 +10118,8 @@
           state = "virtual_labs";
         } else if (window.isStemGraphsActive) {
           state = "stem_graphs";
+        } else if (window.isCircuitsLabActive) {
+          state = "circuits_lab";
         } else if (activeTabName === "evaluation") {
           state = "evaluation";
         }
@@ -9709,7 +10130,15 @@
             ? (typeof window.currentSocraticLabContext === "string" ? window.currentSocraticLabContext : JSON.stringify(window.currentSocraticLabContext))
             : "Student is actively experimenting in STEM Virtual Labs (Chemistry & Physics)";
         } else if (window.isStemGraphsActive) {
-          extraContext = "Student is actively working with mathematical equations, curves, and inequalities in STEM Graphs.";
+          extraContext = window.currentGraphContext
+            ? JSON.stringify(window.currentGraphContext)
+            : "Student is actively working with mathematical equations, curves, and inequalities in STEM Graphs.";
+        } else if (window.isCircuitsLabActive) {
+          extraContext = window.currentSocraticLabContext
+            ? (typeof window.currentSocraticLabContext === "string"
+                ? window.currentSocraticLabContext
+                : JSON.stringify(window.currentSocraticLabContext))
+            : "L'élève est dans l'Atelier Circuits (breadboard 3D, montage dual virtuel/physique).";
         } else if (activeTabName === "evaluation") {
           try {
             extraContext = getDisplayedQuizQuestions()
@@ -9730,21 +10159,107 @@
           }
         }
 
+        const lessonVideo = document.getElementById("lectureVideoPlayer");
+        const lessonTitleEl = document.getElementById("videoSubject");
+        let activityFields = {};
+        if (
+          state === "virtual_labs" ||
+          state === "circuits_lab" ||
+          state === "stem_graphs"
+        ) {
+          try {
+            const parsedActivity =
+              typeof extraContext === "string" ? JSON.parse(extraContext) : extraContext;
+            if (parsedActivity && typeof parsedActivity === "object") {
+              activityFields = parsedActivity;
+            } else if (extraContext) {
+              activityFields = { activity: extraContext };
+            }
+          } catch (_) {
+            activityFields = { activity: extraContext };
+          }
+        } else if (extraContext) {
+          activityFields = { activity: extraContext };
+        }
+        const contextSnapshot = {
+          video_id:
+            window.ACTIVE_DATABASE_VIDEO_ID ||
+            (typeof activeVideoId !== "undefined" ? activeVideoId : ""),
+          lesson_title: lessonTitleEl ? lessonTitleEl.innerText.trim() : "",
+          playback_seconds:
+            lessonVideo && Number.isFinite(lessonVideo.currentTime)
+              ? Math.round(lessonVideo.currentTime)
+              : 0,
+          view: state,
+          ...activityFields,
+        };
+        extraContext = JSON.stringify(contextSnapshot);
+
         console.log(
           "[ACTIVE STATE] Publishing active_view_state:",
           state,
           "with context length:",
           extraContext.length,
         );
-        fetch("/api/active_state", {
+        const stateSync = fetch("/api/active_state", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             active_view_state: state,
             active_view_context: extraContext,
+            active_video_id: contextSnapshot.video_id,
+            active_video_title: contextSnapshot.lesson_title,
+            active_video_time: contextSnapshot.playback_seconds,
           }),
         }).catch((err) => console.error("Failed to update active state:", err));
+        if (typeof syncGandhoFabVisibility === "function") syncGandhoFabVisibility();
+        return stateSync;
       }
+
+      window.addEventListener("message", (event) => {
+        const data = event && event.data;
+        if (data && data.type === "GANDHO_GRAPH_VOICE") {
+          window.graphVoiceMicBusy = Boolean(data.listening);
+          if (data.listening) {
+            pauseLessonForModuleSwitch();
+            try {
+              if (typeof recognition !== "undefined" && recognition) recognition.stop();
+            } catch (err) {}
+            try {
+              if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+            } catch (err) {}
+            // The graph tool records a short formula clip with MediaRecorder.
+            // Browsers can share the capture device with LiveKit, so never mute
+            // Gandho's persistent input track here. If the iframe is removed
+            // while recording, its matching "listening: false" message never
+            // arrives and the tutor would otherwise remain deaf.
+          } else {
+            if (
+              window.isConversationSessionActive &&
+              !(window.lkRoom && window.lkRoom.state === "connected") &&
+              typeof recognition !== "undefined" &&
+              recognition
+            ) {
+              try {
+                recognition.start();
+              } catch (err) {}
+            }
+          }
+          return;
+        }
+        if (!data || data.type !== "GANDHO_GRAPH_CONTEXT") return;
+        window.currentGraphContext = {
+          title: data.title || "STEM Graphs",
+          formula: data.formula || "",
+          scene: data.scene || "",
+        };
+        clearTimeout(window._gandhoGraphCtxTimer);
+        window._gandhoGraphCtxTimer = setTimeout(() => {
+          if (window.isStemGraphsActive && typeof updateActiveViewState === "function") {
+            updateActiveViewState();
+          }
+        }, 400);
+      });
 
       // Popover helper functions & outside-click listener
       let isPopoverSticky = false;
@@ -10314,6 +10829,7 @@
       // Mic controller toggler
       let isListening = false;
       let isConversationSessionActive = false;
+      window.isConversationSessionActive = false;
       let wasVideoPlayingBeforeSession = false;
       let isAgentResponding = false;
       let micInterval = null;
@@ -10386,6 +10902,11 @@
           recognition.onresult = function (event) {
             const resultText = event.results[0][0].transcript;
             console.log("Speech recognition result: " + resultText);
+
+            if (window.lkRoom && window.lkRoom.state === "connected") {
+              console.log("[SPEECH] Ignoring Web Speech while Gemini Live / LiveKit owns the mic:", resultText);
+              return;
+            }
 
             if (isConversationSessionActive) {
               // Check if this result is just an echo of the tutor's own voice
@@ -10465,6 +10986,14 @@
           recognition.onend = function () {
             console.log("Speech recognition ended.");
             isRecognitionRunning = false;
+            if (window.graphVoiceMicBusy) {
+              console.log("[SPEECH] Not restarting classroom recognition: Graphs mic is recording.");
+              return;
+            }
+            if (window.lkRoom && window.lkRoom.state === "connected") {
+              console.log("[SPEECH] LiveKit owns the microphone; not restarting Web Speech.");
+              return;
+            }
             if (isConversationSessionActive && !isAgentResponding) {
               console.log(
                 "[SPEECH] Recognition ended during active session. Restarting listener...",
@@ -10492,18 +11021,26 @@
       }
 
       function handleAgentSpeechFinished() {
-        if (isConversationSessionActive) {
-          console.log(
-            "[SPEECH] Agent finished speaking. Auto-deactivating mic session.",
-          );
-          isAgentResponding = false;
-          // Retain the spoken text in memory for 4 seconds to catch trailing speaker echoes
-          setTimeout(() => {
-            window.currentTutorSpeechText = "";
-          }, 4000);
+        if (!isConversationSessionActive) return;
+        console.log(
+          "[SPEECH] Agent finished speaking. Keeping the live voice session open.",
+        );
+        isAgentResponding = false;
+        setTimeout(() => {
+          window.currentTutorSpeechText = "";
+        }, 4000);
+        syncMicUI("active", "Listening State: Gemini Flash Live");
+        startMicWaveAnimation();
+      }
 
-          toggleMicRaiseHand(null, false);
-        }
+      function syncGandhoFabVisibility() {
+        const fab = document.getElementById("gandhoFabMic");
+        if (!fab) return;
+        const overlay =
+          !!window.isVirtualLabsActive || !!window.isStemGraphsActive;
+        // Dashboard already has a mic. Never inject this button into the workspace grid.
+        fab.style.display = overlay ? "flex" : "none";
+        fab.classList.toggle("active", !!isConversationSessionActive);
       }
 
       function syncMicUI(state, text, sourceId = null) {
@@ -10511,14 +11048,17 @@
         const label = document.getElementById("micTimerText");
         const wBtn = document.getElementById("workspaceMicBtn");
         const wLabel = document.getElementById("workspaceMicTimerText");
+        const fab = document.getElementById("gandhoFabMic");
 
         const targetId = sourceId || window.activeLiveKitSourceId;
 
         if (state === "idle") {
           if (btn) btn.classList.remove("active", "loading");
           if (wBtn) wBtn.classList.remove("active", "loading");
+          if (fab) fab.classList.remove("active", "loading");
           if (label) label.innerText = text || "Listening State: Idle";
           if (wLabel) wLabel.innerText = text || "Listening State: Idle";
+          syncGandhoFabVisibility();
           return;
         }
 
@@ -10539,6 +11079,12 @@
             if (wLabel)
               wLabel.innerText = text || "Listening State: Connecting...";
           }
+          if (!targetId || targetId === "gandhoFabMic") {
+            if (fab) {
+              fab.classList.add("loading");
+              fab.classList.remove("active");
+            }
+          }
         } else if (state === "active") {
           if (!targetId || targetId === "micActivationBtn") {
             if (btn) {
@@ -10554,17 +11100,51 @@
             }
             if (wLabel) wLabel.innerText = text || "Listening State: Active";
           }
+          if (!targetId || targetId === "gandhoFabMic") {
+            if (fab) {
+              fab.classList.remove("loading");
+              fab.classList.add("active");
+            }
+          }
         }
+        syncGandhoFabVisibility();
       }
 
       let lkRoom = null;
       let lkAudioTrack = null;
 
+      
+      // Desktop online testing helper: localStorage.ONLINE_MODE = "1" enables cloud voice path
+      try {
+        if (localStorage.getItem("ONLINE_MODE") === "1") window.ONLINE_MODE = "1";
+        if (localStorage.getItem("LIVEKIT_URL")) window.LIVEKIT_URL = localStorage.getItem("LIVEKIT_URL");
+        if (localStorage.getItem("LIVEKIT_CLOUD_URL")) window.LIVEKIT_CLOUD_URL = localStorage.getItem("LIVEKIT_CLOUD_URL");
+      } catch (e) {}
+
       async function startLiveKitVoiceSession(sourceId = null) {
         try {
+          if (lkRoom && window._lkVoiceConnected) {
+            console.log("[LIVEKIT] Voice session already live; keeping the call open.");
+            if (typeof updateActiveViewState === "function") updateActiveViewState();
+            syncMicUI("active", "Listening State: Gemini Flash Live", sourceId);
+            return;
+          }
+          window._gandhoReadyGreetingSpoken = false;
+          window._gandhoAgentReady = false;
           if (lkRoom) {
             await lkRoom.disconnect();
             lkRoom = null;
+            window._lkVoiceConnected = false;
+          }
+
+          if (
+            !window.isSecureContext ||
+            !navigator.mediaDevices ||
+            typeof navigator.mediaDevices.getUserMedia !== "function"
+          ) {
+            throw new Error(
+              "Firefox requires a secure microphone origin. Open http://localhost:8000 (not ventuno.local or a LAN IP), or serve the app over HTTPS.",
+            );
           }
 
           syncMicUI("connecting", "Listening State: Connecting...", sourceId);
@@ -10577,74 +11157,184 @@
 
           // Fetch token from display_client /token endpoint
           const currentStudent = window.ACTIVE_DATABASE_USER || activeStudentName || "Alseny";
+          const lessonId = window.ACTIVE_DATABASE_VIDEO_ID || activeVideoId || "";
+          const requestedRoom = `socratic_tutor_room_${Math.floor(Math.random() * 1000000)}`;
+          try {
+            if (typeof updateActiveViewState === "function") {
+              await updateActiveViewState();
+            }
+            await fetch("/save_active_session", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ active_video_id: lessonId }),
+            });
+          } catch (sessErr) {
+            console.warn("[LIVEKIT] session sync before token failed", sessErr);
+          }
           const tokenResp = await fetch(
-            `/token?room=socratic_tutor_room_${Math.floor(Math.random() * 1000)}&identity=${encodeURIComponent(currentStudent)}&name=${encodeURIComponent(currentStudent)}&mode=SOLO&video_id=${encodeURIComponent(activeVideoId)}`,
+            `/token?room=${encodeURIComponent(requestedRoom)}&identity=${encodeURIComponent(currentStudent)}&name=${encodeURIComponent(currentStudent)}&mode=SOLO&video_id=${encodeURIComponent(lessonId)}&online=${navigator.onLine ? "1" : "0"}`,
           );
           const tokenData = await tokenResp.json();
           const token = tokenData.token;
-
-          const wsUrl = "wss://gandaledu-uqy2on78.livekit.cloud";
+          const roomName = (window.GANDAL_LIVEKIT_ROOM = tokenData.room || "socratic_tutor_room");
+          const localHost = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+            ? "127.0.0.1"
+            : location.hostname;
+          const onlineTesting =
+            window.ONLINE_MODE === true ||
+            window.ONLINE_MODE === "1" ||
+            tokenData.offlineMode === false ||
+            tokenData.onlineMode === true;
+          const urls = [
+            tokenData.url || tokenData.livekitUrl,
+            ...(tokenData.fallbacks || []),
+            window.LIVEKIT_URL,
+            (onlineTesting && window.LIVEKIT_CLOUD_URL) || null,
+            "wss://gandaledu-uqy2on78.livekit.cloud",
+            `ws://${localHost}:7880`,
+          ].filter(Boolean);
+          const wsUrl = urls[0] || "ws://localhost:7880";
+          window._lkConnectUrls = urls;
+          console.log("[LIVEKIT] Token", {
+            url: wsUrl,
+            room: roomName,
+            engine: tokenData.engine,
+            model: tokenData.model,
+            dispatched: tokenData.agent_dispatched,
+            dispatch: tokenData.dispatch_detail,
+            agent: tokenData.agent_name,
+            onlineTesting: !!onlineTesting,
+          });
 
           // Initialize Room
           lkRoom = new LivekitClient.Room({
             adaptiveStream: true,
             dynacast: true,
+            autoSubscribe: true,
+            webAudioMix: false,
+            audioCaptureDefaults: {
+              autoGainControl: true,
+              echoCancellation: true,
+              noiseSuppression: true,
+            },
+            audioPreset: LivekitClient.AudioPresets.speech,
             publishDefaults: {
               audioPreset: LivekitClient.AudioPresets.speech,
             },
           });
           window.lkRoom = lkRoom;
+          lkRoom.on(LivekitClient.RoomEvent.LocalTrackPublished, (publication) => {
+            console.log("[LIVEKIT] Local track published", {
+              sid: publication && (publication.trackSid || publication.sid),
+              source: publication && publication.source,
+              kind: publication && publication.kind,
+              muted: publication && publication.isMuted,
+            });
+          });
+          lkRoom.on(LivekitClient.RoomEvent.LocalTrackUnpublished, (publication) => {
+            console.warn("[LIVEKIT] Local track unpublished", publication);
+          });
 
-          // Listen to audio track subscriptions
-          lkRoom.on(
-            LivekitClient.RoomEvent.TrackSubscribed,
-            (track, publication, participant) => {
-              if (track.kind === "audio") {
-                console.log("[LIVEKIT] Audio track subscribed. Attaching...");
-                lkAudioTrack = track.attach();
-                document.body.appendChild(lkAudioTrack);
-                lkAudioTrack.play().catch((err) => {
-                  console.warn(
-                    "[LIVEKIT] Explicit play on attached track failed:",
-                    err,
-                  );
-                });
-                lkRoom
-                  .startAudio()
-                  .catch((e) =>
-                    console.warn(
-                      "[LIVEKIT] startAudio failed on track subscription:",
-                      e,
-                    ),
-                  );
+          if (window.spatiusAvatarManager) {
+            try {
+              await window.spatiusAvatarManager.attachToRoom(lkRoom);
+            } catch (spatiusAttachErr) {
+              console.warn("[SPATIUS] attachToRoom before connect failed:", spatiusAttachErr);
+            }
+          }
+
+          const attachTutorAudio = (track, participant) => {
+            if (!track || track.kind !== "audio") return;
+            if (participant && participant.isLocal) return;
+            const sid = track.sid || (participant && participant.identity) || "remote-audio";
+            if (window._lkTutorTrackSid === sid && lkAudioTrack) {
+              lkAudioTrack.muted = false;
+              lkAudioTrack.volume = 1;
+              lkRoom && lkRoom.startAudio().catch(() => {});
+              lkAudioTrack.play().catch(() => {});
+              return;
+            }
+            console.log("[LIVEKIT] Tutor audio track from", participant && participant.identity, sid);
+            window._lkTutorTrackSid = sid;
+            try {
+              if (lkAudioTrack && lkAudioTrack.srcObject !== track.mediaStream) {
+                lkAudioTrack.remove();
               }
-            },
-          );
+            } catch (e) {}
+            lkAudioTrack = track.attach();
+            lkAudioTrack.autoplay = true;
+            lkAudioTrack.playsInline = true;
+            lkAudioTrack.muted = false;
+            lkAudioTrack.volume = 1;
+            lkAudioTrack.setAttribute("playsinline", "true");
+            lkAudioTrack.style.display = "none";
+            document.body.appendChild(lkAudioTrack);
+            lkAudioTrack.play().catch(() => {});
+            if (lkRoom) lkRoom.startAudio().catch(() => {});
+            syncMicUI("active", "Listening State: Gemini Flash Live");
+          };
+
+          lkRoom.on(LivekitClient.RoomEvent.AudioPlaybackStatusChanged, () => {
+            if (lkRoom) lkRoom.startAudio().catch(() => {});
+          });
+          lkRoom.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+            attachTutorAudio(track, participant);
+          });
+          lkRoom.on(LivekitClient.RoomEvent.TrackPublished, (publication, participant) => {
+            if (participant && participant.isLocal) return;
+            if (publication && publication.setSubscribed) {
+              publication.setSubscribed(true);
+            }
+            if (publication && publication.kind === "audio" && publication.track) {
+              attachTutorAudio(publication.track, participant);
+            }
+          });
 
           // Listen to participant data messages (transcripts)
           lkRoom.on(
             LivekitClient.RoomEvent.DataReceived,
             (payload, participant, kind, topic) => {
+              if (topic === "gandho-status") {
+                const decoder = new TextDecoder();
+                try {
+                  const data = JSON.parse(decoder.decode(payload));
+                  if (data.type === "agent_ready") {
+                    console.log("[LIVEKIT] Gandho agent ready", data);
+                    window._gandhoAgentReady = true;
+                    const readyWaiters = window._gandhoReadyWaiters || [];
+                    window._gandhoReadyWaiters = [];
+                    readyWaiters.forEach((resolve) => resolve(true));
+                    syncMicUI("active", "Listening State: Gemini Flash Live — speak your question");
+                    // Status only. Chat lines come from tutor-transcripts / RAISE_HAND
+                    // so the greeting is not inserted twice.
+                  }
+                } catch (err) {
+                  console.error("[LIVEKIT STATUS ERROR]", err);
+                }
+                return;
+              }
               if (topic === "tutor-transcripts") {
                 const decoder = new TextDecoder();
                 try {
                   const data = JSON.parse(decoder.decode(payload));
                   console.log("[LIVEKIT DATA RECEIVED]", data);
                   if (data.role === "assistant") {
-                    // appendTutorTranscriptCard(data.text);
-                    appendChatMessage("TUTOR", data.text);
+                    appendChatMessage("TUTOR", tidySpokenTranscript(data.text));
                     syncMicUI("active", "Listening State: Active");
                     startMicWaveAnimation();
 
-                    // Live Socratic whiteboard note updates
                     if (window.isWorkspaceActive) {
                       writeToWorkspaceWhiteboard(data.text);
                     }
                   } else if (data.role === "user") {
-                    // appendTutorStudentCard(data.text);
-                    appendChatMessage("YOU", data.text);
-                    if (window.isWorkspaceActive) {
-                      writeUserToWorkspaceWhiteboard(data.text);
+                    const leaked = String(data.text || "");
+                    if (/^\s*(dis |say |greet the student|speak this greeting|disune phrase|say one sentence)/i.test(leaked.replace(/\s+/g, " "))) {
+                      console.warn("[LIVEKIT] Ignored leaked agent instruction in user transcript");
+                    } else {
+                      appendChatMessage("YOU", tidySpokenTranscript(data.text));
+                      if (window.isWorkspaceActive) {
+                        writeUserToWorkspaceWhiteboard(data.text);
+                      }
                     }
                   }
                 } catch (err) {
@@ -10653,7 +11343,9 @@
                     err,
                   );
                 }
-              } else if (topic === "lab-control") {
+                return;
+              }
+              if (topic === "lab-control") {
                 const decoder = new TextDecoder();
                 try {
                   const cmd = JSON.parse(decoder.decode(payload));
@@ -10670,6 +11362,10 @@
 
           lkRoom.on(LivekitClient.RoomEvent.Connected, () => {
             console.log("[LIVEKIT] Connected successfully!");
+            try {
+              if (typeof recognition !== "undefined" && recognition) recognition.stop();
+            } catch (err) {}
+            isRecognitionRunning = false;
             syncMicUI("active", "Listening State: Active");
             startMicWaveAnimation();
 
@@ -10694,28 +11390,144 @@
 
           lkRoom.on(LivekitClient.RoomEvent.Disconnected, () => {
             console.log("[LIVEKIT] Disconnected.");
+            window._lkVoiceConnected = false;
             cleanupSessionUI();
           });
 
-          // Connect to LiveKit Cloud
-          await lkRoom.connect(wsUrl, token);
+          let connected = false;
+          let lastErr = null;
+          const tryUrls = window._lkConnectUrls && window._lkConnectUrls.length ? window._lkConnectUrls : [wsUrl];
+          for (const candidate of tryUrls) {
+            try {
+              console.log("[LIVEKIT] Connecting to", candidate, "room", roomName);
+              await lkRoom.connect(candidate, token);
+              connected = true;
+              break;
+            } catch (connectErr) {
+              lastErr = connectErr;
+              console.warn("[LIVEKIT] Connect failed for", candidate, connectErr);
+            }
+          }
+          if (!connected) throw lastErr || new Error("LiveKit connect failed");
+          window._lkVoiceConnected = true;
 
-          // Enable microphone
+          // Match the verified VentunoGandal publication path. Opening and
+          // immediately stopping a separate getUserMedia probe before this
+          // call can leave Firefox's subsequent WebRTC source silent.
           await lkRoom.localParticipant.setMicrophoneEnabled(true);
+          let micPublication = null;
+          const audioPublications = lkRoom.localParticipant.audioTrackPublications;
+          if (audioPublications && audioPublications.forEach) {
+            audioPublications.forEach((publication) => {
+              if (!micPublication && publication && publication.track) {
+                micPublication = publication;
+              }
+            });
+          }
+          const mediaTrack =
+            micPublication &&
+            micPublication.track &&
+            micPublication.track.mediaStreamTrack;
+          console.log("[LIVEKIT] Microphone published", {
+            sid: micPublication && (micPublication.trackSid || micPublication.sid),
+            source: micPublication && micPublication.source,
+            muted: micPublication && micPublication.isMuted,
+            enabled: micPublication && micPublication.track && micPublication.track.isEnabled,
+            readyState: mediaTrack && mediaTrack.readyState,
+            device: mediaTrack && mediaTrack.label,
+          });
+          if (!micPublication || !micPublication.track || micPublication.isMuted) {
+            throw new Error("LiveKit did not publish an active microphone track.");
+          }
           console.log("[LIVEKIT] Microphone enabled.");
+          const remoteParticipantCount = () => {
+            try {
+              return lkRoom && lkRoom.remoteParticipants ? lkRoom.remoteParticipants.size : 0;
+            } catch (e) {
+              return 0;
+            }
+          };
+          const subscribeRemoteAudio = (participant) => {
+            if (!participant || participant.isLocal) return;
+            const pubs = participant.audioTrackPublications || participant.trackPublications;
+            if (!pubs || !pubs.forEach) return;
+            pubs.forEach((pub) => {
+              if (!pub) return;
+              if (pub.setSubscribed) pub.setSubscribed(true);
+              if (pub.track) attachTutorAudio(pub.track, participant);
+            });
+          };
+          try {
+            lkRoom.remoteParticipants.forEach(subscribeRemoteAudio);
+          } catch (scanErr) {
+            console.warn("[LIVEKIT] remote track scan failed", scanErr);
+          }
+          lkRoom.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+            console.log("[LIVEKIT] Participant joined", participant && participant.identity);
+            subscribeRemoteAudio(participant);
+            if (!lkAudioTrack) {
+              syncMicUI("connecting", "Listening State: Gandho joined, starting voice...", sourceId);
+            }
+          });
+          if (window._lkKeepAlive) clearInterval(window._lkKeepAlive);
+          window._lkKeepAlive = setInterval(() => {
+            if (!isConversationSessionActive || !lkRoom) {
+              clearInterval(window._lkKeepAlive);
+              window._lkKeepAlive = null;
+              return;
+            }
+            lkRoom.startAudio().catch(() => {});
+            if (lkAudioTrack) {
+              lkAudioTrack.muted = false;
+              lkAudioTrack.play().catch(() => {});
+            }
+          }, 4000);
+          if (typeof window.notifyTutorHandRaise === "function") {
+            window.notifyTutorHandRaise("voice");
+          }
+          if (!lkAudioTrack) {
+            syncMicUI("connecting", "Listening State: Waiting for Gandho...", sourceId);
+          }
+          setTimeout(() => {
+            if (!isConversationSessionActive || lkAudioTrack || window._gandhoAgentReady) return;
+            if (remoteParticipantCount() > 0) {
+              syncMicUI("connecting", "Listening State: Gandho is in the room, starting voice...");
+              return;
+            }
+            showToastNotification(
+              "Waiting for Gandho",
+              "No tutor joined this LiveKit room. Restart python3 livekit_stack/agent/run_agent.py start, then click the mic once.",
+            );
+            syncMicUI("connecting", "Listening State: Waiting for agent");
+          }, 20000);
+
+          if (window.spatiusAvatarManager) {
+            try {
+              await window.spatiusAvatarManager.startAvatar();
+            } catch (spatiusStartErr) {
+              console.warn("[SPATIUS] startAvatar after connect failed:", spatiusStartErr);
+            }
+          }
         } catch (err) {
           console.error("[LIVEKIT ERROR]", err);
-          showToastNotification(
-            "Voice Session Error",
-            "Failed to connect to Socratic Tutor server.",
-          );
-          cleanupSessionUI();
+          window._lkVoiceConnected = false;
+          isConversationSessionActive = false;
+          window.isConversationSessionActive = false;
+          isListening = false;
+          const locale = window.ACTIVE_DATABASE_LOCALE || "fr_FR";
+          const msg = locale.startsWith("fr")
+            ? `Connexion vocale impossible : ${err && err.message ? err.message : err}`
+            : `Voice connection failed: ${err && err.message ? err.message : err}`;
+          showToastNotification("LiveKit voice failed", msg);
+          syncMicUI("idle", "Voice offline — start agent then click mic again");
+          if (typeof cleanupSessionUI === "function") cleanupSessionUI();
         }
       }
 
       async function stopLiveKitVoiceSession() {
         if (lkRoom) {
           console.log("[LIVEKIT] Stopping session...");
+          window._lkVoiceConnected = false;
           try {
             await lkRoom.disconnect();
           } catch (e) {}
@@ -11120,51 +11932,124 @@
         }
       }
 
+      function findLocalScreenSharePublication() {
+        if (!lkRoom || !lkRoom.localParticipant) return null;
+        const pubs =
+          lkRoom.localParticipant.trackPublications ||
+          lkRoom.localParticipant.videoTrackPublications;
+        let found = null;
+        if (pubs && pubs.forEach) {
+          pubs.forEach((publication) => {
+            if (!publication) return;
+            const source = String(publication.source || "").toLowerCase();
+            if (source.includes("screen") || source.includes("screenshare")) {
+              found = publication;
+            }
+          });
+        }
+        return found;
+      }
+
+      function attachScreenShareEndedHandler(publication) {
+        const track = publication && publication.track;
+        const mediaTrack = track && (track.mediaStreamTrack || track);
+        if (!mediaTrack || typeof mediaTrack.addEventListener !== "function") {
+          if (mediaTrack) {
+            mediaTrack.onended = () => stopScreenShareProgrammatically();
+          }
+          return;
+        }
+        mediaTrack.onended = () => {
+          console.log("[SCREEN SHARE] Native track ended event detected.");
+          stopScreenShareProgrammatically();
+        };
+      }
+
+      function screenShareErrorMessage(err) {
+        const name = (err && (err.name || err.code)) || "";
+        const msg = String((err && err.message) || err || "");
+        if (name === "NotAllowedError" || /permission|denied|cancelled|canceled/i.test(msg)) {
+          return "Screen share was cancelled or blocked. Click share again and pick a screen, window, or tab.";
+        }
+        if (name === "NotFoundError" || name === "NotSupportedError") {
+          return "This browser cannot capture the screen. Use Chrome or Edge on http://127.0.0.1:8000.";
+        }
+        if (name === "OverconstrainedError" || /constraint|displaySurface/i.test(msg)) {
+          return "The screen-share picker rejected those options. Click share again and choose any screen or window.";
+        }
+        return msg || "Failed to start screen sharing.";
+      }
+
+      async function startLiveKitScreenShare() {
+        const options = {
+          audio: false,
+          selfBrowserSurface: "include",
+          surfaceSwitching: "include",
+        };
+        try {
+          return await lkRoom.localParticipant.setScreenShareEnabled(true, options);
+        } catch (err) {
+          const name = err && err.name;
+          if (name === "OverconstrainedError" || /displaySurface|constraint/i.test(String(err && err.message))) {
+            console.warn("[SCREEN SHARE] Retrying without capture options", err);
+            return await lkRoom.localParticipant.setScreenShareEnabled(true);
+          }
+          throw err;
+        }
+      }
+
       async function toggleScreenShare(event) {
         if (event) event.stopPropagation();
-        if (!lkRoom) return;
-
         const btn = document.getElementById("screenShareBtn");
         const label = document.getElementById("micTimerText");
 
+        if (!lkRoom || lkRoom.state !== "connected") {
+          showToastNotification(
+            "Screen Share",
+            "Click the microphone first so Gandho joins the room, then share your screen.",
+          );
+          return;
+        }
+
         try {
           if (!isScreenSharingActive) {
-            label.innerText = "Sharing Screen: Requesting...";
-            btn.classList.add("loading");
-            btn.classList.remove("ready-highlight");
-
-            // Show the floating avatar immediately to secure user gesture context
-            await showFloatingScreenShareAvatar(true);
-
-            const pub =
-              await lkRoom.localParticipant.setScreenShareEnabled(true, { displaySurface: "monitor" });
-
-            isScreenSharingActive = true;
-            btn.classList.remove("loading");
-            btn.classList.add("active");
-            label.innerText = "Sharing Screen: Active";
-            showToastNotification(
-              "Screen Share Active",
-              "Screen sharing active! You can share your Entire Screen / Desktop so GANDHO can see all your desktop books and files.",
-            );
-
-            // Listen to native ended event on the media stream track to detect native toolbar stop sharing clicks
-            if (pub && pub.track && pub.track.mediaStreamTrack) {
-              pub.track.mediaStreamTrack.onended = () => {
-                console.log(
-                  "[SCREEN SHARE] Native track ended event detected.",
-                );
-                stopScreenShareProgrammatically();
-              };
+            if (label) label.innerText = "Sharing Screen: Requesting...";
+            if (btn) {
+              btn.classList.add("loading");
+              btn.classList.remove("ready-highlight");
             }
 
+            // Capture first while the click is still a user gesture.
+            // Document PiP / requestWindow consumes that gesture and Chrome then
+            // blocks getDisplayMedia with NotAllowedError.
+            let pub = await startLiveKitScreenShare();
+            if (!pub || !pub.track) {
+              pub = findLocalScreenSharePublication();
+            }
+
+            isScreenSharingActive = true;
+            if (btn) {
+              btn.classList.remove("loading");
+              btn.classList.add("active");
+            }
+            if (label) label.innerText = "Sharing Screen: Active";
+            showToastNotification(
+              "Screen Share Active",
+              "Your screen is shared with Gandho. Pick Entire Screen, a window, or a tab.",
+            );
+            attachScreenShareEndedHandler(pub);
+            showFloatingScreenShareAvatar(true).catch((pipErr) => {
+              console.warn("[SCREEN SHARE] Avatar pop-out failed (share continues):", pipErr);
+            });
             updateActiveViewState();
           } else {
             await lkRoom.localParticipant.setScreenShareEnabled(false);
             isScreenSharingActive = false;
-            btn.classList.remove("active");
-            btn.classList.add("ready-highlight");
-            label.innerText = "Listening State: Active";
+            if (btn) {
+              btn.classList.remove("active");
+              btn.classList.add("ready-highlight");
+            }
+            if (label) label.innerText = "Listening State: Active";
             showToastNotification(
               "Screen Share Stopped",
               "Screen share stopped.",
@@ -11181,11 +12066,8 @@
             btn.classList.remove("active");
             btn.classList.add("ready-highlight");
           }
-          label.innerText = "Listening State: Active";
-          showToastNotification(
-            "Screen Share Error",
-            "Failed to start screen sharing.",
-          );
+          if (label) label.innerText = "Listening State: Active";
+          showToastNotification("Screen Share Error", screenShareErrorMessage(err));
           showFloatingScreenShareAvatar(false);
           updateActiveViewState();
         }
@@ -11196,6 +12078,8 @@
         stopMicWaveAnimation();
         isListening = false;
         isConversationSessionActive = false;
+        window.isConversationSessionActive = false;
+        window._lkVoiceConnected = false;
 
         const screenBtn = document.getElementById("screenShareBtn");
         if (screenBtn) {
@@ -11257,6 +12141,7 @@
           isConversationSessionActive = !isConversationSessionActive;
         }
         isListening = isConversationSessionActive;
+        window.isConversationSessionActive = isConversationSessionActive;
 
         const video = document.getElementById("lectureVideoPlayer");
 
@@ -11276,8 +12161,16 @@
             }
           }
 
-          // Start LiveKit WebSocket Audio Session
-          startLiveKitVoiceSession(sourceId);
+          if (!prevSessionActive) {
+            if (typeof updateActiveViewState === "function") updateActiveViewState();
+            startLiveKitVoiceSession(sourceId);
+          } else if (typeof updateActiveViewState === "function") {
+            updateActiveViewState();
+          }
+          if (typeof window.notifyTutorHandRaise === "function") {
+            window.notifyTutorHandRaise("mic");
+          }
+          syncGandhoFabVisibility();
         } else {
           // Stop LiveKit WebSocket Audio Session
           stopLiveKitVoiceSession();
@@ -11301,7 +12194,9 @@
 
       function startMicWaveAnimation() {
         const canvas = document.getElementById("micWaveformCanvas");
+        if (!canvas || typeof canvas.getContext !== "function") return;
         const ctx = canvas.getContext("2d");
+        if (!ctx) return;
 
         function draw() {
           if (!isListening) return;
@@ -11324,7 +12219,9 @@
 
       function stopMicWaveAnimation() {
         const canvas = document.getElementById("micWaveformCanvas");
+        if (!canvas || typeof canvas.getContext !== "function") return;
         const ctx = canvas.getContext("2d");
+        if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
 
@@ -11335,77 +12232,51 @@
 
         const doSpeak = (textToSpeak) => {
           window.currentTutorSpeechText = textToSpeak || "";
+          if (!textToSpeak) return;
 
-          if (activeLocale !== "en_US") {
-            fetch(
-              `/api/tts?locale=${encodeURIComponent(activeLocale)}&text=${encodeURIComponent(textToSpeak)}`,
-            ).catch((err) =>
-              console.warn("Background TTS logger call failed:", err),
-            );
-          }
-
-          if ("speechSynthesis" in window) {
+          const playBrowserVoice = () => {
+            if (!("speechSynthesis" in window)) return;
             window.speechSynthesis.cancel();
-
             const utterance = new SpeechSynthesisUtterance(
               cleanTextForSpeech(textToSpeak),
             );
             utterance.lang = activeLocale.replace("_", "-");
-
             const voices = window.speechSynthesis.getVoices();
             const matchedVoice =
               voices.find((v) =>
                 v.lang
                   .toLowerCase()
                   .startsWith(utterance.lang.toLowerCase().split("-")[0]),
-              ) ||
-              voices.find((v) =>
-                v.lang
-                  .toLowerCase()
-                  .startsWith(utterance.lang.toLowerCase().replace("_", "-")),
-              ) ||
-              voices[0];
-            if (matchedVoice) {
-              utterance.voice = matchedVoice;
-            }
+              ) || voices[0];
+            if (matchedVoice) utterance.voice = matchedVoice;
             utterance.rate = 1.0;
-            utterance.pitch = 1.0;
-
             utterance.onend = function () {
-              if (isConversationSessionActive) {
-                handleAgentSpeechFinished();
-              } else if (isVideoPausedBySentry) {
-                const video = document.getElementById("lectureVideoPlayer");
-                if (video && video.paused) {
-                  video
-                    .play()
-                    .catch((e) =>
-                      console.warn("Auto-play on hint end failed:", e),
-                    );
-                }
-                isVideoPausedBySentry = false;
-              }
+              if (isConversationSessionActive) handleAgentSpeechFinished();
             };
-            utterance.onerror = function () {
-              if (isConversationSessionActive) {
-                handleAgentSpeechFinished();
-              } else if (isVideoPausedBySentry) {
-                const video = document.getElementById("lectureVideoPlayer");
-                if (video && video.paused) {
-                  video
-                    .play()
-                    .catch((e) =>
-                      console.warn("Auto-play on hint error failed:", e),
-                    );
-                }
-                isVideoPausedBySentry = false;
-              }
-            };
-
             window.speechSynthesis.speak(utterance);
-          } else {
-            console.warn("Speech Synthesis not supported in this browser.");
-          }
+          };
+
+          fetch(
+            `/api/tts?locale=${encodeURIComponent(activeLocale)}&text=${encodeURIComponent(textToSpeak)}`,
+          )
+            .then((res) => res.blob())
+            .then((blob) => {
+              if (blob && blob.size > 800) {
+                if (window._gandhoTtsAudio) {
+                  try { window._gandhoTtsAudio.pause(); } catch (e) {}
+                }
+                const url = URL.createObjectURL(blob);
+                window._gandhoTtsAudio = new Audio(url);
+                window._gandhoTtsAudio.playbackRate = 1.12;
+                window._gandhoTtsAudio.onended = function () {
+                  URL.revokeObjectURL(url);
+                  if (isConversationSessionActive) handleAgentSpeechFinished();
+                };
+                return window._gandhoTtsAudio.play().catch(() => playBrowserVoice());
+              }
+              playBrowserVoice();
+            })
+            .catch(() => playBrowserVoice());
         };
 
         // Pause main lecture video when tutor starts speaking
@@ -12542,6 +13413,10 @@ function getQuizTrackKey() {
         if (mastery) {
           window.timelineLocked = false;
           if (closeBtn) closeBtn.style.display = "block";
+          const passedVid = payload.video_id || activeVideoId || window.ACTIVE_DATABASE_VIDEO_ID;
+          if (passedVid && typeof markRevisionLessonCompleted === "function") {
+            markRevisionLessonCompleted(passedVid);
+          }
           showToastNotification(
             "Mastery Achieved! (85%+)",
             `Score: ${score.toFixed(1)}%. Lesson completed successfully. Next level unlocked!`,
@@ -12602,9 +13477,79 @@ function getQuizTrackKey() {
       }
 
       // Trigger query over WebSocket
-      function triggerRAGQuery(questionText, mode = "voice") {
+      function tidySpokenTranscript(text) {
+        if (!text) return text;
+        return String(text)
+          .replace(/([a-zà-ÿœæ])([A-ZÀ-ŸŒÆ])/g, "$1 $2")
+          .replace(/([!?.,:;])([^\s])/g, "$1 $2")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function waitForGandhoReady(timeoutMs = 20000) {
+        if (window._gandhoAgentReady) return Promise.resolve(true);
+        return new Promise((resolve) => {
+          let settled = false;
+          const finish = (ready) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve(ready);
+          };
+          const timer = setTimeout(() => finish(false), timeoutMs);
+          window._gandhoReadyWaiters = window._gandhoReadyWaiters || [];
+          window._gandhoReadyWaiters.push(() => finish(true));
+        });
+      }
+
+      async function ensureGandhoForChat() {
+        if (!window.lkRoom || window.lkRoom.state !== "connected") {
+          isConversationSessionActive = true;
+          isListening = true;
+          window.isConversationSessionActive = true;
+          syncMicUI("connecting", "Listening State: Connecting Gandho...");
+          await startLiveKitVoiceSession("chatTextInput");
+        }
+        if (!window.lkRoom || window.lkRoom.state !== "connected") return false;
+        if (window._gandhoAgentReady) return true;
+        syncMicUI("connecting", "Listening State: Waiting for Gandho...");
+        return waitForGandhoReady();
+      }
+
+      async function sendStudentChatToGandho(text) {
+        if (!text || !window.lkRoom || window.lkRoom.state !== "connected" || !window.lkRoom.localParticipant) {
+          return false;
+        }
+        try {
+          const lp = window.lkRoom.localParticipant;
+          const payload = JSON.stringify({ type: "student_chat", text: text });
+          const bytes = new TextEncoder().encode(payload);
+          await lp.publishData(bytes, {
+            reliable: true,
+            topic: "student-chat",
+          });
+          console.log("[CHAT] Sent student-chat over LiveKit:", text);
+          return true;
+        } catch (err) {
+          console.warn("[CHAT] Could not publish student-chat:", err);
+          return false;
+        }
+      }
+
+      async function triggerRAGQuery(questionText, mode = "voice") {
         currentQueryMode = mode;
         appendChatMessage("YOU", questionText);
+
+        // LiveKit + Gemini Live owns the mic; route typed chat directly to the agent.
+        if (mode === "chat_typed" || mode === "typed") {
+          const ready = await ensureGandhoForChat();
+          if (ready && await sendStudentChatToGandho(questionText)) return;
+          console.warn("[CHAT] Gandho did not join in time; trying the legacy local tutor route.");
+        }
+        if (window.lkRoom && window.lkRoom.state === "connected") {
+          // Voice during LiveKit: audio goes through published mic track, not WebSocket RAISE_HAND.
+          if (mode === "voice") return;
+        }
 
         let isQuizVal = false;
         let quizQuestionText = "";
@@ -12662,13 +13607,13 @@ function getQuizTrackKey() {
         }
       }
 
-      function submitChatText() {
+      async function submitChatText() {
         const input = document.getElementById("chatTextInput");
         const val = input.value.trim();
         if (!val) return;
 
-        triggerRAGQuery(val, "chat_typed");
         input.value = "";
+        await triggerRAGQuery(val, "chat_typed");
       }
 
       // Append message to sidebar Chat tab
@@ -16119,11 +17064,18 @@ function getQuizTrackKey() {
           if (video && !video.paused) {
             pauseVideoTimeline();
           }
+          if (typeof populateDynamicLibrary === "function") populateDynamicLibrary();
+          if (window.spatiusAvatarManager && typeof window.spatiusAvatarManager.relayout === "function") {
+            window.spatiusAvatarManager.relayout();
+          }
         } else {
           // Resume / unpause video when closing textbook drawer
           window.isTextbookDrawerOpen = false;
           if (video && video.paused) {
             playVideoTimeline();
+          }
+          if (window.spatiusAvatarManager && typeof window.spatiusAvatarManager.relayout === "function") {
+            window.spatiusAvatarManager.relayout();
           }
         }
       }
@@ -16149,6 +17101,9 @@ function getQuizTrackKey() {
         dashboardPane.classList.remove("active");
         workspacePane.classList.add("active");
         window.isWorkspaceActive = true;
+        if (window.spatiusAvatarManager && typeof window.spatiusAvatarManager.relayout === "function") {
+          window.spatiusAvatarManager.relayout();
+        }
 
         // Copy PDF src from drawer iframe to workspace iframe
         if (mainFrame && wFrame && mainFrame.src) {
@@ -16223,6 +17178,13 @@ function getQuizTrackKey() {
           );
           if (isScreenSharingActive) {
             showFloatingScreenShareAvatar(true);
+          }
+
+          if (typeof playVideoTimeline === "function") {
+            playVideoTimeline();
+          }
+          if (window.spatiusAvatarManager && typeof window.spatiusAvatarManager.relayout === "function") {
+            window.spatiusAvatarManager.relayout();
           }
         }
       }
@@ -16583,6 +17545,32 @@ function getQuizTrackKey() {
       }
 
       // Populate the library content dynamically from SQLite lesson metadata
+      function libraryBookStatus(lesson, displayName) {
+        const isFr = String(window.ACTIVE_DATABASE_LOCALE || "fr_FR").startsWith("fr");
+        const blob = `${lesson && lesson.video_id ? lesson.video_id : ""} ${displayName || ""} ${lesson && lesson.pdf_file_path ? lesson.pdf_file_path : ""}`.toLowerCase();
+        let videoId = (lesson && lesson.video_id) || "";
+        if (blob.includes("sanitaire")) {
+          videoId = "vid_economics_extraeconomiques_02_les_probl_mes_sanitaires";
+        } else if (blob.includes("alimentaire")) {
+          videoId = "vid_economics_extraeconomiques_03_probl_mes_alimentaires";
+        } else if (blob.includes("démographique") || blob.includes("demographique")) {
+          videoId = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques";
+        }
+        const catalog = typeof getRevisionLessonCatalog === "function" ? getRevisionLessonCatalog(isFr) : [];
+        const lessonMeta = catalog.find((item) => typeof revisionVideoIdsMatch === "function" && revisionVideoIdsMatch(item.id, videoId)) || catalog.find((item) => item.id === videoId);
+        if (typeof isRevisionLessonCompleted === "function" && videoId && isRevisionLessonCompleted(videoId)) {
+          return { kind: "review", label: isFr ? "Revoir les cours" : "Rewatch" };
+        }
+        if (lessonMeta && typeof isRevisionLessonUnlocked === "function") {
+          const subjectLessons = catalog.filter((item) => item.subject === lessonMeta.subject);
+          if (isRevisionLessonUnlocked(lessonMeta, subjectLessons)) {
+            return { kind: "continue", label: isFr ? "Continuer les cours" : "Continue" };
+          }
+          return { kind: "locked", label: isFr ? "Verrouillé" : "Locked" };
+        }
+        return { kind: "open", label: "" };
+      }
+
       async function populateDynamicLibrary() {
         try {
           const response = await fetch("/api/lessons");
@@ -16670,8 +17658,8 @@ function getQuizTrackKey() {
           for (const [subj, list] of Object.entries(subjects)) {
             const icon = getIconForSubject(subj);
             html += `
-                        <div class="subject-group">
-                            <div class="subject-title">${icon} ${subj}</div>
+                        <div class="subject-group lib-subject">
+                            <div class="subject-title lib-subject-head">${icon} ${subj}</div>
                             <div class="book-list">
                     `;
             list.forEach((l) => {
@@ -16683,10 +17671,17 @@ function getQuizTrackKey() {
                 .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
                 .join(" ");
               const bookId = `book-${l.video_id}`;
+              const status = libraryBookStatus(l, displayName);
+              const chip = status.label
+                ? `<span class="lib-book-chip ${status.kind}">${status.label}</span>`
+                : "";
               html += `
-                                <div class="book-item" id="${bookId}" onclick="loadLibraryPDF('${pdfPath}', '${displayName}', '${bookId}')">
+                                <div class="book-item lib-book ${status.kind}" id="${bookId}" onclick="loadLibraryPDF('${pdfPath}', '${displayName}', '${bookId}')">
                                     <span class="book-icon">${icon}</span>
-                                    <span class="book-name" title="${displayName}">${displayName}</span>
+                                    <div class="lib-book-copy">
+                                      <span class="book-name" title="${displayName}">${displayName}</span>
+                                      ${chip}
+                                    </div>
                                 </div>
                         `;
             });
@@ -16933,6 +17928,21 @@ function getQuizTrackKey() {
         }
       }
 
+      function resolveMediaUrl(path) {
+        if (!path) return "";
+        const raw = String(path).replace(/\\/g, "/").trim();
+        if (/^https?:\/\//i.test(raw)) return raw;
+        const cleaned = raw.replace(/^\/+/, "");
+        return (
+          window.location.origin +
+          "/" +
+          cleaned
+            .split("/")
+            .map((seg) => encodeURIComponent(seg))
+            .join("/")
+        );
+      }
+
       async function loadTextbookPDF(
         videoId,
         time = null,
@@ -16982,12 +17992,14 @@ function getQuizTrackKey() {
               return;
             }
             if (data.video_id) {
+              activeVideoId = data.video_id;
+              window.ACTIVE_DATABASE_VIDEO_ID = data.video_id;
               let resolvedTrack = selectedGoalTrack;
-              if (data.video_id === "vid_economics_01")
+              if (data.video_id === "vid_economics_01" || (data.video_id || "").includes("econom"))
                 resolvedTrack = "k12/12th_SM/Economics";
-              else if (data.video_id === "vid_physics_01")
+              else if ((data.video_id || "").includes("physics") || data.video_id === "vid_physics_01")
                 resolvedTrack = "k12/12th_SM/physics";
-              else if (data.video_id === "vid_chemistry_organic_chemistry")
+              else if ((data.video_id || "").includes("chem"))
                 resolvedTrack = "k12/12th_SM/chemistry";
               else if (data.video_id === "vid_philosophy_01")
                 resolvedTrack =
@@ -17132,10 +18144,16 @@ function getQuizTrackKey() {
               const wAvatar = document.getElementById("socraticAvatarImg");
               const wStatus = document.getElementById("tutorStatusIndicator");
               if (data.instructor_avatar) {
-                window.ACTIVE_DATABASE_INSTRUCTOR_AVATAR =
-                  data.instructor_avatar;
+                const avatarUrl = /unsplash|googleusercontent/i.test(data.instructor_avatar)
+                  ? "/static/professor_evans_avatar.png"
+                  : data.instructor_avatar;
+                window.ACTIVE_DATABASE_INSTRUCTOR_AVATAR = avatarUrl;
                 if (wAvatar) {
-                  wAvatar.src = data.instructor_avatar;
+                  wAvatar.onerror = function () {
+                    this.onerror = null;
+                    this.src = "/static/professor_evans_avatar.png";
+                  };
+                  wAvatar.src = avatarUrl;
                 }
               }
               if (wStatus) {
@@ -17239,7 +18257,7 @@ function getQuizTrackKey() {
                   .replace(/\/+/g, "/")
                   .toLowerCase();
                 if (srcPathname !== targetPathname) {
-                  webcamVideo.src = encodeURI(data.video_file_path);
+                  webcamVideo.src = resolveMediaUrl(data.video_file_path);
                   webcamVideo.load();
                 }
               }
@@ -17337,7 +18355,27 @@ function getQuizTrackKey() {
                 maxTimeWatched = Math.max(savedMaxTime, effectiveRestoreTime, maxTimeWatched || 0);
 
                 if (srcPathname !== targetPathname) {
-                  video.src = encodeURI(data.video_file_path);
+                  const isAudioOnly = /\.(mp3|wav|m4a|aac)$/i.test(String(data.video_file_path || ""));
+                  const wrapper = video.closest(".video-wrapper");
+                  const visual = document.getElementById("lectureVisualFrame");
+                  if (isAudioOnly) {
+                    video.removeAttribute("poster");
+                    if (wrapper) wrapper.classList.add("audio-lesson");
+                    if (visual) {
+                      const pdfSrc = data.pdf_file_path
+                        ? `${data.pdf_file_path}${data.pdf_file_path.includes("#") ? "" : "#page=" + (data.start_page || 1)}`
+                        : "";
+                      visual.src = pdfSrc || "about:blank";
+                      visual.style.display = "block";
+                    }
+                  } else {
+                    if (wrapper) wrapper.classList.remove("audio-lesson");
+                    if (visual) {
+                      visual.removeAttribute("src");
+                      visual.style.display = "none";
+                    }
+                  }
+                  video.src = resolveMediaUrl(data.video_file_path);
                   video.load();
                   emittedTranscripts.clear();
                   const tutorContainer = document.getElementById(
@@ -17353,6 +18391,20 @@ function getQuizTrackKey() {
                   if (restoreDone) return;
                   restoreDone = true;
                   try {
+                    if (video.videoWidth === 0) {
+                      console.warn(
+                        "[VIDEO] File has no picture track (audio-only).",
+                      );
+                      const wrapper = video.closest(".video-wrapper");
+                      if (wrapper) wrapper.classList.add("audio-lesson");
+                      const visual = document.getElementById("lectureVisualFrame");
+                      if (visual && data.pdf_file_path && !visual.src) {
+                        visual.src = `${data.pdf_file_path}${data.pdf_file_path.includes("#") ? "" : "#page=" + (data.start_page || 1)}`;
+                      }
+                    } else {
+                      const wrapper = video.closest(".video-wrapper");
+                      if (wrapper) wrapper.classList.remove("audio-lesson");
+                    }
                     window.isProgrammaticSeek = true;
                     if (effectiveRestoreTime > 0.5) {
                       console.log("[SEEK_DEBUG] Restoring video position to:", effectiveRestoreTime);
@@ -17881,6 +18933,12 @@ function getQuizTrackKey() {
           populateDynamicLibrary();
 
           window.dbStudentProgress = data.progress || [];
+          window.dbMastery = data.mastery || [];
+          window.dbEvaluations = data.evaluations || [];
+          window.dbCurriculum = data.curriculum || [];
+          if (typeof renderRevisionLibraryGrid === "function") {
+            renderRevisionLibraryGrid();
+          }
           if (typeof updateCourseCardsUI === "function") {
             updateCourseCardsUI();
           }
@@ -19025,12 +20083,18 @@ function getQuizTrackKey() {
 
         // Helper to check if a video is unlocked / passed with >= 85%
         const isVideoUnlockedAndPassed = (vidId, idx) => {
-          if (idx === 0) return true; // First lesson in subject unlocked by default
+          if (idx === 0) return true;
+          if (typeof isRevisionLessonCompleted === "function" && isRevisionLessonCompleted(vidId)) return true;
           const isCurrentActive = (typeof activeVideoId !== "undefined" && activeVideoId === vidId);
           if (isCurrentActive) return true;
           const isSavedCompleted = (localStorage.getItem("completed_videos_" + vidId) === "true");
-          const passedEval = (evaluations || []).find(e => e.video_id === vidId && (e.score >= 85 || e.passed));
-          return isSavedCompleted || !!passedEval;
+          const passedEval = (evaluations || []).find(e => e.video_id === vidId && (e.score >= 85 || e.passed || e.raw_score >= 85));
+          if (isSavedCompleted || !!passedEval) return true;
+          if (idx > 0 && typeof isRevisionLessonCompleted === "function") {
+            const prev = subjectVideos[idx - 1];
+            if (prev && isRevisionLessonCompleted(prev.id)) return true;
+          }
+          return false;
         };
 
         // Revision & Re-watch Library Selector Header
@@ -19417,6 +20481,23 @@ function getQuizTrackKey() {
             hint: "The boundary between oscillation and sluggish return.",
           },
         ],
+        Economics: [
+          {
+            front: "Qu'est-ce que l'explosion démographique ?",
+            back: "Une augmentation accélérée et incontrôlée des effectifs de la population.",
+            hint: "Pense à la croissance rapide des naissances par rapport aux ressources.",
+          },
+          {
+            front: "Comment la pression démographique affecte-t-elle la santé ?",
+            back: "Elle réduit le ratio praticiens/habitants et sature les centres de soins.",
+            hint: "Plus d'habitants pour le même nombre de médecins.",
+          },
+          {
+            front: "Quel est l'effet principal sur l'équilibre alimentaire ?",
+            back: "La demande alimentaire dépasse les capacités de production locale.",
+            hint: "Production agricole vs bouches à nourrir.",
+          },
+        ],
         calculus: [
           {
             front:
@@ -19467,7 +20548,13 @@ function getQuizTrackKey() {
         if (!container) return;
         container.innerHTML = "";
 
-        const deck = FLASHCARDS_DECKS[track] || FLASHCARDS_DECKS["College"];
+        const deck =
+          (FLASHCARDS_DECKS[track] && FLASHCARDS_DECKS[track].length
+            ? FLASHCARDS_DECKS[track]
+            : null) ||
+          ((String(track) + (typeof activeVideoId !== "undefined" ? activeVideoId : "")).match(/econ|demograph|alimentaire|sanitaire/i)
+            ? FLASHCARDS_DECKS.Economics
+            : FLASHCARDS_DECKS["College"]);
         activeDeck = deck;
         currentFlashcardIndex = 0;
 
@@ -20493,251 +21580,282 @@ function getQuizTrackKey() {
       window.addEventListener("load", initClassroomBoot);
     </script>
 
-    <!-- Spatius Avatar Hybrid Connection Manager -->
+    <!-- Spatius Avatar — local AvatarKit, 3D in split-study #avatarImgBox -->
     <script type="module">
-      import {
-        AvatarSDK,
-        AvatarManager,
-        DrivingServiceMode,
-        Environment,
-      } from "@spatialwalk/avatarkit";
-      import {
-        AvatarPlayer,
-        LiveKitProvider,
-      } from "@spatialwalk/avatarkit-rtc";
-
-      class SpatiusAvatarManager {
-        constructor() {
-          this.sdkInitialized = false;
-          this.player = null;
-          this.avatar = null;
-          this.active = false;
-          this.credentials = null;
+      (async () => {
+        let AvatarSDK;
+        let AvatarManager;
+        let AvatarView;
+        let DrivingServiceMode;
+        try {
+          const kit = await import("/static/spatius/avatarkit/index.js");
+          AvatarSDK = kit.AvatarSDK;
+          AvatarManager = kit.AvatarManager;
+          AvatarView = kit.AvatarView;
+          DrivingServiceMode = kit.DrivingServiceMode;
+        } catch (importErr) {
+          console.error("[SPATIUS] Failed to load local AvatarKit:", importErr);
+          return;
         }
 
-        async checkOnlineStatus() {
-          if (!navigator.onLine) return false;
-          try {
-            const res = await fetch("/spatius-token");
-            if (res.ok) {
-              this.credentials = await res.json();
-              return true;
-            }
-            return false;
-          } catch (e) {
-            console.warn("[SPATIUS] Fetching spatius-token failed:", e);
-            return false;
+        class SpatiusAvatarManager {
+          constructor() {
+            this.sdkInitialized = false;
+            this.avatar = null;
+            this.avatarView = null;
+            this.active = false;
+            this.credentials = null;
+            this.directStarted = false;
+            this.gestureBound = false;
+            this.hostBox = null;
+            this.lastError = "";
           }
-        }
 
-        async checkAndApplyMode() {
-          const imgEl = document.getElementById("socraticAvatarImg");
-          const canvasEl = document.getElementById("spatiusAvatarCanvas");
-          if (!imgEl || !canvasEl) return;
+          avatarBox() {
+            const splitPane = document.getElementById("socraticWorkspacePane");
+            const splitBox = document.getElementById("avatarImgBox");
+            if (splitPane && splitPane.classList.contains("active") && splitBox) {
+              return splitBox;
+            }
+            return null;
+          }
 
-          const isOnline = await this.checkOnlineStatus();
-          console.log("[SPATIUS STATUS] Online status check:", isOnline);
-          if (isOnline && this.credentials) {
-            // Pre-initialize SDK and load model
+          setStatus(text) {
+            const msg = text || "";
+            const split = document.getElementById("tutorStatusSubtext");
+            if (split && this.avatarBox() && this.avatarBox().id === "avatarImgBox") {
+              split.textContent = msg || "Ready to discuss lesson";
+            }
+          }
+
+          showStaticFallback() {
+            const imgEl = document.getElementById("socraticAvatarImg");
+            if (imgEl) {
+              imgEl.style.display = "block";
+              if (!imgEl.getAttribute("src") || /unsplash/i.test(imgEl.getAttribute("src") || "")) {
+                imgEl.src = "/static/professor_evans_avatar.png";
+              }
+            }
+            const box = document.getElementById("avatarImgBox");
+            if (box) {
+              box.querySelectorAll("canvas").forEach((c) => {
+                if (c.id === "spatiusAvatarCanvas") {
+                  c.style.display = "none";
+                }
+              });
+            }
+          }
+
+          showLiveCanvas() {
+            const imgEl = document.getElementById("socraticAvatarImg");
+            if (imgEl) imgEl.style.display = "none";
+            const dummy = document.getElementById("spatiusAvatarCanvas");
+            if (dummy) dummy.style.display = "none";
+            const box = this.avatarBox();
+            if (box) {
+              box.style.background = "#08080a";
+              box.querySelectorAll("canvas").forEach((liveCanvas) => {
+                if (liveCanvas.id === "spatiusAvatarCanvas") return;
+                liveCanvas.style.display = "block";
+                liveCanvas.style.position = "absolute";
+                liveCanvas.style.inset = "0";
+                liveCanvas.style.width = "100%";
+                liveCanvas.style.height = "100%";
+              });
+            }
+          }
+
+          async checkOnlineStatus() {
+            try {
+              const res = await fetch("/spatius-token", { cache: "no-store" });
+              if (!res.ok) return false;
+              this.credentials = await res.json();
+              return Boolean(
+                this.credentials &&
+                  this.credentials.configured !== false &&
+                  this.credentials.appId &&
+                  this.credentials.avatarId
+              );
+            } catch (e) {
+              console.warn("[SPATIUS] Fetching /spatius-token failed:", e);
+              return false;
+            }
+          }
+
+          bindGestureStart() {
+            if (this.gestureBound) return;
+            this.gestureBound = true;
+            const kick = () => {
+              this.startDirectDriving().catch((err) => {
+                console.warn("[SPATIUS] direct start after gesture:", err);
+              });
+            };
+            document.addEventListener("pointerdown", kick, { once: true, capture: true });
+            document.addEventListener("click", kick, { once: true, capture: true });
+          }
+
+          async preload() {
+            const isReady = await this.checkOnlineStatus();
+            if (!isReady) return;
+            try {
+              await this.initSDK();
+            } catch (e) {
+              this.lastError = e && e.message ? e.message : String(e);
+              console.warn("[SPATIUS] WASM preload failed:", e);
+            }
+          }
+
+          async checkAndApplyMode() {
+            const box = this.avatarBox();
+            if (!box) {
+              return;
+            }
+            const isReady = await this.checkOnlineStatus();
+            console.log("[SPATIUS STATUS] credentials ready:", isReady, "host:", box.id);
+            if (!isReady) {
+              this.showStaticFallback();
+              this.setStatus("Portrait — Spatius IDs missing after restart of display_client.py");
+              return;
+            }
             try {
               await this.initSDK();
               await this.loadAvatarModel();
-
-              // If voice session is already active, start player
+              this.showLiveCanvas();
+              this.setStatus("Gandho 3D");
+              this.bindGestureStart();
               if (window.lkRoom && window.lkRoom.state === "connected") {
-                await this.startAvatar();
-              } else {
-                // Standby mode - show static avatar image
-                imgEl.style.display = "block";
-                canvasEl.style.display = "none";
+                await this.startDirectDriving();
               }
             } catch (e) {
-              console.warn(
-                "[SPATIUS] Initialization failed, falling back to static avatar:",
-                e,
-              );
-              imgEl.style.display = "block";
-              canvasEl.style.display = "none";
+              console.warn("[SPATIUS] Initialization failed, static fallback:", e);
+              this.showStaticFallback();
+              this.setStatus("Spatius failed — " + (e && e.message ? e.message : "see console"));
             }
-          } else {
-            imgEl.style.display = "block";
-            canvasEl.style.display = "none";
-            await this.stopAvatar();
           }
-        }
 
-        async initSDK(env = Environment.intl) {
-          if (this.sdkInitialized && this.currentEnv === env) return;
-          if (
-            !this.credentials ||
-            !this.credentials.appId ||
-            !this.credentials.sessionToken
-          ) {
-            throw new Error(
-              "Missing Spatius credentials for SDK initialization",
-            );
-          }
-          try {
-            await AvatarSDK.initialize(this.credentials.appId, {
-              environment: env,
-              drivingServiceMode: DrivingServiceMode.backend,
-            });
-            AvatarSDK.setSessionToken(this.credentials.sessionToken);
+          async initSDK() {
+            if (this.sdkInitialized) return;
+            if (!this.credentials || !this.credentials.appId) {
+              throw new Error("Missing Spatius App ID");
+            }
+            const region = this.credentials.region || "us-west";
+            const initOpts = { region };
+            if (DrivingServiceMode && DrivingServiceMode.direct !== undefined) {
+              initOpts.drivingServiceMode = DrivingServiceMode.direct;
+            }
+            await AvatarSDK.initialize(this.credentials.appId, initOpts);
+            if (this.credentials.sessionToken && typeof AvatarSDK.setSessionToken === "function") {
+              AvatarSDK.setSessionToken(this.credentials.sessionToken);
+            }
             this.sdkInitialized = true;
-            this.currentEnv = env;
-            console.log(
-              `[SPATIUS] SDK Initialized successfully in environment: ${env}`,
-            );
-          } catch (err) {
-            console.error(
-              `[SPATIUS ERROR] SDK Init failed in environment ${env}:`,
-              err,
-            );
-            throw err;
+            console.log("[SPATIUS] SDK initialized (direct /", region, ")");
           }
-        }
 
-        async loadAvatarModel() {
-          if (this.avatar) return;
-          if (!this.credentials || !this.credentials.avatarId) {
-            throw new Error("Missing Spatius avatar ID");
-          }
-          const avatarId = this.credentials.avatarId;
-          console.log("[SPATIUS] Loading 3D avatar model:", avatarId);
-          try {
-            this.avatar = await AvatarManager.shared.load(avatarId);
-            console.log(`[SPATIUS] Model loaded successfully: ${avatarId}`);
-          } catch (err) {
-            console.warn(
-              `[SPATIUS WARNING] Failed to load avatar in ${this.currentEnv}:`,
-              err,
-            );
-            const fallbackEnv =
-              this.currentEnv === Environment.intl
-                ? Environment.cn
-                : Environment.intl;
-            console.log(
-              `[SPATIUS] Retrying in fallback environment: ${fallbackEnv}...`,
-            );
-            try {
-              this.sdkInitialized = false; // Force re-initialization
-              await this.initSDK(fallbackEnv);
-              this.avatar = await AvatarManager.shared.load(avatarId);
-              console.log(
-                `[SPATIUS] Successfully loaded avatar model in fallback environment: ${fallbackEnv}`,
-              );
-            } catch (fallbackErr) {
-              console.error(
-                "[SPATIUS] Failed to load avatar in both environments:",
-                fallbackErr,
-              );
-              throw fallbackErr;
-            }
-          }
-        }
-
-        async startAvatar() {
-          this.active = true;
-          try {
-            await this.initSDK();
-            await this.loadAvatarModel();
-
-            // Check if lkRoom is connected
-            if (!window.lkRoom || window.lkRoom.state !== "connected") {
-              console.log(
-                "[SPATIUS] Standby - No active LiveKit room connection.",
-              );
+          mountView(box) {
+            if (!box || !this.avatar) return;
+            if (this.avatarView && this.hostBox === box) {
+              this.showLiveCanvas();
               return;
             }
-
-            const canvas = document.getElementById("spatiusAvatarCanvas");
-            if (!this.player) {
-              const provider = new LiveKitProvider(window.lkRoom);
-              this.player = new AvatarPlayer(provider, canvas, this.avatar, {
-                logLevel: "warning",
-              });
-            }
-
-            console.log(
-              "[SPATIUS] Starting real-time WebGL video/motion driver pipeline...",
-            );
-            await this.player.start();
-            console.log("[SPATIUS] Avatar Live & Synced.");
-
-            const imgEl = document.getElementById("socraticAvatarImg");
-            const canvasEl = document.getElementById("spatiusAvatarCanvas");
-            if (imgEl && canvasEl) {
-              imgEl.style.display = "none";
-              canvasEl.style.display = "block";
-            }
-          } catch (err) {
-            console.warn(
-              "[SPATIUS WARNING] Could not start 3D avatar stream:",
-              err,
-            );
-            const imgEl = document.getElementById("socraticAvatarImg");
-            const canvasEl = document.getElementById("spatiusAvatarCanvas");
-            if (imgEl && canvasEl) {
-              imgEl.style.display = "block";
-              canvasEl.style.display = "none";
-            }
-          }
-        }
-
-        async stopAvatar() {
-          this.active = false;
-          if (this.player) {
             try {
-              await this.player.stop();
-              console.log("[SPATIUS] Avatar player stopped.");
-            } catch (err) {
-              console.warn("[SPATIUS] Stop player error:", err);
+              if (this.avatarView && typeof this.avatarView.dispose === "function") {
+                this.avatarView.dispose();
+              }
+            } catch (err) {}
+            this.avatarView = new AvatarView(this.avatar, box);
+            this.hostBox = box;
+            if (typeof this.avatarView.onFirstRendering !== "undefined") {
+              this.avatarView.onFirstRendering = () => {
+                this.showLiveCanvas();
+                this.setStatus("Gandho 3D");
+              };
             }
-            this.player = null;
+            try {
+              if (typeof this.avatarView.startIdle === "function") {
+                this.avatarView.startIdle();
+              }
+            } catch (idleErr) {
+              console.warn("[SPATIUS] startIdle:", idleErr);
+            }
+            this.showLiveCanvas();
+          }
+
+          async loadAvatarModel() {
+            const avatarId = this.credentials && this.credentials.avatarId;
+            if (!avatarId) {
+              throw new Error("Missing Spatius avatar ID");
+            }
+            if (!this.avatar) {
+              console.log("[SPATIUS] Loading 3D avatar:", avatarId);
+              this.avatar = await AvatarManager.shared.load(avatarId);
+            }
+            const box = this.avatarBox();
+            if (!box) return;
+            this.mountView(box);
+            console.log("[SPATIUS] Avatar view mounted in", box.id || "anonymous");
+          }
+
+          async startDirectDriving() {
+            if (!this.avatarView || !this.avatarView.controller) return;
+            try {
+              if (typeof this.avatarView.controller.initializeAudioContext === "function") {
+                await this.avatarView.controller.initializeAudioContext();
+              }
+              if (!this.directStarted && typeof this.avatarView.controller.start === "function") {
+                await this.avatarView.controller.start();
+                this.directStarted = true;
+                this.setStatus("Gandho 3D live");
+                console.log("[SPATIUS] Direct driving started");
+              }
+            } catch (err) {
+              console.warn("[SPATIUS] controller.start:", err);
+            }
+          }
+
+          async attachToRoom(_room) {
+            if (!this.avatarBox()) return;
+            await this.checkAndApplyMode();
+            await this.startDirectDriving();
+          }
+
+          async startAvatar() {
+            this.active = true;
+            if (!this.avatarBox()) return;
+            await this.checkAndApplyMode();
+            await this.startDirectDriving();
+          }
+
+          async stopAvatar(_hide3d = false) {
+            this.active = false;
+          }
+
+          async relayout() {
+            await this.checkAndApplyMode();
           }
         }
-      }
 
-      // Instantiate globally
-      const manager = new SpatiusAvatarManager();
-      window.spatiusAvatarManager = manager;
+        const manager = new SpatiusAvatarManager();
+        window.spatiusAvatarManager = manager;
 
-      // Hook into LiveKit Voice Session startup
-      const originalStartLiveKit = window.startLiveKitVoiceSession;
-      if (originalStartLiveKit) {
-        window.startLiveKitVoiceSession = async function (...args) {
-          const res = await originalStartLiveKit(...args);
-          // Give LiveKit room a second to complete signaling handshake
-          setTimeout(() => {
-            manager.startAvatar();
-          }, 1500);
-          return res;
-        };
-      }
+        const originalStopLiveKit = window.stopLiveKitVoiceSession;
+        if (originalStopLiveKit) {
+          window.stopLiveKitVoiceSession = async function (...args) {
+            const res = await originalStopLiveKit(...args);
+            manager.stopAvatar(false);
+            return res;
+          };
+        }
 
-      // Hook into LiveKit Voice Session stop
-      const originalStopLiveKit = window.stopLiveKitVoiceSession;
-      if (originalStopLiveKit) {
-        window.stopLiveKitVoiceSession = async function (...args) {
-          const res = await originalStopLiveKit(...args);
-          manager.stopAvatar();
-          return res;
-        };
-      }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", () => manager.preload());
+        } else {
+          manager.preload();
+        }
 
-      // Run updates on boot and workspace transition (handles dynamic load timings)
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", () => {
+        window.triggerWorkspaceAvatarCheck = function () {
           manager.checkAndApplyMode();
-        });
-      } else {
-        manager.checkAndApplyMode();
-      }
-
-      // Expose function to trigger check when entering workspace
-      window.triggerWorkspaceAvatarCheck = function () {
-        manager.checkAndApplyMode();
-      };
+        };
+      })();
     </script>
 
     <!-- Daily Subject Cap Overlay -->
@@ -21370,5 +22488,19 @@ function getQuizTrackKey() {
         if (hBtn) hBtn.onclick = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } window.openHelpModal(); };
       });
     </script>
+    <button
+      type="button"
+      id="gandhoFabMic"
+      class="gandho-fab-mic mic-glow-button"
+      onclick="toggleMicRaiseHand(event)"
+      title="Talk to Gandho"
+      style="display: none;"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" x2="12" y1="19" y2="22"/>
+      </svg>
+    </button>
   </body>
 </html>

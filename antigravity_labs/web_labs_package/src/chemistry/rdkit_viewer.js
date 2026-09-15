@@ -165,6 +165,44 @@ export class RdkitViewer {
     }
   }
 
+  paintSvg(svgMarkup, data) {
+    const svgBox = this.container.querySelector("#rdkitSvgBox");
+    if (!svgBox || !svgMarkup) return;
+    svgBox.innerHTML = svgMarkup;
+    const svgEl = svgBox.querySelector("svg");
+    if (svgEl) {
+      svgEl.style.width = "100%";
+      svgEl.style.maxHeight = "340px";
+      svgEl.querySelectorAll("path").forEach((p) => {
+        if (p.getAttribute("stroke") === "#000000") p.setAttribute("stroke", "#ffffff");
+      });
+    }
+    if (!data) return;
+    const setText = (id, value) => {
+      const el = this.container.querySelector(id);
+      if (el) el.innerText = value;
+    };
+    if (data.formula) setText("#molFormulaBadge", data.formula);
+    if (data.molecular_weight !== undefined) setText("#descMW", `${data.molecular_weight} g/mol`);
+    if (data.logp !== undefined) setText("#descLogP", String(data.logp));
+    if (data.tpsa !== undefined) setText("#descTPSA", `${data.tpsa} Å²`);
+    if (data.h_donors !== undefined) setText("#descHBonds", `${data.h_donors} / ${data.h_acceptors}`);
+    if (data.rotatable_bonds !== undefined) setText("#descRotBonds", String(data.rotatable_bonds));
+    if (data.num_atoms !== undefined) {
+      setText("#descAtoms", `${data.num_atoms} (${data.num_heavy_atoms || 0} heavy)`);
+    }
+  }
+
+  paintSvgFallback(smiles, data) {
+    const formula = (data && data.formula) || smiles;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 320" width="100%" height="320">
+      <rect width="420" height="320" fill="#0c0c10" rx="12"/>
+      <text x="210" y="150" text-anchor="middle" fill="#ffffff" font-size="28" font-family="monospace">${formula}</text>
+      <text x="210" y="190" text-anchor="middle" fill="#a1a1aa" font-size="12" font-family="monospace">${smiles}</text>
+    </svg>`;
+    this.paintSvg(svg, data || { formula });
+  }
+
   async loadMolecule(smiles) {
     this.currentSmiles = smiles;
     const errBox = this.container.querySelector("#smilesError");
@@ -181,31 +219,15 @@ export class RdkitViewer {
       if (!data.success) {
         errBox.innerText = data.error || "Failed to parse SMILES.";
         errBox.style.display = "block";
+        if (data.svg) {
+          this.paintSvg(data.svg, data);
+        } else {
+          this.paintSvgFallback(smiles, data);
+        }
         return;
       }
 
-      // Display SVG
-      const svgBox = this.container.querySelector("#rdkitSvgBox");
-      svgBox.innerHTML = data.svg;
-
-      // Adjust SVG colors for dark mode
-      const svgEl = svgBox.querySelector("svg");
-      if (svgEl) {
-        svgEl.style.width = "100%";
-        svgEl.style.maxHeight = "340px";
-        svgEl.querySelectorAll("path").forEach(p => {
-          if (p.getAttribute("stroke") === "#000000") p.setAttribute("stroke", "#ffffff");
-        });
-      }
-
-      // Display Descriptors
-      this.container.querySelector("#molFormulaBadge").innerText = data.formula;
-      this.container.querySelector("#descMW").innerText = `${data.molecular_weight} g/mol`;
-      this.container.querySelector("#descLogP").innerText = data.logp;
-      this.container.querySelector("#descTPSA").innerText = `${data.tpsa} Å²`;
-      this.container.querySelector("#descHBonds").innerText = `${data.h_donors} / ${data.h_acceptors}`;
-      this.container.querySelector("#descRotBonds").innerText = data.rotatable_bonds;
-      this.container.querySelector("#descAtoms").innerText = `${data.num_atoms} (${data.num_heavy_atoms} heavy)`;
+      this.paintSvg(data.svg, data);
 
       // Push telemetry to Gandho Socratic Tutor
       window.currentSocraticLabContext = {
@@ -226,6 +248,7 @@ export class RdkitViewer {
     } catch (e) {
       errBox.innerText = `Network/Backend error: ${e.message}`;
       errBox.style.display = "block";
+      this.paintSvgFallback(smiles, { formula: smiles });
     }
   }
 }

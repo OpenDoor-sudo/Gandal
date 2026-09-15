@@ -42,7 +42,7 @@ export class CurriculumService {
 
     this.problems.forEach((p) => {
       const lvl = p.level || 1;
-      const title = p.level_title || `Level ${lvl}`;
+      const title = p.level_title_fr || p.level_title || `Niveau ${lvl}`;
 
       if (!levelMap.has(lvl)) {
         levelMap.set(lvl, {

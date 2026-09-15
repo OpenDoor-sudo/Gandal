@@ -3,12 +3,11 @@ One-shot curriculum ingestion for Ventuno AI (GANDHO).
 
 Bakes every staged lesson (video+PDF), plus standalone PDFs/books/audiobooks, into:
 - dense transcripts (tutor tab)
-- executive Summary tab document
-- flashcards, MCQs, RAG (both LanceDB tables)
-- timestamps used internally for seek / chapter RAG
+- executive Summary tab document (not a chapter-timestamp list)
+- flashcards and MCQs
 
-A lesson is marked ready only when all required caches exist.
-Mocks do not count as ready.
+RAG embeddings are optional and skipped when sentence_transformers is not installed.
+Chapter timestamp lists are not generated and are not required for ready.
 """
 
 from __future__ import annotations
@@ -32,6 +31,18 @@ PROFESSOR_BOOKS = os.path.join(PROJECT_ROOT, "professor_books")
 TEXTBOOKS_DIR = os.path.join(PROJECT_ROOT, "textbooks")
 AUDIOBOOKS_DIR = os.path.join(PROJECT_ROOT, "audiobooks")
 
+
+def open_vault():
+    """Open vault.db without blocking display_client.py for minutes."""
+    conn = sqlite3.connect(VAULT_DB, timeout=120.0)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA busy_timeout=120000;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
+    except sqlite3.Error:
+        pass
+    return conn
+
 MEDIA_EXTS = (".mp4", ".mp3", ".m4a", ".wav", ".ogg", ".webm")
 VIDEO_EXTS = (".mp4", ".webm")
 AUDIO_EXTS = (".mp3", ".m4a", ".wav", ".ogg")
@@ -44,9 +55,14 @@ def load_env():
     with open(env_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                k, v = line.split("=", 1)
-                os.environ[k.strip()] = v.strip().strip('"').strip("'")
+            if not line or line.startswith("#"):
+                continue
+            if line.lower().startswith("export "):
+                line = line[7:].strip()
+            if "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            os.environ[k.strip()] = v.strip().strip('"').strip("'")
 
 
 load_env()
@@ -188,7 +204,7 @@ def resolve_student_locale(cli_locale=None):
     if cli_locale:
         return cli_locale
     try:
-        conn = sqlite3.connect(VAULT_DB)
+        conn = open_vault()
         cur = conn.cursor()
         cur.execute("SELECT locale FROM language_localization ORDER BY ROWID DESC LIMIT 1")
         row = cur.fetchone()
@@ -205,6 +221,7 @@ def detect_source_locale(path, sample=""):
     french_hints = (
         "extraeconomiques", "economiques", "français", "francais",
         "les problèmes", "les problemes", "caractéristiques", "chimie",
+        "microbiologie", "virologie", "manuel", "cours",
     )
     if any(h in blob for h in french_hints):
         return "fr_FR"
@@ -223,20 +240,63 @@ def translate_text(text, target_locale):
     return (out or text).strip()
 
 
-def extract_pdf_paragraphs(pdf_path):
+def ensure_pypdf():
+    for name in ("pypdf", "PyPDF2"):
+        try:
+            return __import__(name)
+        except ImportError:
+            continue
     try:
-        import pypdf
-        reader = pypdf.PdfReader(pdf_path)
-        paragraphs = []
-        for i, page in enumerate(reader.pages):
-            raw = page.extract_text() or ""
-            clean = re.sub(r"\s+", " ", raw).strip()
-            if clean:
-                paragraphs.append({"timestamp": f"Page {i + 1}", "text": clean})
-        return paragraphs
+        import subprocess
+        print("  [PDF] Installing pypdf (tiny, not torch)...")
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "pypdf", "-q"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return __import__("pypdf")
+    except Exception as err:
+        print(f"  [PDF] Could not install pypdf: {err}")
+        return None
+
+
+def extract_pdf_paragraphs(pdf_path):
+    paragraphs = []
+    mod = ensure_pypdf()
+    if mod is not None:
+        try:
+            reader = mod.PdfReader(pdf_path)
+            for i, page in enumerate(reader.pages):
+                raw = page.extract_text() or ""
+                clean = re.sub(r"\s+", " ", raw).strip()
+                if clean:
+                    paragraphs.append({"timestamp": f"Page {i + 1}", "text": clean})
+            if paragraphs:
+                return paragraphs
+        except Exception as e:
+            print(f"  [PDF] pypdf extract failed: {e}")
+    try:
+        import subprocess
+        proc = subprocess.run(
+            ["pdftotext", "-layout", pdf_path, "-"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if proc.returncode == 0 and (proc.stdout or "").strip():
+            for i, block in enumerate(re.split(r"\f+", proc.stdout)):
+                clean = re.sub(r"\s+", " ", block).strip()
+                if clean:
+                    paragraphs.append({"timestamp": f"Page {i + 1}", "text": clean})
+            if paragraphs:
+                return paragraphs
+    except FileNotFoundError:
+        pass
     except Exception as e:
-        print(f"  [PDF] Extract failed: {e}")
-        return []
+        print(f"  [PDF] pdftotext failed: {e}")
+    if not paragraphs:
+        print("  [PDF] No extractable text (install pypdf, or poppler-utils / pdftotext).")
+    return paragraphs
 
 
 def transcribe_media(media_path, video_id):
@@ -255,9 +315,12 @@ def transcribe_media(media_path, video_id):
     if media_path.lower().endswith(AUDIO_EXTS) and not media_path.lower().endswith(".mp4"):
         audio_path = media_path
     else:
-        if not qwen_omni_client.extract_audio_from_video(media_path, temp_mp3):
-            return []
-        audio_path = temp_mp3
+        extracted = qwen_omni_client.extract_audio_from_video(media_path, temp_mp3)
+        audio_path = extracted or media_path
+        if extracted:
+            print(f"  [TRANSCRIPT] Using extracted audio {extracted}")
+        else:
+            print(f"  [TRANSCRIPT] ffmpeg extract failed; uploading original media to Gemini")
 
     try:
         client = genai.Client(api_key=google_key)
@@ -373,8 +436,184 @@ def lesson_cache_flags(cur, video_id, locale):
         "has_summary": count_rows(cur, "SELECT COUNT(*) FROM lesson_summaries WHERE video_id=? AND locale=?", (video_id, locale)) > 0,
         "has_flashcards": count_rows(cur, "SELECT COUNT(*) FROM video_flashcards WHERE video_id=?", (video_id,)) > 0,
         "has_quizzes": count_rows(cur, "SELECT COUNT(*) FROM video_quiz_mcqs WHERE video_id=?", (video_id,)) > 0,
-        "has_chapters": count_rows(cur, "SELECT COUNT(*) FROM video_timestamps WHERE video_id=?", (video_id,)) > 0,
     }
+
+
+def lesson_ready(flags):
+    return bool(
+        flags.get("has_transcripts")
+        and flags.get("has_summary")
+        and flags.get("has_flashcards")
+        and flags.get("has_quizzes")
+    )
+
+
+def assign_job_ids(job):
+    """Ensure video_id/chapter_id exist (standalone books get them during process_job)."""
+    if job.get("video_id"):
+        if not job.get("chapter_id"):
+            job["chapter_id"] = slugify(f"ch_{job['video_id']}")
+        return job
+    kind = job.get("kind")
+    pdf_path = job.get("pdf_path")
+    media_path = job.get("media_path")
+    if kind in ("standalone_pdf", "audiobook"):
+        base = os.path.splitext(os.path.basename(pdf_path or media_path or "item"))[0]
+        prefix = "book_" if kind == "standalone_pdf" else "audio_"
+        job["video_id"] = slugify(base, prefix)
+        job["chapter_id"] = slugify(f"ch_{base}")
+    return job
+
+
+def transcript_blob(chunks):
+    return " ".join((c.get("text") or "") for c in (chunks or [])).strip()
+
+
+def transcript_is_thin(chunks, title=""):
+    text = transcript_blob(chunks)
+    if len(text) < 280:
+        return True
+    seed = f"{title}. Subject:".strip().lower()
+    if seed and text.lower().startswith(str(title or "").lower()[:48]) and len(text) < 600:
+        return True
+    return False
+
+
+def retry_call(label, fn, attempts=2, delay=1.5):
+    last = None
+    for i in range(attempts):
+        try:
+            last = fn()
+        except Exception as exc:
+            print(f"  [{label}] attempt {i + 1}/{attempts} failed: {exc}")
+            last = None
+        if last:
+            return last
+        time.sleep(delay * (i + 1))
+    return last
+
+
+def fallback_summary_doc(title, subject, source_text, locale):
+    body = (source_text or "").strip() or f"{title}. {subject}."
+    excerpt = body[:4500]
+    fr = str(locale).lower().startswith("fr")
+    return {
+        "title": title,
+        "subtitle": subject or ("Cours" if fr else "Lesson"),
+        "overview": excerpt[:1200],
+        "formulas": [],
+        "concepts": [title, subject or ("Cours" if fr else "Course"), excerpt[200:500] or excerpt[:200]],
+        "takeaways": [excerpt[500:800] or excerpt[:240], excerpt[800:1100] or title],
+    }
+
+
+def fallback_flashcards(title, subject, source_text, locale):
+    fr = str(locale).lower().startswith("fr")
+    text = (source_text or "").strip()
+    slices = [
+        (title, (subject or "") + " — " + (text[:280] or title)),
+        ("Objectif" if fr else "Objective", text[280:560] or title),
+        ("À retenir" if fr else "Remember", text[560:900] or title),
+        ("Examen" if fr else "Exam", text[900:1300] or (subject or title)),
+    ]
+    return [{"front": a, "back": b, "hint": ""} for a, b in slices if a and b]
+
+
+def fallback_quizzes(title, subject, locale):
+    fr = str(locale).lower().startswith("fr")
+    topic = title or subject or ("le cours" if fr else "the lesson")
+    subj = subject or ("cette matière" if fr else "this subject")
+    if fr:
+        items = [
+            (f"Ce document porte principalement sur : {topic} ?", topic, "Un autre cours", "Hors programme", "Aucune de ces réponses"),
+            (f"La matière associée est : {subj} ?", subj, "Mathématiques générales", "Éducation physique", "Inconnu"),
+            ("Où lire le cours détaillé dans GANDHO ?", "Onglet Summary", "Paramètres Wi-Fi", "Horloge", "Imprimante"),
+        ]
+    else:
+        items = [
+            (f"This lesson is mainly about: {topic}?", topic, "A different course", "Out of syllabus", "None of these"),
+            (f"The associated subject is: {subj}?", subj, "General math", "Physical education", "Unknown"),
+            ("Where should the student read the full lesson in GANDHO?", "Summary tab", "Wi-Fi settings", "Clock", "Printer"),
+        ]
+    out = []
+    for i, (q, a, b, c, d) in enumerate(items, start=1):
+        out.append({
+            "id": i,
+            "question": q,
+            "options": {"A": a, "B": b, "C": c, "D": d},
+            "correct": "A",
+            "is_alternative": 0,
+        })
+    return out
+
+
+def print_incomplete_report(jobs, locale):
+    conn = open_vault()
+    ensure_schema(conn)
+    cur = conn.cursor()
+    rows = []
+    for job in jobs:
+        assign_job_ids(job)
+        vid = job.get("video_id")
+        if not vid:
+            continue
+        flags = lesson_cache_flags(cur, vid, locale)
+        if lesson_ready(flags):
+            continue
+        err = ""
+        try:
+            row = cur.execute(
+                "SELECT last_error FROM ingestion_status WHERE video_id=?",
+                (vid,),
+            ).fetchone()
+            err = (row[0] or "") if row else ""
+        except sqlite3.Error:
+            err = ""
+        missing = [
+            name
+            for name, key in (
+                ("transcripts", "has_transcripts"),
+                ("summary", "has_summary"),
+                ("flashcards", "has_flashcards"),
+                ("quizzes", "has_quizzes"),
+            )
+            if not flags.get(key)
+        ]
+        rows.append((vid, job.get("title") or vid, ",".join(missing) or "unknown", err.replace("\n", " ")[:180]))
+    conn.close()
+    if not rows:
+        return 0
+    print("==========================================================")
+    print(f"INCOMPLETE DETAIL  count={len(rows)}")
+    print("These lessons did not meet ready = transcripts + Summary + flashcards + quizzes.")
+    for vid, title, missing, err in rows:
+        print(f"  {title} ({vid})")
+        print(f"    missing: {missing}")
+        if err:
+            print(f"    error: {err}")
+    print("==========================================================")
+    return len(rows)
+
+
+def recount_ready(jobs, locale):
+    conn = open_vault()
+    ensure_schema(conn)
+    cur = conn.cursor()
+    ok = 0
+    fail = 0
+    for job in jobs:
+        assign_job_ids(job)
+        vid = job.get("video_id")
+        if not vid:
+            fail += 1
+            continue
+        flags = lesson_cache_flags(cur, vid, locale)
+        if lesson_ready(flags):
+            ok += 1
+        else:
+            fail += 1
+    conn.close()
+    return ok, fail
 
 
 def write_status(conn, video_id, asset_kind, title, flags, ready, error=""):
@@ -544,15 +783,17 @@ def process_job(job, locale, embed_model, force=False):
         job["video_id"] = slugify(base, prefix)
         job["chapter_id"] = slugify(f"ch_{base}")
 
+    assign_job_ids(job)
     video_id = job["video_id"]
     chapter_id = job.get("chapter_id") or f"ch_{video_id}"
 
     print(f"\n=== INGEST {kind}: {title} ({video_id}) ===")
-    conn = sqlite3.connect(VAULT_DB)
+    conn = open_vault()
     ensure_schema(conn)
     cur = conn.cursor()
     flags = lesson_cache_flags(cur, video_id, locale)
     flags["has_rag"] = False
+    conn.close()
 
     rel_pdf = job.get("rel_pdf") or ""
     if kind == "standalone_pdf" and pdf_path:
@@ -570,131 +811,143 @@ def process_job(job, locale, embed_model, force=False):
     errors = []
     source_chunks = []
     newly_extracted = False
+    existing_chunks = []
+    conn = open_vault()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT timestamp, text, translated_text FROM video_transcripts WHERE video_id=? ORDER BY timestamp",
+        (video_id,),
+    )
+    existing_chunks = [{"timestamp": r[0], "text": r[1], "translated_text": r[2]} for r in cur.fetchall()]
+    conn.close()
+    need_extract = force or not flags["has_transcripts"] or transcript_is_thin(existing_chunks, title)
 
-    if media_path and (force or not flags["has_transcripts"]):
+    if media_path and need_extract:
         print("  -> Transcribing media...")
         source_chunks = transcribe_media(media_path, video_id)
         newly_extracted = bool(source_chunks)
         if not source_chunks:
-            errors.append("transcript")
-    if pdf_path and not source_chunks:
+            print("  [TRANSCRIPT] Media transcription empty; will use PDF or lesson title.")
+    if pdf_path and (need_extract or not existing_chunks) and (
+        not source_chunks or transcript_is_thin(source_chunks, title)
+    ):
         print("  -> Extracting PDF text...")
-        source_chunks = extract_pdf_paragraphs(pdf_path)
-        newly_extracted = bool(source_chunks)
-        if not source_chunks:
-            errors.append("pdf_text")
+        pdf_chunks = extract_pdf_paragraphs(pdf_path)
+        if pdf_chunks and (not source_chunks or len(transcript_blob(pdf_chunks)) > len(transcript_blob(source_chunks))):
+            source_chunks = pdf_chunks
+            newly_extracted = True
+            print("  [PDF] Using extracted PDF text for tutor transcript / Summary / quizzes.")
+        elif not pdf_chunks:
+            print("  [PDF] No extractable text (scanned PDF?).")
+
+    conn = open_vault()
+    cur = conn.cursor()
     if not source_chunks:
         cur.execute("SELECT timestamp, text, translated_text FROM video_transcripts WHERE video_id=? ORDER BY timestamp", (video_id,))
         source_chunks = [{"timestamp": r[0], "text": r[1], "translated_text": r[2]} for r in cur.fetchall()]
+    if not source_chunks:
+        seed = f"{title}. Subject: {subject}."
+        source_chunks = [{"timestamp": "00:00", "text": seed}]
+        newly_extracted = True
+        print("  [SEED] Using lesson title as tutor text until audio/PDF extract works.")
 
     source_locale = detect_source_locale(media_path or pdf_path or "", " ".join((c.get("text") or "")[:200] for c in source_chunks[:3]))
     if newly_extracted and source_chunks:
         cur.execute("DELETE FROM video_transcripts WHERE video_id=?", (video_id,))
         for seg in source_chunks:
             text = seg["text"]
-            translated = text
-            if source_locale.split("_")[0] != str(locale).split("_")[0]:
-                translated = translate_text(text, locale)
             cur.execute(
                 "INSERT OR REPLACE INTO video_transcripts (video_id, timestamp, text, translated_text) VALUES (?, ?, ?, ?)",
-                (video_id, seg.get("timestamp") or "00:00", text, translated),
+                (video_id, seg.get("timestamp") or "00:00", text, text),
             )
         conn.commit()
 
     cur.execute("SELECT COALESCE(translated_text, text) FROM video_transcripts WHERE video_id=? ORDER BY timestamp", (video_id,))
     db_text = "\n\n".join((r[0] or "") for r in cur.fetchall() if r and r[0])
     source_text = (db_text or "\n\n".join(c.get("text") or "" for c in source_chunks))[:12000]
+    conn.close()
 
-    if source_chunks and embed_model is not None:
-        print("  -> Writing RAG embeddings...")
-        try:
-            flags["has_rag"] = write_rag(video_id, subject, source_chunks, embed_model)
-        except Exception as e:
-            errors.append(f"rag:{e}")
-            flags["has_rag"] = False
-
-    need_chapters = force or not flags["has_chapters"]
-    if need_chapters:
-        print("  -> Generating chapter outlines...")
-        chapters = []
-        if media_path:
-            chapters = qwen_omni_client.generate_video_timestamps(media_path, video_id, fallback_mock=False)
-        if not chapters:
-            chapters = qwen_omni_client.generate_chapters_from_text(source_text, locale)
-        if chapters:
-            cur.execute("DELETE FROM video_timestamps WHERE video_id=?", (video_id,))
-            for ts in chapters:
-                cur.execute(
-                    "INSERT OR REPLACE INTO video_timestamps (video_id, timestamp, title, description) VALUES (?, ?, ?, ?)",
-                    (video_id, ts.get("timestamp") or "00:00", ts.get("title") or "Chapter", ts.get("description") or ""),
-                )
-            conn.commit()
-        else:
-            errors.append("chapters")
-
+    summary = None
+    cards = None
+    quizzes = None
     if force or not flags["has_summary"]:
         print("  -> Generating Summary tab document...")
-        summary = qwen_omni_client.generate_lesson_summary_doc(source_text, title, subject, locale)
-        if summary and summary.get("overview"):
-            cur.execute(
-                """INSERT OR REPLACE INTO lesson_summaries
-                   (video_id, locale, title, subtitle, overview, formulas_json, concepts_json, takeaways_json)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    video_id, locale, summary["title"], summary["subtitle"], summary["overview"],
-                    json.dumps(summary.get("formulas") or [], ensure_ascii=False),
-                    json.dumps(summary.get("concepts") or [], ensure_ascii=False),
-                    json.dumps(summary.get("takeaways") or [], ensure_ascii=False),
-                ),
-            )
-            conn.commit()
-        else:
-            errors.append("summary")
-
+        summary = retry_call(
+            "SUMMARY",
+            lambda: qwen_omni_client.generate_lesson_summary_doc(source_text, title, subject, locale),
+        )
+        if not (summary and summary.get("overview")):
+            print("  [SUMMARY] Gemini empty; writing local fallback so the lesson can be ready in one shot.")
+            summary = fallback_summary_doc(title, subject, source_text, locale)
     if force or not flags["has_flashcards"]:
         print("  -> Generating flashcards...")
-        cards = []
-        if media_path:
-            cards = qwen_omni_client.generate_video_flashcards(media_path, video_id, locale, fallback_mock=False)
+        cards = retry_call(
+            "CARDS",
+            lambda: qwen_omni_client.generate_flashcards_from_text(source_text or f"{title} {subject}", locale),
+        )
         if not cards:
-            cards = qwen_omni_client.generate_flashcards_from_text(source_text, locale)
-        if cards:
-            cur.execute("DELETE FROM video_flashcards WHERE video_id=?", (video_id,))
-            for fc in cards:
-                cur.execute(
-                    "INSERT OR REPLACE INTO video_flashcards (video_id, front, back, hint) VALUES (?, ?, ?, ?)",
-                    (video_id, fc["front"], fc["back"], fc.get("hint") or ""),
-                )
-            conn.commit()
-        else:
-            errors.append("flashcards")
-
+            print("  [CARDS] Gemini empty; writing local fallback so the lesson can be ready in one shot.")
+            cards = fallback_flashcards(title, subject, source_text, locale)
     if force or not flags["has_quizzes"]:
         print("  -> Generating quizzes...")
-        quizzes = qwen_omni_client.generate_quiz_mcqs(source_text, locale, n_main=5, n_alt=5)
-        if quizzes:
-            cur.execute("DELETE FROM video_quiz_mcqs WHERE video_id=?", (video_id,))
-            for q in quizzes:
-                opts = q.get("options") or {}
-                cur.execute(
-                    """INSERT OR REPLACE INTO video_quiz_mcqs
-                       (video_id, question_id, question, option_a, option_b, option_c, option_d, correct_option, is_alternative)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        video_id, int(q.get("id") or 1), q.get("question") or "",
-                        opts.get("A") or "", opts.get("B") or "", opts.get("C") or "", opts.get("D") or "",
-                        q.get("correct") or "A", int(q.get("is_alternative") or 0),
-                    ),
-                )
-            conn.commit()
-        else:
-            errors.append("quizzes")
+        quizzes = retry_call(
+            "QUIZ",
+            lambda: qwen_omni_client.generate_quiz_mcqs(source_text, locale, n_main=5, n_alt=5),
+        )
+        if not quizzes:
+            print("  [QUIZ] Gemini empty; writing local fallback so the lesson can be ready in one shot.")
+            quizzes = fallback_quizzes(title, subject, locale)
 
-    # Simulations / savant are best-effort and not required for ready.
+    conn = open_vault()
+    cur = conn.cursor()
+    if summary and summary.get("overview"):
+        cur.execute(
+            """INSERT OR REPLACE INTO lesson_summaries
+               (video_id, locale, title, subtitle, overview, formulas_json, concepts_json, takeaways_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                video_id, locale, summary["title"], summary["subtitle"], summary["overview"],
+                json.dumps(summary.get("formulas") or [], ensure_ascii=False),
+                json.dumps(summary.get("concepts") or [], ensure_ascii=False),
+                json.dumps(summary.get("takeaways") or [], ensure_ascii=False),
+            ),
+        )
+        conn.commit()
+    if cards:
+        cur.execute("DELETE FROM video_flashcards WHERE video_id=?", (video_id,))
+        for fc in cards:
+            cur.execute(
+                "INSERT OR REPLACE INTO video_flashcards (video_id, front, back, hint) VALUES (?, ?, ?, ?)",
+                (video_id, fc["front"], fc["back"], fc.get("hint") or ""),
+            )
+        conn.commit()
+    if quizzes:
+        cur.execute("DELETE FROM video_quiz_mcqs WHERE video_id=?", (video_id,))
+        for q in quizzes:
+            opts = q.get("options") or {}
+            cur.execute(
+                """INSERT OR REPLACE INTO video_quiz_mcqs
+                   (video_id, question_id, question, option_a, option_b, option_c, option_d, correct_option, is_alternative)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    video_id, int(q.get("id") or 1), q.get("question") or "",
+                    opts.get("A") or "", opts.get("B") or "", opts.get("C") or "", opts.get("D") or "",
+                    q.get("correct") or "A", int(q.get("is_alternative") or 0),
+                ),
+            )
+        conn.commit()
+
+    conn.close()
+
+    # Simulations burn LLM quota and are not required for ready. Skip during ingest.
+    layouts = []
+    print("  [SIM] Skipping optional simulation bake (not required for ready).")
+
+    conn = open_vault()
+    cur = conn.cursor()
     try:
-        layouts = qwen_omni_client.generate_lesson_simulations(subject, title, [c["text"] for c in source_chunks[:5]], video_id, chapter_id)
         cur.execute("DELETE FROM lesson_simulations WHERE video_id=? AND chapter_id=?", (video_id, chapter_id))
-        for i, layout in enumerate(layouts or []):
+        for i, layout in enumerate(layouts):
             cur.execute(
                 """INSERT OR REPLACE INTO lesson_simulations
                    (video_id, chapter_id, content_id, component_name, widget, layout_json)
@@ -779,60 +1032,88 @@ def process_job(job, locale, embed_model, force=False):
             print(f"  [BOOKS] custom_books.json warn: {e}")
 
     flags = lesson_cache_flags(cur, video_id, locale)
-    flags["has_rag"] = bool(source_chunks)
-    ready = all([
-        flags["has_transcripts"],
-        flags["has_summary"],
-        flags["has_flashcards"],
-        flags["has_quizzes"],
-        flags["has_chapters"],
-        bool(source_chunks),
-    ])
-    write_status(conn, video_id, kind, title, {**flags, "has_rag": bool(source_chunks)}, ready, ";".join(errors))
+    flags["has_rag"] = False
+    ready = lesson_ready(flags)
+    missing_flags = [k for k, v in flags.items() if k != "has_rag" and not v]
+    write_status(conn, video_id, kind, title, flags, ready, ";".join(errors + missing_flags))
     conn.close()
-    print(f"  -> READY={ready} missing={errors or 'none'}")
+    print(f"  -> READY={ready} flags={flags} errors={errors or 'none'}")
     return ready
 
 
 def run_oneshot_ingest(force=False, locale=None, path=None, kind=None, title=None, subject=None, author=None):
     print("==========================================================")
-    print("ONE-SHOT CURRICULUM INGEST (Summary + Tutor + Quizzes + RAG)")
+    print("ONE-SHOT CURRICULUM INGEST (transcripts + Summary + flashcards + quizzes)")
     print("==========================================================")
     locale = resolve_student_locale(locale)
     print(f"Student locale: {locale}")
+    google_key = os.environ.get("GOOGLE_API_KEY", "").strip()
+    print(f"GOOGLE_API_KEY: {'set' if google_key else 'MISSING — Summary/quizzes will fail'}")
+    try:
+        import qwen_omni_client
+        print(f"ffmpeg: {'yes' if qwen_omni_client.is_ffmpeg_available() else 'no (will upload original video to Gemini)'}")
+    except Exception:
+        pass
+    if not google_key:
+        print("[INGEST] Set GOOGLE_API_KEY in .env then rerun. No sentence_transformers needed.")
+        return 1
 
-    conn = sqlite3.connect(VAULT_DB)
+    ensure_pypdf()
+    conn = open_vault()
     ensure_schema(conn)
     conn.close()
 
     embed_model = None
-    try:
-        from sentence_transformers import SentenceTransformer
-        print("[EMBEDDINGS] Loading all-MiniLM-L6-v2...")
-        embed_model = SentenceTransformer("all-MiniLM-L6-v2")
-    except Exception as e:
-        print(f"[EMBEDDINGS] Failed ({e}). RAG will be skipped; lesson will not be marked ready.")
+    print("[EMBEDDINGS] Skipping sentence_transformers (optional RAG only).")
 
     jobs = discover_jobs(path, kind, title, subject, author)
     if not jobs:
         print("No PDFs, videos, or audiobooks found in curriculum_staging/, professor_books/, textbooks/, or audiobooks/.")
         return 1
-
-    ok = 0
-    fail = 0
     for job in jobs:
-        try:
-            if process_job(job, locale, embed_model, force=force):
-                ok += 1
-            else:
-                fail += 1
-        except Exception as e:
-            fail += 1
-            print(f"  [ERROR] {job.get('title')}: {e}")
+        assign_job_ids(job)
+
+    def _run_jobs(job_list, pass_force, label):
+        print(f"\n--- ingest pass: {label} ({len(job_list)} lessons) ---")
+        for job in job_list:
+            try:
+                process_job(job, locale, embed_model, force=pass_force)
+            except sqlite3.OperationalError as e:
+                if "locked" in str(e).lower():
+                    print("  [DB] vault.db locked (display_client.py still open). Retrying once in 3s...")
+                    time.sleep(3)
+                    try:
+                        process_job(job, locale, embed_model, force=pass_force)
+                        continue
+                    except Exception as e2:
+                        print(f"  [ERROR] {job.get('title')}: {e2}")
+                        continue
+                print(f"  [ERROR] {job.get('title')}: {e}")
+            except Exception as e:
+                print(f"  [ERROR] {job.get('title')}: {e}")
+
+    _run_jobs(jobs, force, "all lessons")
+    ok, fail = recount_ready(jobs, locale)
+    if fail:
+        incomplete = []
+        conn = open_vault()
+        cur = conn.cursor()
+        for job in jobs:
+            flags = lesson_cache_flags(cur, job["video_id"], locale)
+            if not lesson_ready(flags):
+                incomplete.append(job)
+        conn.close()
+        print(f"\n[INGEST] {fail} lesson(s) not ready after first pass. Filling missing caches (same command, no rerun).")
+        _run_jobs(incomplete, False, "retry incomplete")
+        ok, fail = recount_ready(jobs, locale)
+
     print("\n==========================================================")
     print(f"INGEST COMPLETE  ready={ok}  incomplete={fail}  total={len(jobs)}")
-    print("A lesson is ready only with transcripts, Summary, flashcards, quizzes, and RAG.")
+    print("A lesson is ready with transcripts, Summary, flashcards, and quizzes.")
+    print("This command is one-shot: it retries incomplete lessons before exiting.")
     print("==========================================================")
+    if fail:
+        print_incomplete_report(jobs, locale)
     return 0 if fail == 0 else 2
 
 

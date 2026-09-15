@@ -1,8 +1,6 @@
-# orchestrator.py - Jetson Orin Nano Super State Machine Orchestrator
-# Hardware: NVIDIA Jetson Orin Nano Super Dev Kit
-# Storage:  512 GB M.2 2280 NVMe SSD (mounted at /data)
-# Cellular: Waveshare 4G/5G M.2 Dongle + eSIM.me Physical Adapter Card
-# TTS:      NVIDIA Riva / Magpie-TTS (gRPC on localhost:50051)
+# orchestrator.py — Ventuno Q state machine (UDP 8002)
+# Hardware: Arduino Ventuno Q. Desktop simulation when HARDWARE_TARGET=simulation.
+# Voice TTS: Kokoro via LiveKit, not NVIDIA Riva.
 # Note: The system now strictly uses local full-length calculus/physics tracks.
 
 import os
@@ -23,12 +21,29 @@ import queue
 import threading
 import asyncio
 import websockets
-import lancedb
 import socket
 import urllib.request
 import re
-from sentence_transformers import SentenceTransformer
-from qwen_omni_client import query_qwen_omni_tutoring
+
+try:
+    import lancedb
+except ImportError:
+    lancedb = None
+    print("[BOOT] lancedb not installed — vector RAG disabled until you pip install it.")
+
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None
+    print("[BOOT] sentence_transformers not installed — embeddings disabled for this process.")
+
+try:
+    from qwen_omni_client import query_qwen_omni_tutoring
+except Exception as _qwen_err:
+    print(f"[BOOT] qwen_omni_client not loaded ({_qwen_err}).")
+
+    def query_qwen_omni_tutoring(*args, **kwargs):
+        return None
 
 # ---------------------------------------------------------
 # OpenRouter API Integration Helper
@@ -315,7 +330,7 @@ def get_subject_by_video_id(video_id):
         return "Physics"
     if "philosophy" in vid_lower or "phil_" in vid_lower:
         return "Philosophy"
-    if "calculus" in vid_lower or "mathematics" in vid_lower or "/math" in vid_lower or vid_lower.startswith("math"):
+    if "calculus" in vid_lower or "calc" in vid_lower or "mathematics" in vid_lower or "/math" in vid_lower or vid_lower.startswith("math"):
         return "Mathematics"
     if "economics" in vid_lower or "extraeconomiques" in vid_lower:
         return "Economics"
@@ -1148,7 +1163,7 @@ class Orchestrator:
                         "timestamp_emitted": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                         "mode": mode,
                         "data": {
-                            "subject": "Economics" if "calculus" in (video_id or "").lower() else ("Chemistry" if "philosophy" in (video_id or "").lower() else "Physics"),
+                            "subject": get_subject_by_video_id(video_id),
                             "timestamp_marker": timestamp_marker or "00:00",
                             "text_context": None,
                             "relevance_distance": 0.0,
@@ -2094,8 +2109,18 @@ if __name__ == "__main__":
         print("Please run 'init_vault.py' first to set up the databases and populate mock data.")
         exit(1)
         
+    if SentenceTransformer is None or lancedb is None:
+        print("Error: sentence_transformers and lancedb are required to run the orchestrator brain.")
+        print("Install with: pip install sentence-transformers lancedb")
+        print("Or just run: python3 display_client.py  (UI works without them)")
+        exit(1)
+
     print("Loading SentenceTransformer model ('all-MiniLM-L6-v2')...")
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+    if SentenceTransformer is None:
+        print("[ORCH] sentence_transformers not installed; run ingest_curriculum.py for lesson caches. Orchestrator UDP RAG is optional.")
+        model = None
+    else:
+        model = SentenceTransformer("all-MiniLM-L6-v2")
     
     print(f"Connecting to LanceDB vector folder '{LANCEDB_DIR}'...")
     db = lancedb.connect(LANCEDB_DIR)

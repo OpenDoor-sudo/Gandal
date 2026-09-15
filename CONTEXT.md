@@ -1,4 +1,4 @@
-# Jetson Orin Nano Super — Headless Appliance System Context
+# Arduino Ventuno Q — Classroom System Context
 
 This document captures the deep contextual knowledge, architectural decisions, database schemas, design constraints, and long-term roadmap for the platform. It serves as the single source of truth to maintain system integrity and guide future development.
 
@@ -6,37 +6,28 @@ This document captures the deep contextual knowledge, architectural decisions, d
 
 ## 🎯 1. Project Overview & Core Mission
 
-**Ventuno Q** is a premium, localized agentic educational sandbox designed to run on physical hardware (NVIDIA Jetson Orin Nano Super) as well as desktop simulator environments.
+**Ventuno Q** is a localized agentic educational sandbox designed to run on **Arduino Ventuno Q** (Snapdragon + Qualcomm Hexagon NPU) as well as desktop simulation.
 
 Its ultimate goal is to provide a highly interactive, distraction-free **Midnight Academic AI** classroom. The system combines:
 1. **Dynamic Curriculum Navigation**: Offline textbook/video synchronization based on a structured curriculum tree.
-2. **Socratic AI Tutoring**: Grounded RAG-based chat and instant whiteboard assistance powered by Gemma 4 e4b via OpenRouter.
+2. **Socratic AI Tutoring**: Grounded RAG plus LiveKit voice (Gemma 4 E4B native audio + Kokoro offline; Gemini Flash Live when online).
 3. **Rigid Mastery Evaluation Gating**: A strict 85% score gateway preventing lesson progression until core concepts are mastered.
-4. **Attention/Security Sentry**: Real-time 30 FPS face-tracking sentry vision (MediaPipe on Jetson GPU) to monitor student presence and focus.
+4. **Attention/Security Sentry**: Face-tracking sentry vision to monitor student presence and focus.
 
 ---
 
-## 🖥️ 1b. Target Hardware Stack
+## 🖥️ 1b. Target Hardware Stack (source of truth: Arduino Ventuno Q)
 
 | Component | Hardware |
 |---|---|
-| **Motherboard** | NVIDIA Jetson Orin Nano Super Dev Kit |
-| **Data Drive** | 512 GB M.2 2280 NVMe SSD (mounted at `/data`) |
-| **OCR Camera** | Raspberry Pi Camera Module 3 Standard — CSI-0 (sensor-id=0) |
-| **Webcam Camera** | Raspberry Pi Camera Module 3 Wide-Angle — CSI-1 (sensor-id=1) |
-| **Cellular Link** | Waveshare 4G/5G M.2 Cellular Dongle (ModemManager / `wwan0`) |
-| **eSIM Bridge** | eSIM.me Physical Adapter Card (managed via ModemManager) |
-| **TTS Engine** | NVIDIA Riva / Magpie-TTS (gRPC on `localhost:50051`) |
-| **GPIO Header** | 40-pin carrier board header — BOARD numbering, active-low buttons |
+| **Board** | Arduino Ventuno Q (Snapdragon SoC, Hexagon NPU ~40 TOPS) |
+| **Storage** | NVMe or high-speed microSD with pre-baked `vault.db`, LanceDB, media |
+| **Hand-raise** | Capacitive sensor on the 40-pin header (`hardware_bridge.py`, pin 31) |
+| **Vision** | Desk camera for presence / scratchpad (`sentry_vision.py`) |
+| **Audio** | MEMS mic + speakers via LiveKit WebRTC; Kokoro TTS on-device |
+| **GPIO** | START pin 15, PAUSE pin 29, RAISE_HAND pin 31 (BOARD numbering) |
 
-**GPIO Button Mapping (BOARD pin numbers):**
-- Pin 15 → START
-- Pin 29 → PAUSE
-- Pin 31 → RAISE\_HAND
-
-**Camera assignment:**
-- `sensor-id=0` (CSI-0) → OCR Camera (Standard, document/handwriting capture)
-- `sensor-id=1` (CSI-1) → Webcam (Wide-Angle, presence tracking / sentry vision)
+Desktop development uses `HARDWARE_TARGET=simulation`. Jetson Orin is **not** the production target.
 
 ---
 
@@ -71,10 +62,10 @@ graph TD
 
 ### 🧩 Core Component Roles
 *   **Student Workspace (`index.html` & `onboarding.html`)**: Richly-styled dark UI using HSL tailored palettes, glassmorphism, and hardware-accelerated CSS. Manages isolated container views to prevent layout bleeding.
-*   **Web Server / WS Coordinator (`display_client.py`)**: Runs on port `8000` (HTTP) and `8001` (WebSockets). Handles all relational data fetches, real-time messaging, student responses grading, state updates, and Riva Magpie-TTS synthesis proxying.
-*   **State Machine Brain (`orchestrator.py`)**: Receives high-priority UDP signals on port `8002`. Decides when to switch tutor modes, coordinates Jetson CUDA/TensorRT GPU inference, and serves instant localized Socratic hints during quizzes.
-*   **Attention Tracker (`sentry_vision.py`)**: Monitors student focus via the wide-angle RPi Camera Module 3 (CSI-1) using MediaPipe FaceDetection (GPU) and transmits binary face-presence signals back through the WS coordinator. OCR Camera (CSI-0) is reserved for handwriting capture.
-*   **Hardware Bridge (`hardware_bridge.py`)**: Listens for GPIO button interrupts on the Jetson Orin Nano 40-pin header (BOARD pin numbering). Falls back to keyboard simulation when `HARDWARE_TARGET != jetson`.
+*   **Web Server / WS Coordinator (`display_client.py`)**: Port `8000` HTTP and `8001` WebSockets. Curriculum APIs, LiveKit tokens, Spatius App ID/avatar id for the browser.
+*   **State Machine Brain (`orchestrator.py`)**: UDP `8002`. Tutor modes and Socratic quiz hints.
+*   **Attention Tracker (`sentry_vision.py`)**: Face presence for auto-pause.
+*   **Hardware Bridge (`hardware_bridge.py`)**: Ventuno Q GPIO or keyboard simulation (`HARDWARE_TARGET=simulation`).
 
 ---
 

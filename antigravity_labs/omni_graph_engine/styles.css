@@ -65,7 +65,7 @@ body, html {
   top: 16px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 50;
+  z-index: 120;
   width: 92%;
   max-width: 580px;
   pointer-events: none;
@@ -144,6 +144,22 @@ body, html {
 
 .pill-mic-btn {
   color: #a1a1aa;
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
+}
+
+.graph-voice-status {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #67e8f9;
+  pointer-events: none;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+}
+
+.graph-voice-status.error {
+  color: #fb7185;
 }
 
 .pill-mic-btn.listening {

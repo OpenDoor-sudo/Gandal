@@ -3,7 +3,7 @@
  * Interactive Standing Wave simulation, Kinematic Calculus, and Orbital Mechanics.
  */
 
-import { GandhoLabVoiceAssistant } from "../gandho_voice_helper.js";
+import { GandhoLabVoiceAssistant } from "../gandho_voice_helper.js?v=20260328c";
 import { labAudio } from "../audio/lab_audio.js";
 import { challengeManager } from "../challenges/lab_challenges.js";
 
@@ -30,6 +30,8 @@ export class MathPhysicsLab {
     // Mode 3: Orbital parameters
     this.altitude = 400.0; // km (ISS)
     this.orbitAngle = 0;
+    this.lastRange = 0;
+    this.lastOrbitalSpeed = 0;
 
     // Cached solver result
     this.solverData = null;
@@ -164,6 +166,8 @@ export class MathPhysicsLab {
     this.renderModeControls();
     this.renderModeDataGrid();
     challengeManager.renderSidebarPanel("phys_math", this.container.querySelector("#mathChallengesMount"));
+    if (mode === "waves") labAudio.setWaveDrone(this.freq, true);
+    else labAudio.stopWaveDrone();
     this.updateDerivationsInstant();
     this.solveCurrent();
   }
@@ -194,6 +198,7 @@ export class MathPhysicsLab {
       c.querySelector('#waveFreqSlider').addEventListener('input', (e) => {
         this.freq = parseFloat(e.target.value);
         c.querySelector('#sliderFreqVal').innerText = `${this.freq.toFixed(1)} Hz`;
+        labAudio.setWaveDrone(this.freq, true);
         this.updateDerivationsInstant();
         this.solveCurrent();
       });
@@ -532,6 +537,7 @@ export class MathPhysicsLab {
         solver: this.solverData
       }));
     }
+    if (this.currentMode === "waves") labAudio.setWaveDrone(this.freq, true);
   }
 
   async solveCurrent() {
@@ -654,6 +660,18 @@ export class MathPhysicsLab {
       };
       if (typeof window.updateActiveViewState === 'function') {
         window.updateActiveViewState();
+      }
+      this.lastRange = Number(data.range_m) || this.lastRange || 0;
+      this.lastOrbitalSpeed = Number(data.orbital_velocity_ms) || this.lastOrbitalSpeed || 0;
+      if (challengeManager.checkState("phys_math", {
+        mode: this.currentMode,
+        frequency: this.freq,
+        amplitude: this.amp,
+        range: this.lastRange,
+        altitude: this.altitude,
+        speed: this.lastOrbitalSpeed,
+      })) {
+        challengeManager.renderSidebarPanel("phys_math", this.container.querySelector("#mathChallengesMount"));
       }
 
     } catch (e) {
@@ -1096,6 +1114,7 @@ export class MathPhysicsLab {
       cancelAnimationFrame(this.animId);
       this.animId = null;
     }
+    labAudio.stopWaveDrone();
   }
 
   executeVoiceCommand(cmd) {
@@ -1114,7 +1133,8 @@ export class MathPhysicsLab {
       }
       if (targetMode && ["waves", "kinematics", "orbital"].includes(targetMode)) {
         this.setMode(targetMode);
-        this.showVoiceToast(`🎙️ Gandho: Switched to ${targetMode.toUpperCase()} mode!`);
+        const labels = { waves: "ondes stationnaires", kinematics: "tir balistique", orbital: "mécanique orbitale" };
+        this.showVoiceToast(`Gandho : mode ${labels[targetMode] || targetMode}.`);
       }
     } else if (action.includes("frequency") || action.includes("fréquence") || action.includes("frequence")) {
       if (val > 0) {
@@ -1123,9 +1143,10 @@ export class MathPhysicsLab {
         if (s) s.value = this.freq;
         const lbl = this.container.querySelector('#sliderFreqVal');
         if (lbl) lbl.innerText = `${this.freq.toFixed(1)} Hz`;
+        labAudio.setWaveDrone(this.freq, true);
         this.updateDerivationsInstant();
         this.solveCurrent();
-        this.showVoiceToast(`🎙️ Gandho: Wave frequency set to ${this.freq} Hz!`);
+        this.showVoiceToast(`Gandho : fréquence réglée à ${this.freq} Hz.`);
       }
     } else if (action.includes("altitude") || action.includes("alt")) {
       if (val > 0 || cmd.preset) {
@@ -1135,49 +1156,36 @@ export class MathPhysicsLab {
         else if (cmd.preset === "gps" || action.includes("gps")) alt = 20200;
         else if (cmd.preset === "geo" || action.includes("geo")) alt = 35786;
         this.altitude = alt;
+        this.setMode("orbital");
         const s = this.container.querySelector('#orbitAltSlider');
         if (s) s.value = this.altitude;
         const lbl = this.container.querySelector('#sliderAltVal');
         if (lbl) lbl.innerText = `${this.altitude} km`;
         this.updateDerivationsInstant();
         this.solveCurrent();
-        this.showVoiceToast(`🎙️ Gandho: Orbit altitude set to ${this.altitude} km!`);
+        this.showVoiceToast(`Gandho : altitude orbitale ${this.altitude} km.`);
       }
     } else if (action.includes("reset") || action.includes("réinitialiser") || action.includes("reinit")) {
       this.time = 0;
       this.kinTime = 0;
       this.orbitAngle = 0;
       this.updateDerivationsInstant();
-      this.showVoiceToast("🎙️ Gandho: Simulation reset.");
+      this.showVoiceToast("Gandho : simulation réinitialisée.");
     } else if (action.includes("pause") || action.includes("stop")) {
       this.isPaused = !this.isPaused;
-      this.showVoiceToast(`🎙️ Gandho: Simulation ${this.isPaused ? "paused" : "resumed"}.`);
+      this.showVoiceToast(`Gandho : simulation ${this.isPaused ? "en pause" : "reprise"}.`);
     }
   }
 
   showVoiceToast(msg) {
+    this.container.querySelectorAll(".lab-gandho-toast").forEach((el) => el.remove());
     const toast = document.createElement("div");
-    toast.style.cssText = `
-      position: absolute;
-      bottom: 80px;
-      left: 20px;
-      background: linear-gradient(135deg, #9333ea, #a855f7);
-      color: #ffffff;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 10px 16px;
-      border-radius: 20px;
-      box-shadow: 0 8px 25px rgba(168, 85, 247, 0.4);
-      z-index: 100;
-      pointer-events: none;
-      animation: fadeIn 0.3s ease;
-    `;
+    toast.className = "lab-gandho-toast";
     toast.innerText = msg;
     this.container.appendChild(toast);
     setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.4s ease';
-      setTimeout(() => toast.remove(), 400);
+      toast.classList.add("is-leaving");
+      setTimeout(() => toast.remove(), 350);
     }, 3200);
   }
 }

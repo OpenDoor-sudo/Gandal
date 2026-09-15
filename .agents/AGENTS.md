@@ -3,8 +3,8 @@
 These rules configure and maintain the custom implementations for the Socratic Tutor system in this workspace.
 
 ## 1. Socratic Voice Agent Configuration
-* **Model Preference**: The voice agent tutor must always use the `gemini-3.1-flash-live-preview` model. Do not upgrade to newer versions (like 1.5 or 2.0/3.0 production versions) unless explicitly requested.
-* **LiveKit Google Plugin Compatibility**: Because `gemini-3.1-flash-live-preview` has `"3.1"` in its name, the default LiveKit Google Realtime plugin disables mutable chat contexts. To bypass this, verify that line 296 of `livekit/plugins/google/realtime/realtime_api.py` in the active Python site-packages is hotpatched to `mutable = True`.
+* **Model Preference**: Match the verified `OpenDoor-sudo/VentunoGandal` voice implementation: Gemini 3.1 Flash Live (`gemini-3.1-flash-live-preview`) with `generate_reply(user_input=...)`. The greeting must only be triggered after the student's audio track is subscribed.
+* **LiveKit Google Plugin Compatibility**: Because `gemini-3.1-flash-live-preview` disables mutable chat contexts by default, `tutor_agent.py` enables `mutable_chat_context` and `mutable_instructions` on the model instance. Do not require a machine-specific `site-packages` edit.
 
 ## 2. Session & State Synchronization
 * **Absolute Path Constraint**: Both the Python scripts (e.g., [display_client.py](file:///c:/Users/lalyb/Desktop/ventuno_ai_testbed/display_client.py)) and the tutor agent scripts must sync using the absolute path `SESSION_JSON_PATH = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"` to prevent mismatches in working directories when run from different startup environments.

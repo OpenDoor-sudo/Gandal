@@ -41,7 +41,8 @@ export class Breadboard3DEngine {
     this._buildBreadboardGeometry();
     this._startRenderLoop();
 
-    window.addEventListener("resize", this._onResize.bind(this));
+    this._boundOnResize = this._onResize.bind(this);
+    window.addEventListener("resize", this._boundOnResize);
     this.isInitialized = true;
     console.log("[BREADBOARD 3D] Engine initialized successfully with", this.pinCoordinates.size, "pin nodes.");
   }
@@ -49,38 +50,44 @@ export class Breadboard3DEngine {
   async _ensureThreeLoaded() {
     if (window.THREE && window.THREE.OrbitControls) return;
 
-    if (!window.THREE) {
-      await new Promise((resolve, reject) => {
+    const loadScript = (src) =>
+      new Promise((resolve, reject) => {
         const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js";
+        script.src = src;
         script.onload = resolve;
         script.onerror = reject;
         document.head.appendChild(script);
       });
+
+    if (!window.THREE) {
+      try {
+        await loadScript("/antigravity_labs/circuits_lab/lib/three.min.js");
+      } catch (_) {
+        await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js");
+      }
     }
 
     if (!window.THREE.OrbitControls) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js";
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-      });
+      try {
+        await loadScript("/antigravity_labs/circuits_lab/lib/OrbitControls.js");
+      } catch (_) {
+        await loadScript("https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js");
+      }
     }
   }
 
   _setupScene() {
     const THREE = window.THREE;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x0a0a0f);
+    this.scene.background = new THREE.Color(0x0b0d11);
 
     const width = this.container.clientWidth || 800;
     const height = this.container.clientHeight || 600;
 
     // Perspective Camera angled slightly over the breadboard
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    this.camera.position.set(0, 7.5, 6.0);
+    // Comfortable working distance — board fills the stage without burying the HUD
+    this.camera.position.set(0, 7.4, 6.6);
 
     // Renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -98,15 +105,20 @@ export class Breadboard3DEngine {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.06;
     this.controls.maxPolarAngle = Math.PI / 2.05; // Don't go below table
-    this.controls.minDistance = 3.0;
+    this.controls.minDistance = 3.8;
     this.controls.maxDistance = 18.0;
-    this.controls.target.set(0, 0, 0);
+    this.controls.target.set(0, 0.2, 0);
 
-    // Scene Graph hierarchy
+    // Primary stage scale — large enough to work, still leaves docked HUD readable
+    const boardScale = 1.08;
     this.breadboardGroup = new THREE.Group();
+    this.breadboardGroup.scale.set(boardScale, boardScale, boardScale);
     this.wiresGroup = new THREE.Group();
+    this.wiresGroup.scale.set(boardScale, boardScale, boardScale);
     this.componentsGroup = new THREE.Group();
+    this.componentsGroup.scale.set(boardScale, boardScale, boardScale);
     this.highlightsGroup = new THREE.Group();
+    this.highlightsGroup.scale.set(boardScale, boardScale, boardScale);
 
     this.scene.add(this.breadboardGroup);
     this.scene.add(this.wiresGroup);
@@ -602,6 +614,57 @@ export class Breadboard3DEngine {
     this.clearHighlights();
   }
 
+  /**
+   * Map a screen drop point onto the nearest breadboard pin key.
+   */
+  pickNearestPin(clientX, clientY, candidateKeys = null) {
+    if (!this.renderer || !this.camera || !window.THREE) return null;
+    const THREE = window.THREE;
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+
+    const mouse = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1
+    );
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, this.camera);
+
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -this.boardHeight);
+    const hit = new THREE.Vector3();
+    if (!raycaster.ray.intersectPlane(plane, hit)) return null;
+
+    // Account for board scale group
+    const scale = (this.breadboardGroup && this.breadboardGroup.scale.x) || 1;
+    const localHit = hit.clone().divideScalar(scale);
+
+    let bestKey = null;
+    let bestDist = Infinity;
+    const keys = candidateKeys && candidateKeys.length
+      ? candidateKeys
+      : Array.from(this.pinCoordinates.keys());
+
+    keys.forEach((key) => {
+      const pos = this.pinCoordinates.get(String(key).toUpperCase());
+      if (!pos) return;
+      const d = pos.distanceTo(localHit);
+      if (d < bestDist) {
+        bestDist = d;
+        bestKey = key;
+      }
+    });
+
+    if (bestKey == null || bestDist > 1.25) return null;
+    return { key: bestKey, distance: bestDist, point: hit };
+  }
+
+  resetCamera() {
+    if (!this.camera || !this.controls) return;
+    this.camera.position.set(0, 7.4, 6.6);
+    this.controls.target.set(0, 0.2, 0);
+    this.controls.update();
+  }
+
   _resolveColor(colorName) {
     const colors = {
       red: 0xef4444,
@@ -654,9 +717,13 @@ export class Breadboard3DEngine {
 
   destroy() {
     if (this.animationFrameId) cancelAnimationFrame(this.animationFrameId);
-    window.removeEventListener("resize", this._onResize.bind(this));
+    if (this._boundOnResize) {
+      window.removeEventListener("resize", this._boundOnResize);
+      this._boundOnResize = null;
+    }
     if (this.renderer && this.renderer.domElement) {
       this.renderer.domElement.remove();
     }
+    this.isInitialized = false;
   }
 }

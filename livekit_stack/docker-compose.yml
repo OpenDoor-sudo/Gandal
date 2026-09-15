@@ -1,7 +1,12 @@
 version: '3.8'
 
+# Offline-first LiveKit voice:
+#   Gemma 4 E4B native audio + Kokoro TTS when the student is offline
+#   (or FORCE_OFFLINE=1 / OFFLINE_MODE=1).
+#   Gemini Flash Live when the student is online, or when Gemma cannot answer.
+# Browser and worker must share LIVEKIT_URL + API keys.
+
 services:
-  # 1. The Local LiveKit WebRTC Server
   livekit-server:
     image: livekit/livekit-server:latest
     command: --config /livekit.yaml
@@ -10,14 +15,12 @@ services:
       - ./livekit.yaml:/livekit.yaml
     restart: unless-stopped
 
-  # 2. Local Qwen Inference Engine (Ollama)
-  local-qwen-engine:
+  local-gemma-engine:
     image: ollama/ollama:latest
     ports:
       - "11434:11434"
     volumes:
       - ./ollama_models:/root/.ollama
-    # Enable GPU support (NVIDIA CUDA / directml passthrough in WSL2)
     deploy:
       resources:
         reservations:
@@ -27,22 +30,44 @@ services:
               capabilities: [gpu]
     restart: unless-stopped
 
-  # 3. Socratic Tutor Agent Application
+  kokoro-tts:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    network_mode: "host"
+    restart: unless-stopped
+
   tutor-agent:
     build:
       context: ./agent
       dockerfile: Dockerfile
-    network_mode: "host" # Allows agent to easily hook into the local LiveKit WebRTC server on localhost
+    network_mode: "host"
     environment:
-      - LIVEKIT_URL=ws://localhost:7880
-      - LIVEKIT_API_KEY=devkey
-      - LIVEKIT_API_SECRET=secretsecretsecretsecretsecretsecretsecret
-      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GANDHO_PROJECT_ROOT=/app
+      - LIVEKIT_URL=${LIVEKIT_URL:-ws://localhost:7880}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-devkey}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:-secretsecretsecretsecretsecretsecretsecret}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - GEMINI_LIVE_MODEL=${GEMINI_LIVE_MODEL:-gemini-3.1-flash-live-preview}
+      - OFFLINE_MODE=${OFFLINE_MODE:-0}
+      - FORCE_OFFLINE=${FORCE_OFFLINE:-0}
+      - LOCAL_LLM_URL=${LOCAL_LLM_URL:-http://localhost:11434/v1}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-gemma-4-e4b}
+      - GEMMA_AUDIO_URL=${GEMMA_AUDIO_URL:-}
+      - GEMMA_AUDIO_MODEL=${GEMMA_AUDIO_MODEL:-google/gemma-4-E4B-it}
+      - GEMMA_LOAD_LOCAL=${GEMMA_LOAD_LOCAL:-0}
+      - KOKORO_URL=${KOKORO_URL:-http://localhost:8880/v1}
+      - SPATIUS_API_KEY=${SPATIUS_API_KEY:-}
+      - SPATIUS_APP_ID=${SPATIUS_APP_ID:-}
+      - SPATIUS_AVATAR_ID=${SPATIUS_AVATAR_ID:-}
+      - SPATIUS_REGION=${SPATIUS_REGION:-us-west}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
     volumes:
       - ../vault.db:/app/vault.db
       - ../.lancedb:/app/.lancedb
+      - ../custom_books.json:/app/custom_books.json
+      - ../active_session.json:/app/active_session.json
     depends_on:
       - livekit-server
-      - local-qwen-engine
+      - local-gemma-engine
+      - kokoro-tts
     restart: unless-stopped

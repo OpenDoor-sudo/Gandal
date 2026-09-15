@@ -1,6 +1,6 @@
-# display_client.py - Jetson Orin Nano Super Display Client Server
-# Hardware: NVIDIA Jetson Orin Nano Super Dev Kit
-# TTS:      NVIDIA Riva / Magpie-TTS (gRPC on localhost:50051)
+# display_client.py — Ventuno Q classroom HTTP/WebSocket server
+# Hardware: Arduino Ventuno Q (Qualcomm Hexagon NPU). Desktop simulation supported.
+# Voice TTS: Kokoro-82M via LiveKit (not NVIDIA Riva).
 # Storage:  512 GB M.2 2280 NVMe SSD
 # Note: The dashboard strictly uses local full-length calculus/physics tracks.
 
@@ -18,12 +18,15 @@ def load_env():
             with open(ENV_FILE, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
-                    if line and not line.startswith("#"):
-                        parts = line.split("=", 1)
-                        if len(parts) == 2:
-                            k = parts[0].strip()
-                            v = parts[1].strip().strip('"').strip("'")
-                            os.environ[k] = v
+                    if not line or line.startswith("#"):
+                        continue
+                    if line.lower().startswith("export "):
+                        line = line[7:].strip()
+                    parts = line.split("=", 1)
+                    if len(parts) == 2:
+                        k = parts[0].strip()
+                        v = parts[1].strip().strip('"').strip("'")
+                        os.environ[k] = v
         except Exception as e:
             print(f"[ENV] Error reading .env: {e}")
 
@@ -41,20 +44,62 @@ import threading
 import websockets
 import sqlite3
 import json
-from orchestrator import check_subject_gating
+
+try:
+    from orchestrator import check_subject_gating
+except Exception as _orch_err:
+    print(f"[BOOT] Orchestrator not loaded ({_orch_err}). Subject gating disabled for this process.")
+
+    def check_subject_gating(attempted_video_id):
+        return True, ""
 
 # Virtual Labs science solvers (RDKit, SymPy, PubChem, ChemPy)
 LABS_BACKEND_DIR = os.path.join(PROJECT_ROOT, "antigravity_labs", "chemistry_backend")
 if os.path.exists(LABS_BACKEND_DIR) and LABS_BACKEND_DIR not in sys.path:
     sys.path.insert(0, LABS_BACKEND_DIR)
 
+science_solvers = None
+chem_main = None
+LABS_SOLVERS_AVAILABLE = False
 try:
-    import science_solvers
-    import main as chem_main
+    import science_solvers as _science_solvers
+    science_solvers = _science_solvers
     LABS_SOLVERS_AVAILABLE = True
 except Exception as _labs_err:
     print(f"[LABS] Science solvers notice: {_labs_err}")
     LABS_SOLVERS_AVAILABLE = False
+    science_solvers = None
+
+try:
+    from main import calculate_mixture as chem_calculate_mixture
+    CHEM_MIX_AVAILABLE = True
+except Exception:
+    CHEM_MIX_AVAILABLE = False
+    chem_main = None
+
+    def chem_calculate_mixture(solutions, indicator="phenolphthalein", temp_c=25.0):
+        total_vol = 0.0
+        names = []
+        for item in solutions or []:
+            if isinstance(item, dict):
+                names.append(item.get("name") or item.get("formula") or "reagent")
+                total_vol += float(item.get("volume_ml") or 0)
+        if LABS_SOLVERS_AVAILABLE and hasattr(science_solvers, "calculate_mixture"):
+            return science_solvers.calculate_mixture(solutions, indicator, temp_c)
+        return {
+            "success": True,
+            "total_volume_ml": total_vol,
+            "ph": 7.0,
+            "poh": 7.0,
+            "color_hex": "#93c5fd",
+            "indicator_state": indicator or "none",
+            "reaction_summary": "Local stoichiometric fallback (ChemPy/FastAPI not installed).",
+            "neutralization_status": "approximate",
+            "species_concentrations": {},
+            "chempy_active": False,
+            "reagents": names,
+            "temp_c": temp_c,
+        }
 
 
 def get_subject_by_video_id(video_id):
@@ -67,7 +112,7 @@ def get_subject_by_video_id(video_id):
         return "Physics"
     if "philosophy" in vid_lower or "phil_" in vid_lower:
         return "Philosophy"
-    if "calculus" in vid_lower or "mathematics" in vid_lower or "/math" in vid_lower or vid_lower.startswith("math"):
+    if "calculus" in vid_lower or "calc" in vid_lower or "mathematics" in vid_lower or "/math" in vid_lower or vid_lower.startswith("math"):
         return "Mathematics"
     if "economics" in vid_lower or "extraeconomiques" in vid_lower:
         return "Economics"
@@ -160,32 +205,98 @@ import time
 import hmac
 import hashlib
 import urllib.parse
+import urllib.request
+import urllib.error
 
 TRANSLATION_CACHE_FILE = os.path.join(PROJECT_ROOT, "translation_cache.json")
-SESSION_JSON_PATH = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"
+SESSION_JSON_PATH = os.path.join(PROJECT_ROOT, "active_session.json")
+_SESSION_FILE_LOCK = threading.RLock()
 
 def load_session_info():
-    session_data = {}
-    try:
-        if os.path.exists(SESSION_JSON_PATH):
-            with open(SESSION_JSON_PATH, "r", encoding="utf-8") as f:
-                session_data = json.load(f)
-    except Exception as e:
-        print(f"[SESSION LOAD WARN] {e}")
-    return session_data
+    with _SESSION_FILE_LOCK:
+        session_data = {}
+        try:
+            if os.path.exists(SESSION_JSON_PATH):
+                with open(SESSION_JSON_PATH, "r", encoding="utf-8") as f:
+                    session_data = json.load(f)
+        except Exception as e:
+            print(f"[SESSION LOAD WARN] {e}")
+        return session_data
+
+
+def merge_session_info(updates):
+    """Atomically merge fields so concurrent view/video/token writes cannot erase context."""
+    with _SESSION_FILE_LOCK:
+        session_data = load_session_info()
+        session_data.update({k: v for k, v in (updates or {}).items() if v is not None})
+        temp_path = SESSION_JSON_PATH + ".tmp"
+        with open(temp_path, "w", encoding="utf-8") as f:
+            json.dump(session_data, f, ensure_ascii=False, indent=2)
+        os.replace(temp_path, SESSION_JSON_PATH)
+        return session_data
 
 def save_session_info(video_id, pdf_path=None):
     try:
-        session_data = load_session_info()
+        updates = {}
         if video_id:
-            session_data["active_video_id"] = video_id
+            updates["active_video_id"] = video_id
         if pdf_path:
-            session_data["active_pdf_path"] = pdf_path
-        with open(SESSION_JSON_PATH, "w", encoding="utf-8") as f:
-            json.dump(session_data, f, indent=2)
+            updates["active_pdf_path"] = pdf_path
+        merge_session_info(updates)
         print(f"[SESSION] Saved session info: active_video_id={video_id}", flush=True)
     except Exception as e:
         print(f"[SESSION ERROR] Failed to save session info: {e}", flush=True)
+
+
+def _student_badges_db():
+    return os.path.abspath(os.path.join(PROJECT_ROOT, "vault.db"))
+
+
+def _ensure_student_badges(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS student_badges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id TEXT NOT NULL DEFAULT 'alseny',
+            badge_id TEXT NOT NULL,
+            title TEXT,
+            xp INTEGER NOT NULL DEFAULT 0,
+            awarded_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(student_id, badge_id)
+        )
+    """)
+
+
+def _list_student_badges(student_id="alseny"):
+    db_path = _student_badges_db()
+    if not os.path.exists(db_path):
+        return []
+    conn = sqlite3.connect(db_path)
+    try:
+        _ensure_student_badges(conn)
+        rows = conn.execute(
+            "SELECT badge_id, title, xp, awarded_at FROM student_badges WHERE student_id=? ORDER BY id DESC",
+            (student_id,),
+        ).fetchall()
+        return [{"badge_id": r[0], "title": r[1], "xp": r[2], "awarded_at": r[3]} for r in rows]
+    finally:
+        conn.close()
+
+
+def _award_student_badge(badge_id, title="", xp=0, student_id="alseny"):
+    db_path = _student_badges_db()
+    if not badge_id or not os.path.exists(db_path):
+        return False
+    conn = sqlite3.connect(db_path)
+    try:
+        _ensure_student_badges(conn)
+        conn.execute(
+            "INSERT OR IGNORE INTO student_badges (student_id, badge_id, title, xp) VALUES (?, ?, ?, ?)",
+            (student_id, badge_id, title, int(xp or 0)),
+        )
+        conn.commit()
+        return True
+    finally:
+        conn.close()
 
 VAULT_DB_PATH = os.path.join(PROJECT_ROOT, "vault.db")
 MANUAL_LOCALE_SELECTION = None
@@ -207,41 +318,162 @@ def save_translation_cache(cache):
     except Exception as e:
         print(f"[CACHE ERROR] Failed to save translation cache: {e}")
 
-def generate_livekit_token(api_key, api_secret, room_name, participant_identity, name=None, metadata=None):
+def hash_proctor_pin(pin):
+    return hashlib.sha256(f"ventuno-proctor-v1:{pin}".encode("utf-8")).hexdigest()
+
+
+def get_proctor_pin_hash():
+    session_data = load_session_info()
+    stored = (session_data.get("proctor_pin_hash") or "").strip()
+    if stored:
+        return stored
+    env_pin = os.environ.get("PROCTOR_PIN", "").strip()
+    pin = env_pin or "1234"
+    digest = hash_proctor_pin(pin)
+    try:
+        merge_session_info({
+            "proctor_pin_hash": digest,
+            "proctor_pin_is_default": not bool(env_pin),
+        })
+    except Exception:
+        pass
+    return digest
+
+
+def list_saved_notebooks():
+    notebooks = []
+    vault_dir = os.path.join(PROJECT_ROOT, "saved_notebooks")
+    if not os.path.isdir(vault_dir):
+        return notebooks
+    for name in sorted(os.listdir(vault_dir)):
+        if name.lower().endswith(".pdf"):
+            fpath = os.path.join(vault_dir, name)
+            notebooks.append({
+                "filename": name,
+                "url": "/saved_notebooks/" + urllib.parse.quote(name),
+                "bytes": os.path.getsize(fpath),
+            })
+    return notebooks
+
+
+def generate_livekit_token(api_key, api_secret, room_name, participant_identity, name=None, metadata=None, admin=False, include_agent=False):
     header = {
         "alg": "HS256",
         "typ": "JWT"
     }
     now = int(time.time())
+    video_grant = {
+        "roomJoin": True,
+        "room": room_name,
+        "roomCreate": True,
+        "canPublish": True,
+        "canSubscribe": True,
+        "canPublishData": True,
+        "canPublishSources": [
+            "camera",
+            "microphone",
+            "screen_share",
+            "screen_share_audio",
+        ],
+    }
+    if admin:
+        video_grant["roomAdmin"] = True
+        video_grant["roomList"] = True
     payload = {
         "iss": api_key,
         "sub": participant_identity,
         "name": name or participant_identity,
         "nbf": now - 60,
         "exp": now + 7200,
-        "video": {
-            "roomJoin": True,
-            "room": room_name
-        }
+        "video": video_grant,
     }
+    if include_agent:
+        payload["roomConfig"] = {"agents": [{"agentName": livekit_agent_name()}]}
     if metadata:
         payload["metadata"] = json.dumps(metadata) if isinstance(metadata, dict) else str(metadata)
-    
+
     def base64_url_encode(data):
         return base64.urlsafe_b64encode(data).rstrip(b'=').decode('utf-8')
-        
-    header_b64 = base64_url_encode(json.dumps(header).encode('utf-8'))
-    payload_b64 = base64_url_encode(json.dumps(payload).encode('utf-8'))
-    
-    signature_input = f"{header_b64}.{payload_b64}".encode('utf-8')
-    signature = hmac.new(
-        api_secret.encode('utf-8'),
-        signature_input,
-        hashlib.sha256
-    ).digest()
-    
+
+    header_b64 = base64_url_encode(json.dumps(header, separators=(",", ":")).encode("utf-8"))
+    payload_b64 = base64_url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    signature_input = f"{header_b64}.{payload_b64}".encode("utf-8")
+    signature = hmac.new(api_secret.encode("utf-8"), signature_input, hashlib.sha256).digest()
     signature_b64 = base64_url_encode(signature)
     return f"{header_b64}.{payload_b64}.{signature_b64}"
+
+
+DEFAULT_SOCRATIC_ROOM = "socratic_tutor_room"
+DEFAULT_LIVEKIT_AGENT_NAME = "gandho"
+DEFAULT_GEMINI_LIVE_MODEL = "gemini-3.1-flash-live-preview"
+
+
+def livekit_agent_name():
+    """Must match WorkerOptions.agent_name in tutor_agent.py (default gandho)."""
+    return os.environ.get("LIVEKIT_AGENT_NAME", "").strip() or DEFAULT_LIVEKIT_AGENT_NAME
+
+
+def gemini_live_model_for_client():
+    return os.environ.get("GEMINI_LIVE_MODEL", DEFAULT_GEMINI_LIVE_MODEL).strip() or DEFAULT_GEMINI_LIVE_MODEL
+
+
+def livekit_http_origin(ws_url):
+    u = (ws_url or "").strip().rstrip("/")
+    if u.startswith("wss://"):
+        return "https://" + u[6:]
+    if u.startswith("ws://"):
+        return "http://" + u[5:]
+    if u.startswith("http://") or u.startswith("https://"):
+        return u
+    return "http://" + u if u else "http://localhost:7880"
+
+
+def mint_socratic_room(identity):
+    if str(os.environ.get("LIVEKIT_SHARED_ROOM", "")).strip().lower() in ("1", "true", "yes"):
+        return DEFAULT_SOCRATIC_ROOM
+    chars = []
+    for ch in (identity or "student"):
+        chars.append(ch if ch.isalnum() else "-")
+    slug = "".join(chars).strip("-")[:32] or "student"
+    return f"socratic-{slug}-{int(time.time())}"
+
+
+def livekit_connect_urls(primary):
+    urls = []
+    for candidate in (primary, os.environ.get("LIVEKIT_FALLBACK_URL", "").strip()):
+        if candidate and candidate not in urls:
+            urls.append(candidate)
+    return urls
+
+
+def dispatch_livekit_agent(room_name, metadata=None, livekit_url=None):
+    """Ask LiveKit to put Gandho in this room (needed when the room already exists)."""
+    api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
+    api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretsecretsecretsecretsecretsecretsecret")
+    livekit_url = (livekit_url or os.environ.get("LIVEKIT_URL", "ws://localhost:7880")).strip()
+    agent_name = livekit_agent_name()
+    origin = livekit_http_origin(livekit_url)
+    admin_token = generate_livekit_token(api_key, api_secret, room_name, "ventuno-dispatch", name="dispatch", admin=True)
+    body = {"room": room_name, "metadata": json.dumps(metadata or {"tutor": "gandho"}), "agent_name": agent_name}
+    url = origin + "/twirp/livekit.AgentDispatchService/CreateDispatch"
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(body).encode("utf-8"),
+            method="POST",
+            headers={
+                "Authorization": "Bearer " + admin_token,
+                "Content-Type": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            raw = resp.read().decode("utf-8", "replace")
+            print(f"[LIVEKIT DISPATCH] {resp.status} room={room_name} agent={agent_name or '(default)'} {raw[:180]}", flush=True)
+            return True, raw
+    except Exception as err:
+        print(f"[LIVEKIT DISPATCH] {url} failed: {err}", flush=True)
+        return False, str(err)
+
 
 def translate_timestamps(timestamps_list, target_locale):
     global GEMINI_DISABLED
@@ -281,8 +513,10 @@ def translate_timestamps(timestamps_list, target_locale):
 
     def do_batch_translate():
         global GEMINI_DISABLED
-        if GEMINI_DISABLED or not google_key:
-            return fallback_translate()
+        # LOCAL-FIRST: always try on-device LLM/cache path before Gemini
+        local_result = fallback_translate()
+        if GEMINI_DISABLED or not google_key or os.environ.get("OFFLINE_MODE", "1") == "1":
+            return local_result
         import time
         max_attempts = 5
         backoff = 2
@@ -429,8 +663,10 @@ def translate_flashcards(flashcards_list, target_locale):
 
     def do_batch_translate():
         global GEMINI_DISABLED
-        if GEMINI_DISABLED or not google_key:
-            return fallback_translate()
+        # LOCAL-FIRST: always try on-device LLM/cache path before Gemini
+        local_result = fallback_translate()
+        if GEMINI_DISABLED or not google_key or os.environ.get("OFFLINE_MODE", "1") == "1":
+            return local_result
         import time
         max_attempts = 5
         backoff = 2
@@ -583,11 +819,21 @@ def pcm_to_wav(pcm_bytes, sample_rate=16000):
 
 
 
+def _port_in_use(port):
+    import socket as _socket
+    sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+    try:
+        sock.settimeout(0.4)
+        return sock.connect_ex(("127.0.0.1", int(port))) == 0
+    finally:
+        sock.close()
+
 HTTP_PORT = 8000
 WS_PORT = 8001
 
 # Deployment Mode configuration ("SINGLE" vs "CLASSROOM" vs "LAB")
-DEPLOYMENT_MODE = os.environ.get("DEPLOYMENT_MODE", "SINGLE")
+_saved_mode = str(load_session_info().get("active_mode") or os.environ.get("DEPLOYMENT_MODE", "SINGLE")).upper()
+DEPLOYMENT_MODE = _saved_mode if _saved_mode in ("SINGLE", "CLASSROOM", "LAB") else "SINGLE"
 
 # Track connected WebSocket client sockets and classroom session state
 connected_clients = set()
@@ -599,6 +845,46 @@ pod_sessions = {}
 connected_pod_map = {}
 
 MAIN_ASYNCIO_LOOP = None
+NETWORK_EVENT_LOG = []
+DEFAULT_SOCRATIC_ROOM = "socratic_tutor_room"
+LOCAL_AVATAR_FALLBACK = "/static/professor_evans_avatar.png"
+
+
+def append_network_log(msg, level="info"):
+    NETWORK_EVENT_LOG.append({
+        "time": time.strftime("%H:%M:%S"),
+        "level": level,
+        "msg": str(msg),
+    })
+    if len(NETWORK_EVENT_LOG) > 80:
+        del NETWORK_EVENT_LOG[:-80]
+
+
+def forward_gpio_udp(payload):
+    import socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.sendto(json.dumps(payload).encode("utf-8"), ("127.0.0.1", 8002))
+        append_network_log(f"UDP 8002 {payload.get('action') or payload.get('event')}")
+    except Exception as e:
+        append_network_log(f"UDP 8002 failed: {e}", "error")
+        print(f"[WS -> UDP ERROR] Failed to forward: {e}")
+    finally:
+        sock.close()
+
+
+def local_avatar_url(path):
+    if not path:
+        return LOCAL_AVATAR_FALLBACK
+    raw = str(path).strip()
+    if raw.startswith("/static/") or raw.startswith("data:"):
+        return raw
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return LOCAL_AVATAR_FALLBACK
+    if os.path.exists(os.path.join(PROJECT_ROOT, raw.lstrip("/"))):
+        return "/" + raw.lstrip("/")
+    return LOCAL_AVATAR_FALLBACK
+
 
 def sync_broadcast_ws(payload_dict):
     global MAIN_ASYNCIO_LOOP
@@ -1207,6 +1493,69 @@ translations = {
     }
 }
 
+
+def query_local_llm(prompt, system_prompt=None, timeout=8):
+    """Ventuno Q local-first: call Gemma/OpenAI-compatible server on :8080. Returns text or None."""
+    import urllib.request
+    import json as _json
+    local_url = os.environ.get("LOCAL_LLM_URL", "http://localhost:8080/v1").rstrip("/")
+    model = os.environ.get("LOCAL_LLM_MODEL", "gemma-4-e4b")
+    try:
+        health = urllib.request.Request(local_url + "/models")
+        with urllib.request.urlopen(health, timeout=1.5) as resp:
+            if resp.status != 200:
+                return None
+    except Exception:
+        return None
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+    payload = _json.dumps({
+        "model": model,
+        "messages": messages,
+        "temperature": 0.4,
+        "max_tokens": 512
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        local_url + "/chat/completions",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+            return (data.get("choices") or [{}])[0].get("message", {}).get("content")
+    except Exception as e:
+        print(f"[LOCAL LLM] query failed: {e}")
+        return None
+
+
+def query_local_kokoro_tts(text, voice="af_heart", timeout=10):
+    """Try Kokoro OpenAI-compatible TTS on :8880. Returns audio bytes or None."""
+    import urllib.request
+    import json as _json
+    base = os.environ.get("KOKORO_TTS_URL", "http://localhost:8880/v1").rstrip("/")
+    payload = _json.dumps({
+        "model": os.environ.get("KOKORO_TTS_MODEL", "kokoro"),
+        "input": text,
+        "voice": voice,
+        "response_format": "mp3"
+    }).encode("utf-8")
+    try:
+        req = urllib.request.Request(
+            base + "/audio/speech",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.read()
+    except Exception as e:
+        print(f"[KOKORO TTS] unavailable: {e}")
+        return None
+
 def translate_via_llm(text, target_locale):
     """
     Translates text to the target locale using local LLM if running, or Google Gemini.
@@ -1514,6 +1863,168 @@ def generate_and_cache_dense_transcripts(vid_path, vid_id, locale="en_US"):
         except Exception:
             pass
 
+
+def _graph_voice_to_wav(audio_bytes, mime_type):
+    """Convert a browser clip to 16 kHz mono WAV when ffmpeg is available."""
+    import subprocess
+    import tempfile
+
+    mime = (mime_type or "").lower()
+    if "wav" in mime:
+        return audio_bytes, "audio/wav"
+    suffix = ".webm"
+    if "mpeg" in mime or "mp3" in mime:
+        suffix = ".mp3"
+    elif "ogg" in mime:
+        suffix = ".ogg"
+    elif "mp4" in mime or "m4a" in mime:
+        suffix = ".m4a"
+    src = dst = None
+    try:
+        fd, src = tempfile.mkstemp(suffix=suffix)
+        os.write(fd, audio_bytes)
+        os.close(fd)
+        dst = src + ".wav"
+        proc = subprocess.run(
+            ["ffmpeg", "-y", "-i", src, "-ac", "1", "-ar", "16000", "-f", "wav", dst],
+            capture_output=True,
+            timeout=20,
+        )
+        if proc.returncode == 0 and os.path.exists(dst) and os.path.getsize(dst) > 44:
+            with open(dst, "rb") as wf:
+                return wf.read(), "audio/wav"
+        print(f"[GRAPH VOICE] ffmpeg convert skipped: {(proc.stderr or b'')[:200]}", flush=True)
+    except FileNotFoundError:
+        print("[GRAPH VOICE] ffmpeg not installed; uploading original clip.", flush=True)
+    except Exception as err:
+        print(f"[GRAPH VOICE] ffmpeg convert skipped: {err}", flush=True)
+    finally:
+        for path in (src, dst):
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
+    return audio_bytes, (mime_type or "audio/webm").split(";")[0].strip() or "audio/webm"
+
+
+def _parse_graph_voice_payload(text):
+    raw = (text or "").strip().strip("`").strip()
+    if raw.lower().startswith("json"):
+        raw = raw[4:].strip()
+    transcript = ""
+    formula = ""
+    json_start = raw.find("{")
+    json_end = raw.rfind("}")
+    if json_start >= 0 and json_end > json_start:
+        try:
+            parsed = json.loads(raw[json_start:json_end + 1])
+            if isinstance(parsed, dict):
+                transcript = str(parsed.get("transcript") or parsed.get("text") or parsed.get("raw") or "").strip()
+                formula = str(parsed.get("formula") or "").strip()
+        except Exception:
+            parsed = None
+    if not transcript:
+        transcript = raw
+        if transcript.lower() in ("empty", "{}", "null"):
+            transcript = ""
+    if "\n" in transcript:
+        transcript = " ".join(line.strip() for line in transcript.splitlines() if line.strip())
+    return transcript.strip().strip('"').strip("'"), formula.strip().strip('"').strip("'")
+
+
+def transcribe_spoken_math_formula(audio_bytes, mime_type="audio/webm", locale="en-US"):
+    """Transcribe a short microphone clip. Never invent a default formula like 3x+5."""
+    load_env()
+    api_key = (os.environ.get("GOOGLE_API_KEY") or "").strip()
+    if not api_key:
+        return {"success": False, "error": "GOOGLE_API_KEY is not set, so spoken graph input cannot be transcribed."}
+    if not audio_bytes or len(audio_bytes) < 200:
+        return {"success": False, "error": "Audio clip was empty. Click the mic, speak, then click again to stop."}
+
+    wav_bytes, wav_mime = _graph_voice_to_wav(audio_bytes, mime_type)
+    prompt = (
+        "Listen to this microphone recording.\n"
+        f"The speaker is likely using {locale} (French or English).\n"
+        "Return ONLY JSON: {\"transcript\":\"...\",\"formula\":\"...\"}\n"
+        "transcript = the exact words spoken. Do not translate. Do not summarize.\n"
+        "formula = a plottable expression derived ONLY from those words "
+        "(e.g. 'trois x plus cinq' -> '3x + 5', 'sinus de x' -> 'sin(x)'). "
+        "If the words are not a math formula, set formula to \"\".\n"
+        "If the clip is silent or unintelligible, return {\"transcript\":\"\",\"formula\":\"\"}.\n"
+        "NEVER invent 3x+5, x^2-4, or sin(x) unless those numbers/words were actually spoken."
+    )
+
+    model_text = ""
+    try:
+        from google import genai
+        from google.genai import types
+        import tempfile
+
+        suffix = ".wav" if "wav" in (wav_mime or "") else ".webm"
+        fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+        os.write(fd, wav_bytes)
+        os.close(fd)
+        client = genai.Client(api_key=api_key)
+        uploaded = None
+        try:
+            uploaded = client.files.upload(file=tmp_path)
+            checks = 0
+            while getattr(getattr(uploaded, "state", None), "name", "") == "PROCESSING" and checks < 40:
+                time.sleep(1)
+                uploaded = client.files.get(name=uploaded.name)
+                checks += 1
+            if getattr(getattr(uploaded, "state", None), "name", "") == "FAILED":
+                return {"success": False, "error": "Could not process the microphone clip."}
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[uploaded, prompt],
+                config=types.GenerateContentConfig(
+                    temperature=0,
+                    response_mime_type="application/json",
+                    max_output_tokens=256,
+                ),
+            )
+            model_text = (getattr(response, "text", None) or "").strip()
+        finally:
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+            if uploaded is not None:
+                try:
+                    client.files.delete(name=uploaded.name)
+                except Exception:
+                    pass
+    except Exception as genai_err:
+        print(f"[GRAPH VOICE] Files API transcription failed: {genai_err}", flush=True)
+        try:
+            import requests
+            mime = (wav_mime or "audio/webm").split(";")[0].strip() or "audio/webm"
+            audio_b64 = base64.b64encode(wav_bytes).decode("utf-8")
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+            payload = {
+                "generationConfig": {"temperature": 0, "maxOutputTokens": 256, "responseMimeType": "application/json"},
+                "contents": [{"parts": [
+                    {"text": prompt},
+                    {"inlineData": {"mimeType": mime, "data": audio_b64}},
+                ]}],
+            }
+            resp = requests.post(url, headers={"Content-Type": "application/json"}, json=payload, timeout=45)
+            if resp.status_code != 200:
+                return {"success": False, "error": f"Transcription failed ({resp.status_code})."}
+            model_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+        except Exception as rest_err:
+            print(f"[GRAPH VOICE] REST transcription failed: {rest_err}", flush=True)
+            return {"success": False, "error": "Could not transcribe the microphone clip."}
+
+    transcript, formula = _parse_graph_voice_payload(model_text)
+    if not transcript:
+        return {"success": False, "error": "Nothing was heard. Click the voice button, speak, then click again to stop."}
+    print(f"[GRAPH VOICE] heard={transcript!r} formula={formula!r}", flush=True)
+    return {"success": True, "raw": transcript, "transcript": transcript, "formula": formula}
+
+
 # ---------------------------------------------------------
 # 1. HTTP Server for Serving index.html Dashboard
 # ---------------------------------------------------------
@@ -1523,31 +2034,166 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
     def end_headers(self):
-        clean = self.path.split('?')[0].lower()
-        if '/antigravity_labs/' in clean or clean.endswith('.js') or clean.endswith('.css'):
-            self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
-            self.send_header('Pragma', 'no-cache')
-            self.send_header('Expires', '0')
+        # Allow the STEM Graphs iframe (same origin) to use the microphone.
+        self.send_header("Permissions-Policy", "microphone=(self), camera=(self)")
+        path = (getattr(self, "path", "") or "").split("?", 1)[0].lower()
+        if path.endswith(".wasm"):
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cross-Origin-Resource-Policy", "cross-origin")
         super().end_headers()
+
+    def guess_type(self, path):
+        lower = str(path).lower()
+        if lower.endswith(".wasm"):
+            return "application/wasm"
+        return super().guess_type(path)
+
+    def translate_path(self, path):
+        import urllib.parse
+        parsed = urllib.parse.urlparse(path).path
+        if parsed.startswith("/offline_sims/"):
+            rel = urllib.parse.unquote(parsed[len("/offline_sims/"):].lstrip("/"))
+            target = os.path.normpath(os.path.join(PROJECT_ROOT, "antigravity_labs", "offline_sims", rel))
+            labs_root = os.path.normpath(os.path.join(PROJECT_ROOT, "antigravity_labs", "offline_sims"))
+            if target.startswith(labs_root):
+                return target
+        return super().translate_path(path)
 
     def do_GET(self):
         import urllib.parse
         clean_path = self.path.split('?')[0]
 
-        # Alias /offline_sims/ to /antigravity_labs/offline_sims/
-        if self.path.startswith('/offline_sims/'):
-            self.path = '/antigravity_labs' + self.path
+        if clean_path == '/api/proctor_pin_status':
+            session_data = load_session_info()
+            body = json.dumps({
+                "success": True,
+                "configured": bool(session_data.get("proctor_pin_hash")),
+                "is_default": bool(session_data.get("proctor_pin_is_default", True)),
+            }).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(body)
+            return
 
-        # Circuits Lab: Curriculum Catalog API
-        if clean_path == '/api/circuits/curriculum':
+        if clean_path in ['/api/v1/health', '/api/health', '/api/v1/chemistry/health']:
+            body = json.dumps({
+                "status": "ok",
+                "service": "Gandal Virtual Labs",
+                "solvers": bool(LABS_SOLVERS_AVAILABLE),
+                "chem_mix": bool(CHEM_MIX_AVAILABLE),
+                "mode": DEPLOYMENT_MODE,
+                "ws_clients": len(connected_clients),
+                "pods": len(pod_sessions),
+            }).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if clean_path == '/api/voice_status':
+            livekit_url = os.environ.get("LIVEKIT_URL", "ws://localhost:7880").strip()
+            session_data = load_session_info()
+            engine = "gemini" if (
+                str(os.environ.get("VOICE_ENGINE", "auto")).lower() == "gemini"
+                or (
+                    os.environ.get("FORCE_OFFLINE", os.environ.get("OFFLINE_MODE", "0")) not in ("1", "true", "True")
+                    and bool(os.environ.get("GOOGLE_API_KEY", "").strip())
+                    and session_data.get("student_online") is not False
+                )
+            ) else "auto"
+            if os.environ.get("FORCE_OFFLINE", os.environ.get("OFFLINE_MODE", "0")) in ("1", "true", "True"):
+                engine = "gemma"
+            elif str(os.environ.get("VOICE_ENGINE", "")).lower() == "gemma":
+                engine = "gemma"
+            elif bool(os.environ.get("GOOGLE_API_KEY", "").strip()) and (
+                session_data.get("student_online") in (True, 1, "1", "true")
+                or str(os.environ.get("VOICE_ENGINE", "auto")).lower() == "gemini"
+            ):
+                engine = "gemini"
+            body = json.dumps({
+                "success": True,
+                "livekit_url": livekit_url,
+                "livekit_host": livekit_http_origin(livekit_url),
+                "has_google_api_key": bool(os.environ.get("GOOGLE_API_KEY", "").strip()),
+                "has_livekit_api_key": bool(os.environ.get("LIVEKIT_API_KEY", "").strip()) and os.environ.get("LIVEKIT_API_KEY") != "devkey",
+                "gemini_live_model": gemini_live_model_for_client(),
+                "agent_name": livekit_agent_name(),
+                "student_online": session_data.get("student_online"),
+                "active_livekit_room": session_data.get("active_livekit_room"),
+                "voice_engine": engine,
+                "force_offline": os.environ.get("FORCE_OFFLINE", os.environ.get("OFFLINE_MODE", "0")),
+            }).encode("utf-8")
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if clean_path == '/api/get_network_logs':
+            body = json.dumps({
+                "success": True,
+                "logs": NETWORK_EVENT_LOG[-50:],
+                "ws_clients": len(connected_clients),
+                "pods": [
+                    {"pod_id": pid, "members": list(pdata.get("members", [])), "sockets": len(pdata.get("sockets", set()))}
+                    for pid, pdata in pod_sessions.items()
+                ],
+                "active_mic_speaker": active_mic_speaker,
+                "mode": DEPLOYMENT_MODE,
+            }).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if clean_path in ['/api/saved_notebooks', '/api/handwriting_vault']:
+            notebooks = []
+            vault_dir = os.path.join(PROJECT_ROOT, "saved_notebooks")
+            if os.path.isdir(vault_dir):
+                for name in sorted(os.listdir(vault_dir)):
+                    if name.lower().endswith('.pdf'):
+                        fpath = os.path.join(vault_dir, name)
+                        notebooks.append({
+                            "filename": name,
+                            "url": "/saved_notebooks/" + urllib.parse.quote(name),
+                            "bytes": os.path.getsize(fpath),
+                        })
+            archives = []
             try:
-                curriculum_file = os.path.join(PROJECT_ROOT, "antigravity_labs", "circuits_lab", "data", "curriculum.json")
-                if os.path.exists(curriculum_file):
-                    with open(curriculum_file, "r", encoding="utf-8") as cf:
-                        probs = json.load(cf)
-                    res_bytes = json.dumps({"success": True, "problems": probs}).encode('utf-8')
-                else:
-                    res_bytes = json.dumps({"success": True, "problems": []}).encode('utf-8')
+                conn = sqlite3.connect(VAULT_DB_PATH)
+                conn.row_factory = sqlite3.Row
+                cur = conn.cursor()
+                cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='handwriting_archive'")
+                if cur.fetchone():
+                    cur.execute("PRAGMA table_info(handwriting_archive)")
+                    cols = [r[1] for r in cur.fetchall()]
+                    cur.execute("SELECT * FROM handwriting_archive ORDER BY rowid DESC LIMIT 40")
+                    for row in cur.fetchall():
+                        archives.append({k: row[k] for k in row.keys()})
+                conn.close()
+            except Exception as e:
+                archives = [{"error": str(e)}]
+            body = json.dumps({"success": True, "notebooks": notebooks, "archives": archives}).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if clean_path == '/api/v1/badges/list':
+            try:
+                badges = _list_student_badges()
+                res_bytes = json.dumps({"success": True, "badges": badges}).encode('utf-8')
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(res_bytes)))
@@ -1564,6 +2210,16 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(err_bytes)
                 return
+
+        # Alias /offline_sims/* -> antigravity_labs/offline_sims/*
+        if clean_path.startswith('/offline_sims/'):
+            rel = clean_path[len('/offline_sims/'):]
+            target = os.path.join(PROJECT_ROOT, 'antigravity_labs', 'offline_sims', rel)
+            if os.path.isfile(target):
+                self.path = '/antigravity_labs/offline_sims/' + rel
+                return super().do_GET()
+            self.send_error(404, 'Offline simulation not found')
+            return
 
         # Virtual Labs: PubChem / ChEMBL Search API
         if clean_path == '/api/v1/chemistry/database/search':
@@ -1592,18 +2248,16 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(err_bytes)
                 return
 
-        # Virtual Labs: List Badges API
-        if clean_path == '/api/v1/badges/list':
+        # Circuits Lab: Curriculum Catalog API
+        if clean_path == '/api/circuits/curriculum':
             try:
-                db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
-                badges = []
-                if os.path.exists(db_path):
-                    conn = sqlite3.connect(db_path)
-                    cur = conn.cursor()
-                    cur.execute("SELECT badge_id, title, xp, awarded_at FROM student_badges ORDER BY id DESC")
-                    badges = [{"badge_id": r[0], "title": r[1], "xp": r[2], "awarded_at": r[3]} for r in cur.fetchall()]
-                    conn.close()
-                res_bytes = json.dumps({"success": True, "badges": badges}).encode('utf-8')
+                curriculum_file = os.path.join(PROJECT_ROOT, "antigravity_labs", "circuits_lab", "data", "curriculum.json")
+                if os.path.exists(curriculum_file):
+                    with open(curriculum_file, "r", encoding="utf-8") as cf:
+                        probs = json.load(cf)
+                    res_bytes = json.dumps({"success": True, "problems": probs}).encode('utf-8')
+                else:
+                    res_bytes = json.dumps({"success": True, "problems": []}).encode('utf-8')
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(res_bytes)))
@@ -2092,11 +2746,15 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 with open(report_file_path, 'r', encoding='utf-8') as f:
                     html_content = f.read()
                 
+                notebooks = list_saved_notebooks()
+                patch = load_session_info()
                 hydrated_data = {
                     "student_name": student_name,
                     "student_track": student_track,
                     "mastery": mastery_data,
-                    "evaluations": evaluation_data
+                    "evaluations": evaluation_data,
+                    "notebooks": notebooks,
+                    "patch_version": patch.get("patch_version") or "0",
                 }
                 data_injection = f"<script>window.PARENT_REPORT_DATA = {json.dumps(hydrated_data)};</script>"
                 html_content = html_content.replace("</head>", f"{data_injection}\n</head>")
@@ -2182,6 +2840,17 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                             "raw_score": float(row[3]),
                             "passed": bool(row[4])
                         })
+                    stats["curriculum"] = []
+                    try:
+                        cursor.execute("SELECT video_id, chapter_id, unlocked FROM curriculum_tree")
+                        for row in cursor.fetchall():
+                            stats["curriculum"].append({
+                                "video_id": row[0],
+                                "chapter_id": row[1],
+                                "unlocked": bool(row[2]),
+                            })
+                    except Exception:
+                        stats["curriculum"] = []
                     
                     stats["handwriting_archives"] = []
                     # Ensure table exists
@@ -2283,9 +2952,8 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             locale = query_params.get('locale', ['en_US'])[0]
 
             # TTS_BACKEND env var: "riva" (default on Jetson) or "mock" (simulation)
-            tts_backend = os.environ.get("TTS_BACKEND", "riva").lower()
-            # RIVA_SERVER_ADDRESS: Riva gRPC endpoint — localhost when Riva runs on the
-            # same Jetson Orin Nano Super board (default port 50051).
+            tts_backend = os.environ.get("TTS_BACKEND", "mock").lower()
+            # Optional legacy NVIDIA Riva on a non-Ventuno host. Production TTS is Kokoro via LiveKit.
             riva_server = os.environ.get("RIVA_SERVER_ADDRESS", "localhost:50051")
 
             wav_data = None
@@ -2352,33 +3020,45 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     print(f"[RIVA MAGPIE-TTS ERROR] gRPC synthesis failed: {e}. Falling back to mock WAV.")
 
             if wav_data is None:
-                # If online, fetch from a free public TTS service like Google TTS
-                # directly on the backend and return the audio bytes to prevent CORS/redirect blocks.
+                # LOCAL-FIRST fallbacks: Kokoro on :8880, then Google only if explicitly online
                 try:
-                    import urllib.parse
-                    import urllib.request
-                    encoded_text = urllib.parse.quote(text)
-                    lang_code = locale.split('_')[0]
-                    google_tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q={encoded_text}&tl={lang_code}"
-                    
-                    print(f"[RIVA MAGPIE-TTS FALLBACK] Fetching audio from Google TTS: {google_tts_url}")
-                    req = urllib.request.Request(
-                        google_tts_url, 
-                        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-                    )
-                    with urllib.request.urlopen(req, timeout=20) as response:
-                        audio_bytes = response.read()
-                        
-                    self.send_response(200)
-                    self.send_header('Content-Type', 'audio/mpeg')
-                    self.send_header('Access-Control-Allow-Origin', '*')
-                    self.send_header('Content-Length', str(len(audio_bytes)))
-                    self.end_headers()
-                    self.wfile.write(audio_bytes)
-                    return
-                except Exception as fallback_err:
-                    print(f"[RIVA MAGPIE-TTS FALLBACK ERROR] Failed fetching from Google TTS: {fallback_err}")
-                    wav_data = make_mock_wav()
+                    kokoro_audio = query_local_kokoro_tts(text)
+                    if kokoro_audio:
+                        print("[TTS] Kokoro local synthesis OK")
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'audio/mpeg')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.send_header('Content-Length', str(len(kokoro_audio)))
+                        self.end_headers()
+                        self.wfile.write(kokoro_audio)
+                        return
+                except Exception as kokoro_err:
+                    print(f"[TTS] Kokoro fallback error: {kokoro_err}")
+
+                if os.environ.get("OFFLINE_MODE", "1") != "1":
+                    try:
+                        import urllib.parse
+                        import urllib.request
+                        encoded_text = urllib.parse.quote(text)
+                        lang_code = locale.split('_')[0]
+                        google_tts_url = f"https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q={encoded_text}&tl={lang_code}"
+                        print(f"[TTS ONLINE FALLBACK] Google TTS: {google_tts_url}")
+                        req = urllib.request.Request(
+                            google_tts_url,
+                            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                        )
+                        with urllib.request.urlopen(req, timeout=20) as response:
+                            audio_bytes = response.read()
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'audio/mpeg')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.send_header('Content-Length', str(len(audio_bytes)))
+                        self.end_headers()
+                        self.wfile.write(audio_bytes)
+                        return
+                    except Exception as fallback_err:
+                        print(f"[TTS ONLINE FALLBACK ERROR] {fallback_err}")
+                wav_data = make_mock_wav()
 
             self.send_response(200)
             self.send_header('Content-Type', 'audio/wav')
@@ -2701,16 +3381,16 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 raise Exception(err_msg)
 
             instructor_name = "GANDHO"
-            instructor_avatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150"
+            instructor_avatar = LOCAL_AVATAR_FALLBACK
             instructor_role = "Economics Specialist"
             if video_id:
                 if "physics" in video_id.lower():
                     instructor_name = "Dr. Harris"
-                    instructor_avatar = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150"
+                    instructor_avatar = LOCAL_AVATAR_FALLBACK
                     instructor_role = "Physics Specialist"
                 elif "philosophy" in video_id.lower():
                     instructor_name = "Professor Marcus"
-                    instructor_avatar = "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=150"
+                    instructor_avatar = LOCAL_AVATAR_FALLBACK
                     instructor_role = "Philosophy Specialist"
 
             chapter_title = ""
@@ -2728,7 +3408,7 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     inst_row = cursor.fetchone()
                     if inst_row:
                         instructor_name = inst_row[0]
-                        instructor_avatar = inst_row[1]
+                        instructor_avatar = local_avatar_url(inst_row[1])
                         try:
                             subj = get_subject_by_video_id(video_id)
                         except Exception:
@@ -2836,11 +3516,14 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     
                     if timestamps:
                         timestamps_status = "ready"
+                    elif dense_transcripts:
+                        timestamps_status = "idle"
                 except Exception as e:
                     print(f"[ERROR] Database timestamps/flashcards lookup failed: {e}")
-                                  # If no cached timestamps/flashcards exist, or no transcripts exist, trigger background generation
             has_transcripts = len(dense_transcripts) > 0
-            if (not timestamps or not has_transcripts) and video_id and resolved_video_path:
+            # Summary tab is the lesson document. Do not block on chapter timestamps.
+            # Only backfill transcripts in the background if ingest never wrote them.
+            if (not has_transcripts) and video_id and resolved_video_path:
                 timestamps_status = "generating"
                 
                 def run_qwen_timestamping_thread(vid_path, vid_id):
@@ -2983,21 +3666,10 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             # Save active video_id and active_locale to active_session.json for the LiveKit agent process
             try:
-                session_info = {
+                session_info = merge_session_info({
                     "active_video_id": video_id,
                     "active_locale": active_locale
-                }
-                if os.path.exists(SESSION_JSON_PATH):
-                    try:
-                        with open(SESSION_JSON_PATH, "r") as sf:
-                            old_data = json.load(sf)
-                            session_info["active_pdf_path"] = old_data.get("active_pdf_path", "")
-                            session_info["active_pdf_name"] = old_data.get("active_pdf_name", "")
-                            session_info["active_view_state"] = old_data.get("active_view_state", "dashboard")
-                    except Exception:
-                        pass
-                with open(SESSION_JSON_PATH, "w") as sf:
-                    json.dump(session_info, sf)
+                })
                 print(f"[SESSION] Saved session info: {session_info} to active_session.json", flush=True)
             except Exception as e:
                 print(f"[ERROR] Failed to save active session info: {e}", flush=True)
@@ -3051,6 +3723,11 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     print(f"[PROGRESS] Resolved database position {last_position}s and max watched {max_position}s for student {student_name}", flush=True)
                 except Exception as prog_err:
                     print(f"[PROGRESS ERROR] Failed to fetch student progress from SQLite: {prog_err}", flush=True)
+
+            if resolved_video_path:
+                resolved_video_path = resolved_video_path.replace("\\", "/")
+                if not resolved_video_path.startswith("/"):
+                    resolved_video_path = "/" + resolved_video_path
 
             result = {
                 "video_id": video_id,
@@ -3192,95 +3869,164 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if clean_path.startswith('/token'):
             query = urllib.parse.urlparse(self.path).query
             params = urllib.parse.parse_qs(query)
-            room = params.get('room', ['socratic_tutor_room'])[0]
             identity = params.get('identity', ['student_01'])[0]
             name = params.get('name', [identity])[0]
             mode = params.get('mode', [DEPLOYMENT_MODE])[0]
             vid_param = params.get('video_id', [None])[0]
-            
-            # Save active session info
-            session_data = load_session_info()
+            requested_room = params.get('room', [''])[0].strip()
+            room = requested_room or mint_socratic_room(identity)
+
+            session_updates = {
+                "active_student_name": name,
+                "active_student_id": identity,
+                "active_mode": mode,
+                "active_livekit_room": room,
+            }
             if vid_param:
-                session_data["active_video_id"] = vid_param
-            session_data["active_student_name"] = name
-            session_data["active_student_id"] = identity
-            session_data["active_mode"] = mode
+                session_updates["active_video_id"] = vid_param
+            online_param = params.get('online', [''])[0].lower()
+            if online_param in ('1', 'true', 'yes', '0', 'false', 'no'):
+                session_updates["student_online"] = online_param in ('1', 'true', 'yes')
             try:
-                with open(SESSION_JSON_PATH, "w", encoding="utf-8") as f:
-                    json.dump(session_data, f, indent=2)
+                session_data = merge_session_info(session_updates)
             except Exception as e:
                 print(f"[SESSION SAVE WARN] {e}")
-            
+                session_data = load_session_info()
+
             metadata_dict = {
                 "student_name": name,
                 "identity": identity,
                 "mode": mode,
-                "video_id": vid_param or session_data.get("active_video_id")
+                "video_id": vid_param or session_data.get("active_video_id"),
+                "active_view_state": session_data.get("active_view_state", "dashboard"),
+                "active_view_context": session_data.get("active_view_context", ""),
+                "active_pdf_path": session_data.get("active_pdf_path", ""),
+                "active_video_time": session_data.get("active_video_time", 0),
+                "engine": "gemini-flash-live",
             }
-            
+
             api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
             api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretsecretsecretsecretsecretsecretsecret")
-            
-            token = generate_livekit_token(api_key, api_secret, room, identity, name=name, metadata=metadata_dict)
-            
+            offline_default = os.environ.get("OFFLINE_MODE", "1") == "1"
+            online_testing = os.environ.get("ONLINE_MODE") == "1" or os.environ.get("OFFLINE_MODE") == "0"
+            livekit_url = os.environ.get("LIVEKIT_URL", "ws://localhost:7880").strip()
+            if not livekit_url:
+                livekit_url = "ws://127.0.0.1:7880"
+            if online_testing:
+                livekit_url = os.environ.get("LIVEKIT_CLOUD_URL", "").strip() or livekit_url
+            fallbacks = livekit_connect_urls(livekit_url)
+            if livekit_url in fallbacks:
+                fallbacks = [u for u in fallbacks if u != livekit_url]
+
+            agent_name = ""
+            token = generate_livekit_token(
+                api_key, api_secret, room, identity, name=name, metadata=metadata_dict, include_agent=False
+            )
+            # Match VentunoGandal: the unnamed LiveKit worker is dispatched
+            # automatically when the browser joins this room.
+            dispatched = True
+            dispatch_detail = "automatic unnamed-worker dispatch"
+            gemini_model = gemini_live_model_for_client()
+            print(
+                f"[TOKEN] room={room} url={livekit_url} online={session_data.get('student_online')} "
+                f"agent={agent_name} dispatch={dispatch_detail} model={gemini_model}",
+                flush=True,
+            )
+
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            self.wfile.write(json.dumps({"token": token}).encode('utf-8'))
+            self.wfile.write(json.dumps({
+                "token": token,
+                "url": livekit_url,
+                "livekitUrl": livekit_url,
+                "room": room,
+                "fallbacks": fallbacks,
+                "engine": "gemini-flash-live",
+                "model": gemini_model,
+                "agent_name": agent_name,
+                "agent_dispatched": dispatched,
+                "dispatch_detail": dispatch_detail[:240] if isinstance(dispatch_detail, str) else "",
+                "offlineMode": (not online_testing) and offline_default,
+                "onlineMode": online_testing,
+            }).encode('utf-8'))
             return
 
         # Route for Spatius Token and configuration
         if clean_path.startswith('/spatius-token'):
+            load_env()
             spatius_api_key = os.environ.get("SPATIUS_API_KEY", "").strip("'\" \t")
             spatius_app_id = os.environ.get("SPATIUS_APP_ID", "").strip("'\" \t")
             spatius_avatar_id = os.environ.get("SPATIUS_AVATAR_ID", "").strip("'\" \t")
+            spatius_region = os.environ.get("SPATIUS_REGION", "us-west").strip("'\" \t") or "us-west"
+            configured = bool(spatius_app_id and spatius_avatar_id)
+            print(
+                "[SPATIUS] /spatius-token configured=%s apiKey=%s region=%s"
+                % (str(configured).lower(), "yes" if spatius_api_key else "no", spatius_region),
+                flush=True,
+            )
 
-            if not spatius_api_key or not spatius_app_id:
-                self.send_response(400)
+            if not configured:
+                self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": "Spatius credentials missing"}).encode('utf-8'))
+                self.wfile.write(json.dumps({
+                    "configured": False,
+                    "mode": "direct",
+                    "sessionToken": "",
+                    "appId": "",
+                    "avatarId": "",
+                    "region": spatius_region,
+                    "error": "Set SPATIUS_APP_ID and SPATIUS_AVATAR_ID in .env, then restart display_client.py.",
+                }).encode('utf-8'))
                 return
 
-            import urllib.request
-            import urllib.error
-            import time
+            session_token = ""
+            if spatius_api_key:
+                import urllib.request
+                import urllib.error
+                import time
+                url = f"https://console.{spatius_region}.spatius.ai/v1/console/session-tokens"
+                headers = {
+                    "X-Api-Key": spatius_api_key,
+                    "X-API-Key": spatius_api_key,
+                    "X-App-ID": spatius_app_id,
+                    "Content-Type": "application/json"
+                }
+                expire_time = int(time.time()) + 3600
+                req_data = json.dumps({
+                    "appId": spatius_app_id,
+                    "expireAt": expire_time
+                }).encode('utf-8')
+                req = urllib.request.Request(url, data=req_data, headers=headers, method='POST')
+                try:
+                    with urllib.request.urlopen(req, timeout=8) as response:
+                        token_data = json.loads(response.read().decode('utf-8'))
+                        session_token = token_data.get("sessionToken", "") or token_data.get("token", "")
+                    print(
+                        "[SPATIUS] session token mint %s"
+                        % ("ok" if session_token else "empty"),
+                        flush=True,
+                    )
+                except Exception as e:
+                    print(f"[SPATIUS] Session token mint failed (idle 3D still loads): {e}", flush=True)
 
-            url = "https://console.us-west.spatius.ai/v1/console/session-tokens"
-            headers = {
-                "X-Api-Key": spatius_api_key,
-                "Content-Type": "application/json"
-            }
-            expire_time = int(time.time()) + 3600
-            req_data = json.dumps({
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                "configured": True,
+                "mode": "direct",
+                "sessionToken": session_token,
                 "appId": spatius_app_id,
-                "expireAt": expire_time
-            }).encode('utf-8')
-            req = urllib.request.Request(url, data=req_data, headers=headers, method='POST')
-
-            try:
-                with urllib.request.urlopen(req, timeout=8) as response:
-                    resp_body = response.read().decode('utf-8')
-                    token_data = json.loads(resp_body)
-                    session_token = token_data.get("sessionToken", "")
-
-                    self.send_response(200)
-                    self.send_header('Content-Type', 'application/json')
-                    self.send_header('Access-Control-Allow-Origin', '*')
-                    self.end_headers()
-                    self.wfile.write(json.dumps({
-                        "sessionToken": session_token,
-                        "appId": spatius_app_id,
-                        "avatarId": spatius_avatar_id
-                    }).encode('utf-8'))
-            except Exception as e:
-                self.send_response(500)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+                "avatarId": spatius_avatar_id,
+                "region": spatius_region,
+                "hasApiKey": bool(spatius_api_key),
+                "hasSessionToken": bool(session_token),
+            }).encode('utf-8'))
             return
 
         # Route for Admin Fleet Dashboard
@@ -3478,6 +4224,38 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         global DEPLOYMENT_MODE
         clean_path = self.path.split('?')[0]
 
+        if clean_path == '/api/omni_graph/voice_to_math':
+            content_length = int(self.headers.get('Content-Length', 0) or 0)
+            if content_length <= 0 or content_length > 8 * 1024 * 1024:
+                err_body = json.dumps({"success": False, "error": "Audio clip is missing or too large."}).encode("utf-8")
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(err_body)
+                return
+            audio_bytes = self.rfile.read(content_length)
+            mime_type = self.headers.get("Content-Type") or "audio/webm"
+            locale = self.headers.get("X-Graph-Voice-Locale") or "en-US"
+            try:
+                result = transcribe_spoken_math_formula(audio_bytes, mime_type, locale)
+                status = 200 if result.get("success") else 400
+                body = json.dumps(result).encode("utf-8")
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(body)
+            except Exception as voice_err:
+                print(f"[GRAPH VOICE] transcription failed: {voice_err}", flush=True)
+                err_body = json.dumps({"success": False, "error": str(voice_err)}).encode("utf-8")
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(err_body)
+            return
+
         if clean_path == '/api/set_deployment_mode':
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
@@ -3489,6 +4267,10 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 old_mode = DEPLOYMENT_MODE
                 DEPLOYMENT_MODE = target_mode
                 print(f"\n[DEPLOYMENT CONTROLLER] Mode switched dynamically from {old_mode} to {DEPLOYMENT_MODE}", flush=True)
+                try:
+                    merge_session_info({"active_mode": DEPLOYMENT_MODE})
+                except Exception as sess_err:
+                    print(f"[SESSION] Failed to persist active_mode: {sess_err}", flush=True)
 
                 # Broadcast mode change to all connected WebSocket displays
                 sync_broadcast_ws({
@@ -3512,6 +4294,134 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(err_body)
                 return
+
+        if clean_path in ['/api/deploy_patch', '/api/onboarding_submit']:
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                data = json.loads(post_data) if post_data else {}
+            except Exception:
+                data = {}
+            if clean_path == '/api/deploy_patch':
+                append_network_log("Deploy patch: refresh curriculum + reload clients")
+                session_data = load_session_info()
+                version = int(session_data.get("patch_version") or 0) + 1
+                staging = os.path.join(PROJECT_ROOT, "curriculum_staging")
+                file_count = 0
+                if os.path.isdir(staging):
+                    for root, dirs, files in os.walk(staging):
+                        file_count += len(files)
+                try:
+                    merge_session_info({
+                        "patch_version": version,
+                        "patch_applied_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "curriculum_files": file_count,
+                    })
+                except Exception as e:
+                    print(f"[PATCH] session save failed: {e}")
+                sync_broadcast_ws({
+                    "action": "DEPLOY_PATCH",
+                    "version": version,
+                    "curriculum_files": file_count,
+                    "message": f"Patch v{version} applied. {file_count} curriculum files indexed. Reloading.",
+                })
+                body = json.dumps({
+                    "success": True,
+                    "clients": len(connected_clients),
+                    "version": version,
+                    "curriculum_files": file_count,
+                }).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            # onboarding HTTP fallback (same writes as WS ONBOARDING_SUBMIT)
+            try:
+                name = (data.get("name") or "Student").strip() or "Student"
+                track_id = data.get("track", "College")
+                locale = data.get("locale", "en_US")
+                conn = sqlite3.connect(VAULT_DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR REPLACE INTO user_profiles (user_id, background_context) VALUES (?, ?)",
+                               (name, track_id))
+                cursor.execute("INSERT OR REPLACE INTO language_localization (user_id, locale) VALUES (?, ?)",
+                               (name, locale))
+                conn.commit()
+                conn.close()
+                sync_broadcast_ws({"action": "ONBOARDING_COMPLETE", "name": name, "track": track_id})
+                body = json.dumps({"success": True, "name": name}).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            except Exception as e:
+                err_body = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(err_body)
+                return
+
+        if clean_path in ['/api/verify_proctor_pin', '/api/set_proctor_pin']:
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                data = json.loads(post_data) if post_data else {}
+            except Exception:
+                data = {}
+            expected = get_proctor_pin_hash()
+            if clean_path == '/api/verify_proctor_pin':
+                pin = str(data.get("pin") or "")
+                ok = hash_proctor_pin(pin) == expected
+                body = json.dumps({"success": ok}).encode('utf-8')
+                self.send_response(200 if ok else 401)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            current_pin = str(data.get("current_pin") or "")
+            new_pin = str(data.get("new_pin") or "").strip()
+            if hash_proctor_pin(current_pin) != expected:
+                body = json.dumps({"success": False, "error": "Current PIN is incorrect"}).encode('utf-8')
+                self.send_response(401)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            if len(new_pin) < 4:
+                body = json.dumps({"success": False, "error": "New PIN must be at least 4 characters"}).encode('utf-8')
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            try:
+                merge_session_info({
+                    "proctor_pin_hash": hash_proctor_pin(new_pin),
+                    "proctor_pin_is_default": False,
+                })
+            except Exception as e:
+                body = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            append_network_log("Proctor PIN updated")
+            body = json.dumps({"success": True}).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(body)
+            return
 
         if clean_path == '/api/create_class':
             content_length = int(self.headers.get('Content-Length', 0))
@@ -3587,71 +4497,60 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(err_bytes)
                 return
 
-        # Virtual Labs: SymPy & SciPy Calculus / Waves API
-        if clean_path == '/api/v1/physics/calculus/solve':
-            content_length = int(self.headers.get('Content-Length', 0))
-            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
-            try:
-                data = json.loads(post_data) if post_data else {}
-                m_type = data.get("topic") or data.get("type") or "waves"
-                params = data.get("params", {})
-                if LABS_SOLVERS_AVAILABLE:
-                    res = science_solvers.solve_physics_symbolic(m_type, params)
-                else:
-                    res = {"success": False, "error": "SymPy solver not loaded"}
-                res_bytes = json.dumps(res).encode('utf-8')
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Content-Length', str(len(res_bytes)))
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(res_bytes)
-                return
-            except Exception as e:
-                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
-                self.send_response(500)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Content-Length', str(len(err_bytes)))
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(err_bytes)
-                return
-
-        # Circuits Lab: Socratic Question / AI Walkthrough Debugging
+        # Circuits Lab: Socratic walkthrough / debugging Q&A
         if clean_path == '/api/circuits/ask':
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
             try:
                 ask_data = json.loads(post_data) if post_data else {}
                 question = ask_data.get("question", "")
-                problem_title = ask_data.get("problemTitle", "Circuit Lab")
-                step_info = f"Step {ask_data.get('currentStep', 1)} of {ask_data.get('totalSteps', 1)}"
+                problem_title = ask_data.get("problemTitle", "Atelier Circuits")
+                step_info = f"Étape {ask_data.get('currentStep', 1)} sur {ask_data.get('totalSteps', 1)}"
+                step_desc = ask_data.get("stepDescription") or ""
+                spoken = ask_data.get("spokenInstruction") or ""
+                expected_pins = ask_data.get("expectedPins") or []
+                expected_comp = ask_data.get("expectedComponent") or ""
+                mode = ask_data.get("mode") or "VIRTUAL"
+                pins_txt = ", ".join(str(p) for p in expected_pins) if expected_pins else "non précisés"
 
-                # Baseline Socratic Electronics Teacher guidance
+                context_hint = spoken or step_desc
                 answer = (
-                    f"For {problem_title} ({step_info}): Verify that all VCC and GND connections are firmly seated. "
-                    "Always verify component polarity (like LED anode/cathode or the notch on pin 1 of the IC) "
-                    "before powering the rail."
+                    f"Pour {problem_title} ({step_info}, mode {mode}) : "
+                    + (f"{context_hint} " if context_hint else "")
+                    + f"Ciblez les trous {pins_txt}"
+                    + (f" avec le composant {expected_comp}. " if expected_comp else ". ")
+                    + "Vérifiez VCC/GND et la polarité avant d’alimenter le rail."
                 )
 
-                # Query Gemini if GOOGLE_API_KEY is configured
-                if os.environ.get("GOOGLE_API_KEY"):
+                # LOCAL-FIRST: Gemma on :8080, then curriculum template, Gemini only as online fallback
+                socratic_prompt = (
+                    "Tu es un professeur d'électronique qui guide un élève sur un breadboard physique. "
+                    f"Défi actif : {problem_title} ({step_info}, mode {mode}). "
+                    f"Consigne de l'étape : {spoken or step_desc or 'non fournie'}. "
+                    f"Composant attendu : {expected_comp or 'non précisé'}. "
+                    f"Trous cibles : {pins_txt}. "
+                    f"L'élève demande : « {question} ». "
+                    "Réponds en français, en 2–3 phrases socratiques et encourageantes, "
+                    "en t'appuyant sur la consigne et les trous cibles, "
+                    "sans donner la solution complète."
+                )
+                local_answer = query_local_llm(
+                    socratic_prompt,
+                    system_prompt="Tu es Gandho, tuteur socratique local sur Ventuno Q. Réponds seulement en français."
+                )
+                if local_answer:
+                    answer = local_answer.strip()
+                elif os.environ.get("GOOGLE_API_KEY") and os.environ.get("OFFLINE_MODE", "1") != "1":
                     try:
                         from google import genai
                         g_client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
-                        prompt = (
-                            f"You are a master electrical engineering instructor guiding a student building on a physical breadboard. "
-                            f"Active Challenge: {problem_title} ({step_info}). "
-                            f"Student asked: '{question}'. "
-                            f"Provide a concise, encouraging, 2-3 sentence Socratic explanation or debugging tip without giving away the full answer."
-                        )
                         g_res = g_client.models.generate_content(
                             model="gemini-2.5-flash",
-                            contents=prompt
+                            contents=socratic_prompt
                         )
                         if g_res and g_res.text:
                             answer = g_res.text.strip()
-                    except Exception as _g_err:
+                    except Exception:
                         pass
 
                 res_bytes = json.dumps({"success": True, "answer": answer}).encode('utf-8')
@@ -3672,24 +4571,46 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(err_bytes)
                 return
 
-        # Virtual Labs: Lab Voice Command Dispatcher
+        # Virtual Labs: SymPy & SciPy Calculus / Waves API
+        if clean_path == '/api/v1/physics/calculus/solve':
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
+            try:
+                data = json.loads(post_data) if post_data else {}
+                m_type = data.get("topic") or data.get("type") or "waves"
+                params = data.get("params", {})
+                if LABS_SOLVERS_AVAILABLE:
+                    res = science_solvers.solve_physics_symbolic(m_type, params)
+                else:
+                    res = {"success": False, "error": "Physics solver not loaded"}
+                res_bytes = json.dumps(res).encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(res_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(res_bytes)
+                return
+            except Exception as e:
+                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(err_bytes)))
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(err_bytes)
+                return
+
         if clean_path == '/api/v1/lab/command':
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
             try:
                 cmd_data = json.loads(post_data) if post_data else {}
-                if os.path.exists(SESSION_JSON_PATH):
-                    try:
-                        with open(SESSION_JSON_PATH, "r", encoding="utf-8") as sf:
-                            s = json.load(sf)
-                        s["latest_lab_command"] = cmd_data
-                        with open(SESSION_JSON_PATH, "w", encoding="utf-8") as sf:
-                            json.dump(s, sf, indent=2)
-                    except Exception:
-                        pass
-                ws_payload = json.dumps({"action": "LAB_CONTROL", "command": cmd_data})
-                if MAIN_ASYNCIO_LOOP and MAIN_ASYNCIO_LOOP.is_running():
-                    asyncio.run_coroutine_threadsafe(broadcast(ws_payload), MAIN_ASYNCIO_LOOP)
+                try:
+                    merge_session_info({"latest_lab_command": cmd_data})
+                except Exception:
+                    pass
+                sync_broadcast_ws({"action": "LAB_CONTROL", "command": cmd_data})
                 res_bytes = json.dumps({"success": True, "command": cmd_data}).encode('utf-8')
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
@@ -3708,7 +4629,6 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(err_bytes)
                 return
 
-        # Virtual Labs: Gamification Badges Award & List
         if clean_path == '/api/v1/badges/award':
             content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length).decode('utf-8') if content_length > 0 else "{}"
@@ -3716,43 +4636,9 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 b_data = json.loads(post_data) if post_data else {}
                 b_id = b_data.get("badge_id")
                 title = b_data.get("title", "")
-                xp = int(b_data.get("xp", 0))
-                db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
-                if b_id and os.path.exists(db_path):
-                    conn = sqlite3.connect(db_path)
-                    cur = conn.cursor()
-                    cur.execute("INSERT OR IGNORE INTO student_badges (student_id, badge_id, title, xp) VALUES ('alseny', ?, ?, ?)", (b_id, title, xp))
-                    conn.commit()
-                    conn.close()
+                xp = int(b_data.get("xp", 0) or 0)
+                _award_student_badge(b_id, title, xp)
                 res_bytes = json.dumps({"success": True, "badge_id": b_id}).encode('utf-8')
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Content-Length', str(len(res_bytes)))
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(res_bytes)
-                return
-            except Exception as e:
-                err_bytes = json.dumps({"success": False, "error": str(e)}).encode('utf-8')
-                self.send_response(500)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Content-Length', str(len(err_bytes)))
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(err_bytes)
-                return
-
-        if clean_path == '/api/v1/badges/list':
-            try:
-                db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "vault.db"))
-                badges = []
-                if os.path.exists(db_path):
-                    conn = sqlite3.connect(db_path)
-                    cur = conn.cursor()
-                    cur.execute("SELECT badge_id, title, xp, awarded_at FROM student_badges ORDER BY id DESC")
-                    badges = [{"badge_id": r[0], "title": r[1], "xp": r[2], "awarded_at": r[3]} for r in cur.fetchall()]
-                    conn.close()
-                res_bytes = json.dumps({"success": True, "badges": badges}).encode('utf-8')
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(res_bytes)))
@@ -3779,10 +4665,7 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 solutions = data.get("solutions", [])
                 indicator = data.get("indicator", "phenolphthalein")
                 temp_c = data.get("temp_c", 25.0)
-                if LABS_SOLVERS_AVAILABLE:
-                    res = chem_main.calculate_mixture(solutions, indicator, temp_c)
-                else:
-                    res = {"success": False, "error": "ChemPy engine not loaded"}
+                res = chem_calculate_mixture(solutions, indicator, temp_c)
                 res_bytes = json.dumps(res).encode('utf-8')
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json')
@@ -3978,17 +4861,17 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 data = json.loads(post_data.decode('utf-8'))
                 state = data.get('active_view_state', 'dashboard')
                 context = data.get('active_view_context', '')
-                session_data = {}
-                if os.path.exists(SESSION_JSON_PATH):
-                    try:
-                        with open(SESSION_JSON_PATH, "r") as sf:
-                            session_data = json.load(sf)
-                    except Exception:
-                        pass
-                session_data["active_view_state"] = state
-                session_data["active_view_context"] = context
-                with open(SESSION_JSON_PATH, "w") as sf:
-                    json.dump(session_data, sf)
+                updates = {
+                    "active_view_state": state,
+                    "active_view_context": context,
+                }
+                if data.get("active_video_id"):
+                    updates["active_video_id"] = data["active_video_id"]
+                if data.get("active_video_title"):
+                    updates["active_video_title"] = data["active_video_title"]
+                if data.get("active_video_time") is not None:
+                    updates["active_video_time"] = data["active_video_time"]
+                merge_session_info(updates)
                 print(f"[SESSION] Updated active view state: '{state}' with context: '{context[:50]}...'", flush=True)
                 
                 self.send_response(200)
@@ -4013,21 +4896,10 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 data = json.loads(post_data.decode('utf-8'))
                 pdf_path = data.get('pdf_path', '')
                 pdf_name = data.get('pdf_name', '')
-                
-                # Load current session data
-                session_data = {}
-                if os.path.exists(SESSION_JSON_PATH):
-                    try:
-                        with open(SESSION_JSON_PATH, "r") as sf:
-                            session_data = json.load(sf)
-                    except Exception:
-                        pass
-                
-                session_data["active_pdf_path"] = pdf_path
-                session_data["active_pdf_name"] = pdf_name
-                
-                with open(SESSION_JSON_PATH, "w") as sf:
-                    json.dump(session_data, sf)
+                merge_session_info({
+                    "active_pdf_path": pdf_path,
+                    "active_pdf_name": pdf_name,
+                })
                 print(f"[SESSION] Updated active book pdf_path='{pdf_path}', pdf_name='{pdf_name}'", flush=True)
                 
                 self.send_response(200)
@@ -4613,7 +5485,23 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 temp_filename = f"temp_speech_{uuid.uuid4().hex}.wav"
                 temp_wav = os.path.abspath(os.path.join(os.path.dirname(__file__), temp_filename))
                 
-                use_google_tts = (active_locale == "fr_FR" or active_locale.startswith("fr"))
+                # LOCAL-FIRST: try Kokoro for all locales (incl. French); Google only if online allowed
+                use_google_tts = False
+                kokoro_bytes = query_local_kokoro_tts(input_text)
+                if kokoro_bytes:
+                    print("[TTS SERVER] Kokoro local synthesis OK", flush=True)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'audio/mpeg')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Content-Length', str(len(kokoro_bytes)))
+                    self.end_headers()
+                    self.wfile.write(kokoro_bytes)
+                    return
+
+                use_google_tts = (
+                    os.environ.get("OFFLINE_MODE", "1") != "1"
+                    and (active_locale == "fr_FR" or active_locale.startswith("fr"))
+                )
                 
                 if use_google_tts:
                     # High-fidelity native French Google TTS + FFmpeg translation
@@ -4906,6 +5794,7 @@ async def ws_handler(websocket):
             pod_sessions[pod_id]["members"].append(student_id)
         print(f"[POD AUTO-JOIN] Connected {websocket.remote_address} (student: {student_id}) into pod {pod_id}. Total sockets: {len(pod_sessions[pod_id]['sockets'])}")
     print(f"[WS] Connection opened from {websocket.remote_address} (student: {student_id}, pod: {pod_id}). Total active: {len(connected_clients)}")
+    append_network_log(f"WS open {student_id or websocket.remote_address} pod={pod_id or '-'}")
     
     # Send current mic lock status to newly connected client if mic is held
     if active_mic_speaker:
@@ -5166,6 +6055,26 @@ async def ws_handler(websocket):
                         "reason": "hand_raise_voice_input"
                     }
                     await broadcast(json.dumps(pause_payload))
+                    question_text = (data.get("question") or data.get("query") or "").strip()
+                    if not question_text:
+                        question_text = (
+                            "The student just raised their hand on the microphone. "
+                            "Greet them as Gandho and begin Socratic tutoring for the current lesson."
+                        )
+                    udp_payload = {
+                        "event": "GPIO_INTERRUPT",
+                        "pin": 22,
+                        "action": "RAISE_HAND",
+                        "query": question_text,
+                        "video_id": data.get("video_id"),
+                        "timestamp_marker": data.get("timestamp") or data.get("timestamp_marker"),
+                        "mode": data.get("mode") or DEPLOYMENT_MODE,
+                        "is_quiz": data.get("is_quiz", False),
+                        "quiz_question": data.get("quiz_question", ""),
+                        "locale": data.get("locale", "en_US")
+                    }
+                    forward_gpio_udp(udp_payload)
+                    append_network_log(f"RAISE_HAND {data.get('student_id') or ''} {question_text[:80]}")
                 elif (act and act.startswith("POD_")) or act in ["START_STREAM", "STOP_STREAM", "LESSON_COMPLETE", "SUBMIT_LAB_QUIZ"] or (data.get("pod_id") or connected_pod_map.get(websocket)):
                     pod_id = data.get("pod_id") or connected_pod_map.get(websocket)
                     
@@ -5449,6 +6358,18 @@ async def start_ws_server():
 # ---------------------------------------------------------
 if __name__ == "__main__":
     print("=== STARTING INTERFACE DISPLAY CLIENT SERVER ===", flush=True)
+    if _port_in_use(WS_PORT) or _port_in_use(HTTP_PORT):
+        print(
+            "[HTTP] display_client.py is already running.\n"
+            "  Open http://127.0.0.1:8000  (or http://127.0.0.1:8080)\n"
+            "  Do not start a second copy — that is the 'address already in use' crash.\n"
+            "To restart:\n"
+            "  pkill -f 'python3 display_client.py'\n"
+            "  pkill -f 'python display_client.py'\n"
+            "  python3 display_client.py",
+            flush=True,
+        )
+        sys.exit(0)
     # Start HTTP server in a daemon thread (closes automatically when main script exits)
     http_thread = threading.Thread(target=start_http_server, daemon=True)
     http_thread.start()
@@ -5456,5 +6377,14 @@ if __name__ == "__main__":
     # Run the WebSocket server in the main asyncio loop
     try:
         asyncio.run(start_ws_server())
+    except OSError as err:
+        print(
+            f"[WS] Could not bind port {WS_PORT}: {err}\n"
+            "Another display_client.py still owns 8001. Kill it, then start once:\n"
+            "  pkill -f display_client.py\n"
+            "  python3 display_client.py",
+            flush=True,
+        )
+        sys.exit(1)
     except KeyboardInterrupt:
         print("\n[SYSTEM] Terminating display client servers. Exiting...", flush=True)

@@ -49,7 +49,6 @@ export class PhysicsWorld {
     this.gravityY = options.gravityY !== undefined ? options.gravityY : 980; // 9.8 m/s^2 scaled
     this.globalFriction = options.globalFriction !== undefined ? options.globalFriction : 0.05;
     this.globalRestitution = options.globalRestitution !== undefined ? options.globalRestitution : 0.75;
-    this.floorOffset = options.floorOffset !== undefined ? options.floorOffset : 64;
     this.bodies = [];
     this.width = options.width || 800;
     this.height = options.height || 600;
@@ -62,19 +61,6 @@ export class PhysicsWorld {
   setDimensions(width, height) {
     this.width = width;
     this.height = height;
-  }
-
-  get gravity() {
-    return { x: this.gravityX, y: this.gravityY };
-  }
-
-  set gravity(val) {
-    if (typeof val === "object" && val !== null) {
-      if (val.x !== undefined) this.gravityX = val.x;
-      if (val.y !== undefined) this.gravityY = val.y;
-    } else if (typeof val === "number") {
-      this.gravityY = val;
-    }
   }
 
   addBody(body) {
@@ -211,12 +197,11 @@ export class PhysicsWorld {
   resolveBoundaries(b) {
     const boundRestitution = Math.min(b.restitution, this.globalRestitution);
     const boundFriction = Math.max(b.friction, this.globalFriction);
-    const floorLimit = Math.max(100, this.height - (this.floorOffset || 0));
 
     if (b.type === "circle") {
-      // Floor platform
-      if (b.y + b.radius > floorLimit) {
-        b.y = floorLimit - b.radius;
+      // Floor
+      if (b.y + b.radius > this.height) {
+        b.y = this.height - b.radius;
         if (Math.abs(b.vy) > 35 && typeof this.onImpact === "function") {
           this.onImpact(b.mass, Math.abs(b.vy));
         }
@@ -241,9 +226,9 @@ export class PhysicsWorld {
     } else if (b.type === "box") {
       const halfW = b.width / 2;
       const halfH = b.height / 2;
-      // Floor platform
-      if (b.y + halfH > floorLimit) {
-        b.y = floorLimit - halfH;
+      // Floor
+      if (b.y + halfH > this.height) {
+        b.y = this.height - halfH;
         b.vy = -b.vy * boundRestitution;
         b.vx *= (1 - boundFriction);
       }

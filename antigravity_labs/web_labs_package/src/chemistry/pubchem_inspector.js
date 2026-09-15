@@ -231,9 +231,12 @@ export class PubchemInspector {
             if (p.getAttribute("stroke") === "#000000") p.setAttribute("stroke", "#ffffff");
           });
         }
+      } else {
+        svgBox.innerHTML = `<div style="color:#a1a1aa;padding:24px;text-align:center;">Structure preview unavailable for ${smiles}</div>`;
       }
     } catch (err) {
       console.warn("SVG render error:", err);
+      svgBox.innerHTML = `<div style="color:#a1a1aa;padding:24px;text-align:center;">Could not render ${smiles}</div>`;
     }
   }
 }

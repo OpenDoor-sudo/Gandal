@@ -22,16 +22,31 @@ export class OmniGraphEngine {
 
     // Voice and Vision Utilities
     this.voiceInput = new VoiceInput({
-      onTranscript: (mathFormula, rawText, isFinal) => {
+      onTranscript: (_mathFormula, rawText, isFinal, serverFormula) => {
+        const spoken = (rawText || _mathFormula || "").trim();
         if (options.onVoiceTranscript) {
-          options.onVoiceTranscript(mathFormula, rawText, isFinal);
+          options.onVoiceTranscript(spoken, spoken, isFinal);
         }
-        if (isFinal && mathFormula) {
-          this.plotFormula(mathFormula);
+        if (isFinal && spoken) {
+          let plot = this.voiceInput.convertSpeechToMath(spoken) || spoken;
+          const hinted = String(serverFormula || "").trim();
+          if (hinted && this.voiceInput.speechSupportsFormula(spoken, hinted)) {
+            plot = hinted;
+          }
+          if (this.voiceInput.isStockGuess(plot) && !this.voiceInput.speechSupportsFormula(spoken, plot)) {
+            plot = spoken;
+          }
+          this.plotFormula(plot, { silentInput: true });
         }
       },
       onStateChange: (listening) => {
         if (options.onVoiceStateChange) options.onVoiceStateChange(listening);
+      },
+      onStatus: (msg) => {
+        if (options.onVoiceStatus) options.onVoiceStatus(msg);
+      },
+      onError: (err) => {
+        if (options.onVoiceError) options.onVoiceError(err);
       }
     });
 
@@ -103,8 +118,8 @@ export class OmniGraphEngine {
     return this.currentScene;
   }
 
-  plotFormula(formulaStr) {
-    if (this.onFormulaChanged) {
+  plotFormula(formulaStr, options = {}) {
+    if (!options.silentInput && this.onFormulaChanged) {
       this.onFormulaChanged(formulaStr);
     }
     if (this.currentSceneId !== "general-math") {
@@ -132,7 +147,7 @@ export class OmniGraphEngine {
   }
 
   toggleVoice() {
-    this.voiceInput.toggle();
+    return this.voiceInput.toggle();
   }
 
   uploadMathImage(file) {

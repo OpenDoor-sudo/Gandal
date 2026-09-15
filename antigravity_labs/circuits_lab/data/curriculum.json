@@ -7,7 +7,7 @@
     "title": "LED & Current-Limiting Resistor Circuit",
     "difficulty": "Beginner",
     "summary": "Learn basic breadboard power rails, LED polarity (anode/cathode), and Ohm's Law current limiting.",
-    "problem_text": "## Challenge 1: The Core Indicator Circuit\n\nBefore building complex digital computers, we must master fundamental electrical flow on a solderless breadboard.\n\n### Theoretical Background\n* **Ohm's Law**: $V = I \\times R$. A standard red LED has a forward voltage drop of approximately $V_f \\approx 2.0\\text{V}$ and a maximum continuous current of $I_f \\approx 20\\text{mA}$.\n* If powered directly from a $5\\text{V}$ rail without a resistor, current surges through the semiconductor diode, destroying the junction.\n* The required ballast resistor value is:\n  $$R = \\frac{V_{CC} - V_f}{I_f} = \\frac{5\\text{V} - 2.0\\text{V}}{0.015\\text{A}} = 200\\,\\Omega$$\n  We safely select a standard **$330\\,\\Omega$** (Orange-Orange-Brown) resistor to limit current to $\\approx 9\\text{mA}$.\n\n### Breadboard Rules\n* **Power Rails**: The vertical red line ($+$) is positive $5\\text{V}$, and the blue line ($-$) is Ground ($0\\text{V}$).\n* **Terminal Strips**: Rows 1\u201330 are connected horizontally across columns A\u2013E and F\u2013J. The center trough separates the two sides.\n",
+    "problem_text": "## Challenge 1: The Core Indicator Circuit\n\nBefore building complex digital computers, we must master fundamental electrical flow on a solderless breadboard.\n\n### Theoretical Background\n* **Ohm's Law**: $V = I \\times R$. A standard red LED has a forward voltage drop of approximately $V_f \\approx 2.0\\text{V}$ and a maximum continuous current of $I_f \\approx 20\\text{mA}$.\n* If powered directly from a $5\\text{V}$ rail without a resistor, current surges through the semiconductor diode, destroying the junction.\n* The required ballast resistor value is:\n  $$R = \\frac{V_{CC} - V_f}{I_f} = \\frac{5\\text{V} - 2.0\\text{V}}{0.015\\text{A}} = 200\\,\\Omega$$\n  We safely select a standard **$330\\,\\Omega$** (Orange-Orange-Brown) resistor to limit current to $\\approx 9\\text{mA}$.\n\n### Breadboard Rules\n* **Power Rails**: The vertical red line ($+$) is positive $5\\text{V}$, and the blue line ($-$) is Ground ($0\\text{V}$).\n* **Terminal Strips**: Rows 1–30 are connected horizontally across columns A–E and F–J. The center trough separates the two sides.\n",
     "components": [
       {
         "name": "Red 5mm LED",
@@ -19,9 +19,9 @@
         "image_id": "led_red"
       },
       {
-        "name": "330\u03a9 Carbon Film Resistor",
+        "name": "330Ω Carbon Film Resistor",
         "type": "Resistor",
-        "value": "330 \u03a9, 1/4W (Orange-Orange-Brown-Gold)",
+        "value": "330 Ω, 1/4W (Orange-Orange-Brown-Gold)",
         "package": "Axial Through-Hole",
         "pinout": "Non-polar passive component",
         "quantity": 1,
@@ -61,7 +61,9 @@
           "to": "E11",
           "color": "red",
           "description": "Insert the Red LED. Place the long leg (anode) into row E10 and the short leg (cathode) into row E11.",
-          "spoken_instruction": "First, take the red LED. Insert the long positive lead into row 10, column E, and the short cathode lead into row 11."
+          "spoken_instruction": "First, take the red LED. Insert the long positive lead into row 10, column E, and the short cathode lead into row 11.",
+          "description_fr": "Insérez la LED rouge. Patte longue (anode) en E10, patte courte (cathode) en E11.",
+          "spoken_instruction_fr": "D’abord, prenez la LED rouge. Enfichez la patte longue positive en ligne 10, colonne E, et la cathode courte en ligne 11, colonne E."
         },
         {
           "step": 2,
@@ -70,8 +72,10 @@
           "from": "D11",
           "to": "D16",
           "color": "beige",
-          "description": "Place the 330\u03a9 resistor across row D11 and row D16 to connect with the LED cathode.",
-          "spoken_instruction": "Next, connect the 330 ohm resistor between row 11 and row 16, tying into the cathode of the LED."
+          "description": "Place the 330Ω resistor across row D11 and row D16 to connect with the LED cathode.",
+          "spoken_instruction": "Next, connect the 330 ohm resistor between row 11 and row 16, tying into the cathode of the LED.",
+          "description_fr": "Placez la résistance 330 Ω entre D11 et D16 pour rejoindre la cathode de la LED.",
+          "spoken_instruction_fr": "Ensuite, connectez la résistance de 330 ohms entre la ligne 11 et la ligne 16, en lien avec la cathode de la LED."
         },
         {
           "step": 3,
@@ -80,7 +84,9 @@
           "to": "A10",
           "color": "red",
           "description": "Connect a red jumper wire from the positive 5V power rail to column A, row 10 (LED anode).",
-          "spoken_instruction": "Now take a red jumper wire. Connect the positive power rail to column A, row 10 to provide 5 volts to the LED."
+          "spoken_instruction": "Now take a red jumper wire. Connect the positive power rail to column A, row 10 to provide 5 volts to the LED.",
+          "description_fr": "Reliez le rail positif 5 V à la colonne A, ligne 10 (anode LED).",
+          "spoken_instruction_fr": "Prenez un fil rouge. Reliez le rail positif à la colonne A, ligne 10, pour alimenter l’anode de la LED en 5 volts."
         },
         {
           "step": 4,
@@ -89,10 +95,17 @@
           "to": "POWER_MINUS_16",
           "color": "black",
           "description": "Connect a black jumper wire from row A16 to the negative ground rail to complete the loop.",
-          "spoken_instruction": "Finally, run a black jumper wire from row 16 to the ground rail. The circuit loop is complete and your LED should illuminate."
+          "spoken_instruction": "Finally, run a black jumper wire from row 16 to the ground rail. The circuit loop is complete and your LED should illuminate.",
+          "description_fr": "Reliez A16 au rail de masse pour fermer la boucle.",
+          "spoken_instruction_fr": "Enfin, reliez un fil noir de la ligne 16 au rail de masse. La boucle est complète et la LED peut s’allumer."
         }
       ]
-    }
+    },
+    "title_fr": "LED et résistance de limitation de courant",
+    "level_title_fr": "Niveau 1 : Fondamentaux",
+    "topic_fr": "Circuits CC et diodes",
+    "difficulty_fr": "Débutant",
+    "summary_fr": "Apprenez les rails d’alimentation, la polarité LED (anode/cathode) et la limitation de courant par la loi d’Ohm."
   },
   {
     "id": "foundations_02_voltage_divider",
@@ -105,9 +118,9 @@
     "problem_text": "## Challenge 2: Resistive Voltage Divider\n\nVoltage dividers are foundational analog sub-circuits used for sensor interfacing, transistor biasing, and ADC reference scaling.\n\n### Formula\n$$V_{out} = V_{in} \\times \\frac{R_2}{R_1 + R_2}$$\nWith $V_{in} = 5\\text{V}$ and two equal $10\\text{k}\\Omega$ resistors:\n$$V_{out} = 5\\text{V} \\times \\frac{10\\text{k}\\Omega}{10\\text{k}\\Omega + 10\\text{k}\\Omega} = 2.5\\text{V}$$\n",
     "components": [
       {
-        "name": "10k\u03a9 Resistors",
+        "name": "10kΩ Resistors",
         "type": "Resistor",
-        "value": "10 k\u03a9 1/4W (Brown-Black-Orange)",
+        "value": "10 kΩ 1/4W (Brown-Black-Orange)",
         "package": "Axial",
         "pinout": "Passive",
         "quantity": 2,
@@ -146,8 +159,10 @@
           "from": "C5",
           "to": "C10",
           "color": "beige",
-          "description": "Place R1 (10k\u03a9) between row C5 and C10.",
-          "spoken_instruction": "Place the first 10k resistor from row 5 to row 10."
+          "description": "Place R1 (10kΩ) between row C5 and C10.",
+          "spoken_instruction": "Place the first 10k resistor from row 5 to row 10.",
+          "description_fr": "Placez R1 (10 kΩ) entre C5 et C10.",
+          "spoken_instruction_fr": "Placez la première résistance 10 kilo-ohms de la ligne 5 à la ligne 10."
         },
         {
           "step": 2,
@@ -156,8 +171,10 @@
           "from": "C10",
           "to": "C15",
           "color": "beige",
-          "description": "Place R2 (10k\u03a9) between row C10 and C15, creating the center midpoint tap.",
-          "spoken_instruction": "Now place the second 10k resistor from row 10 to row 15. Row 10 is your voltage divider tap."
+          "description": "Place R2 (10kΩ) between row C10 and C15, creating the center midpoint tap.",
+          "spoken_instruction": "Now place the second 10k resistor from row 10 to row 15. Row 10 is your voltage divider tap.",
+          "description_fr": "Placez R2 (10 kΩ) entre C10 et C15 : le milieu est le point de prise.",
+          "spoken_instruction_fr": "Placez la seconde résistance 10 kilo-ohms de la ligne 10 à la ligne 15. La ligne 10 est votre prise de tension."
         },
         {
           "step": 3,
@@ -166,7 +183,9 @@
           "to": "A5",
           "color": "red",
           "description": "Connect 5V power rail to row 5.",
-          "spoken_instruction": "Wire positive 5 volts into row 5."
+          "spoken_instruction": "Wire positive 5 volts into row 5.",
+          "description_fr": "Reliez le rail 5 V à la ligne 5.",
+          "spoken_instruction_fr": "Alimentez la ligne 5 en 5 volts positifs."
         },
         {
           "step": 4,
@@ -175,7 +194,9 @@
           "to": "POWER_MINUS_15",
           "color": "black",
           "description": "Connect row 15 to ground rail.",
-          "spoken_instruction": "Ground row 15 to the negative rail."
+          "spoken_instruction": "Ground row 15 to the negative rail.",
+          "description_fr": "Reliez la ligne 15 au rail de masse.",
+          "spoken_instruction_fr": "Mettez la ligne 15 à la masse."
         },
         {
           "step": 5,
@@ -184,10 +205,17 @@
           "to": "E20",
           "color": "yellow",
           "description": "Run the 2.5V probe line from row 10 tap out to test row 20.",
-          "spoken_instruction": "Take a yellow wire from row 10 to row 20. Row 20 now carries exactly 2.5 volts."
+          "spoken_instruction": "Take a yellow wire from row 10 to row 20. Row 20 now carries exactly 2.5 volts.",
+          "description_fr": "Tirez un fil jaune de la ligne 10 vers la ligne 20 (sonde 2,5 V).",
+          "spoken_instruction_fr": "Tirez un fil jaune de la ligne 10 vers la ligne 20. La ligne 20 porte maintenant exactement 2,5 volts."
         }
       ]
-    }
+    },
+    "title_fr": "Diviseur de tension résistif",
+    "level_title_fr": "Niveau 1 : Fondamentaux",
+    "topic_fr": "Circuits CC et analyse",
+    "difficulty_fr": "Débutant",
+    "summary_fr": "Construisez un diviseur 10 kΩ / 10 kΩ pour obtenir 2,5 V au milieu."
   },
   {
     "id": "foundations_03_npn_transistor",
@@ -209,18 +237,18 @@
         "image_id": "transistor_npn"
       },
       {
-        "name": "1k\u03a9 Base Resistor",
+        "name": "1kΩ Base Resistor",
         "type": "Resistor",
-        "value": "1 k\u03a9 (Brown-Black-Red)",
+        "value": "1 kΩ (Brown-Black-Red)",
         "package": "Axial",
         "pinout": "Passive",
         "quantity": 1,
         "image_id": "resistor_1k"
       },
       {
-        "name": "330\u03a9 Collector Resistor",
+        "name": "330Ω Collector Resistor",
         "type": "Resistor",
-        "value": "330 \u03a9",
+        "value": "330 Ω",
         "package": "Axial",
         "pinout": "Passive",
         "quantity": 1,
@@ -255,7 +283,9 @@
           "to": "E14",
           "color": "black",
           "description": "Insert 2N3904 transistor: Emitter at E12, Base at E13, Collector at E14.",
-          "spoken_instruction": "Place the 2N3904 transistor with the flat face toward you. Emitter in row 12, Base in row 13, Collector in row 14."
+          "spoken_instruction": "Place the 2N3904 transistor with the flat face toward you. Emitter in row 12, Base in row 13, Collector in row 14.",
+          "description_fr": "Insérez le 2N3904 : émetteur E12, base E13, collecteur E14 (face plate vers vous).",
+          "spoken_instruction_fr": "Placez le transistor 2N3904 face plate vers vous. Émetteur en ligne 12, base en 13, collecteur en 14."
         },
         {
           "step": 2,
@@ -264,7 +294,9 @@
           "to": "POWER_MINUS_12",
           "color": "black",
           "description": "Tie Emitter row 12 directly to GND rail.",
-          "spoken_instruction": "Ground the emitter by connecting row 12 to the negative rail."
+          "spoken_instruction": "Ground the emitter by connecting row 12 to the negative rail.",
+          "description_fr": "Reliez l’émetteur (ligne 12) directement au rail GND.",
+          "spoken_instruction_fr": "Mettez l’émetteur à la masse en reliant la ligne 12 au rail négatif."
         },
         {
           "step": 3,
@@ -273,8 +305,10 @@
           "from": "B13",
           "to": "B8",
           "color": "beige",
-          "description": "Place 1k\u03a9 base resistor between row 13 and control row 8.",
-          "spoken_instruction": "Insert the 1k base resistor between row 13 and row 8."
+          "description": "Place 1kΩ base resistor between row 13 and control row 8.",
+          "spoken_instruction": "Insert the 1k base resistor between row 13 and row 8.",
+          "description_fr": "Placez la résistance de base 1 kΩ entre la ligne 13 et la ligne de commande 8.",
+          "spoken_instruction_fr": "Insérez la résistance de base 1 kilo-ohm entre la ligne 13 et la ligne 8."
         },
         {
           "step": 4,
@@ -284,7 +318,9 @@
           "to": "C18",
           "color": "red",
           "description": "Connect LED cathode to Collector row 14, anode to row 18.",
-          "spoken_instruction": "Connect the LED with its short cathode in row 14 and long anode in row 18."
+          "spoken_instruction": "Connect the LED with its short cathode in row 14 and long anode in row 18.",
+          "description_fr": "LED : cathode en ligne 14 (collecteur), anode en ligne 18.",
+          "spoken_instruction_fr": "Connectez la LED : cathode courte en ligne 14, anode longue en ligne 18."
         },
         {
           "step": 5,
@@ -293,8 +329,10 @@
           "from": "D18",
           "to": "D22",
           "color": "beige",
-          "description": "Place 330\u03a9 ballast resistor from row 18 to 22.",
-          "spoken_instruction": "Place the 330 ohm resistor from row 18 to row 22."
+          "description": "Place 330Ω ballast resistor from row 18 to 22.",
+          "spoken_instruction": "Place the 330 ohm resistor from row 18 to row 22.",
+          "description_fr": "Placez la résistance ballast 330 Ω de la ligne 18 à 22.",
+          "spoken_instruction_fr": "Placez la résistance 330 ohms de la ligne 18 à la ligne 22."
         },
         {
           "step": 6,
@@ -303,7 +341,9 @@
           "to": "POWER_PLUS_22",
           "color": "red",
           "description": "Connect row 22 to 5V power rail.",
-          "spoken_instruction": "Power row 22 from the positive rail."
+          "spoken_instruction": "Power row 22 from the positive rail.",
+          "description_fr": "Reliez la ligne 22 au rail 5 V.",
+          "spoken_instruction_fr": "Alimentez la ligne 22 depuis le rail positif."
         },
         {
           "step": 7,
@@ -312,10 +352,17 @@
           "to": "POWER_PLUS_8",
           "color": "yellow",
           "description": "Connect Base control row 8 to 5V to switch transistor ON.",
-          "spoken_instruction": "Tie base row 8 to 5 volts. This saturates the base, sinking current and lighting the LED."
+          "spoken_instruction": "Tie base row 8 to 5 volts. This saturates the base, sinking current and lighting the LED.",
+          "description_fr": "Reliez la ligne de base 8 au 5 V pour saturer le transistor et allumer la LED.",
+          "spoken_instruction_fr": "Reliez la ligne de base 8 au 5 volts. Cela sature la base, draine le courant et allume la LED."
         }
       ]
-    }
+    },
+    "title_fr": "Transistor NPN BJT en interrupteur numérique",
+    "level_title_fr": "Niveau 1 : Fondamentaux",
+    "topic_fr": "Commutateurs à semi-conducteurs",
+    "difficulty_fr": "Intermédiaire",
+    "summary_fr": "Utilisez un 2N3904 pour allumer une LED quand la base est saturée."
   },
   {
     "id": "timing_01_555_astable",
@@ -337,36 +384,36 @@
         "image_id": "ic_555"
       },
       {
-        "name": "1k\u03a9 Resistor (R1)",
+        "name": "1kΩ Resistor (R1)",
         "type": "Resistor",
-        "value": "1 k\u03a9 (Brown-Black-Red)",
+        "value": "1 kΩ (Brown-Black-Red)",
         "package": "Axial",
         "pinout": "Passive",
         "quantity": 1,
         "image_id": "resistor_1k"
       },
       {
-        "name": "100k\u03a9 Resistor (R2)",
+        "name": "100kΩ Resistor (R2)",
         "type": "Resistor",
-        "value": "100 k\u03a9 (Brown-Black-Yellow)",
+        "value": "100 kΩ (Brown-Black-Yellow)",
         "package": "Axial",
         "pinout": "Passive",
         "quantity": 1,
         "image_id": "resistor_100k"
       },
       {
-        "name": "10\u00b5F Electrolytic Capacitor",
+        "name": "10µF Electrolytic Capacitor",
         "type": "Capacitor",
-        "value": "10 \u00b5F 16V Polarized",
+        "value": "10 µF 16V Polarized",
         "package": "Radial",
         "pinout": "Long: (+), White stripe: (-)",
         "quantity": 1,
         "image_id": "cap_10uf"
       },
       {
-        "name": "Red 5mm LED & 330\u03a9 Resistor",
+        "name": "Red 5mm LED & 330Ω Resistor",
         "type": "Output Indicator",
-        "value": "5mm LED + 330\u03a9",
+        "value": "5mm LED + 330Ω",
         "package": "Radial/Axial",
         "pinout": "Indicator pair",
         "quantity": 1,
@@ -391,7 +438,9 @@
           "to": "F13",
           "color": "darkgray",
           "description": "Seat the 555 Timer across the center divider from row 10 to 13. Notch points toward row 1.",
-          "spoken_instruction": "Place the 555 Timer across the center trough spanning rows 10 to 13, with the notch facing up toward row 1."
+          "spoken_instruction": "Place the 555 Timer across the center trough spanning rows 10 to 13, with the notch facing up toward row 1.",
+          "description_fr": "Asseyez le 555 à cheval sur le sillon, lignes 10 à 13, cran vers le haut.",
+          "spoken_instruction_fr": "Placez le timer 555 à cheval sur le sillon central, lignes 10 à 13, avec le cran vers le haut."
         },
         {
           "step": 2,
@@ -400,7 +449,9 @@
           "to": "POWER_MINUS_10",
           "color": "black",
           "description": "Connect Pin 1 (GND) to negative power rail.",
-          "spoken_instruction": "Connect pin 1 in row 10 to the ground rail using a black jumper wire."
+          "spoken_instruction": "Connect pin 1 in row 10 to the ground rail using a black jumper wire.",
+          "description_fr": "Reliez la broche 1 (GND, ligne 10) au rail de masse.",
+          "spoken_instruction_fr": "Reliez la broche 1 en ligne 10 au rail de masse avec un fil noir."
         },
         {
           "step": 3,
@@ -409,7 +460,9 @@
           "to": "POWER_PLUS_10",
           "color": "red",
           "description": "Connect Pin 8 (VCC) to positive 5V power rail.",
-          "spoken_instruction": "Connect pin 8 in row 10 to the positive 5 volt rail with a red wire."
+          "spoken_instruction": "Connect pin 8 in row 10 to the positive 5 volt rail with a red wire.",
+          "description_fr": "Reliez la broche 8 (VCC, ligne 10) au rail 5 V.",
+          "spoken_instruction_fr": "Reliez la broche 8 en ligne 10 au rail positif 5 volts avec un fil rouge."
         },
         {
           "step": 4,
@@ -418,7 +471,9 @@
           "to": "POWER_PLUS_13",
           "color": "red",
           "description": "Tie Pin 4 (RESET) to 5V rail to prevent accidental resetting.",
-          "spoken_instruction": "Tie pin 4 in row 13 to 5 volts to keep the timer enabled."
+          "spoken_instruction": "Tie pin 4 in row 13 to 5 volts to keep the timer enabled.",
+          "description_fr": "Reliez la broche 4 (RESET, ligne 13) au 5 V pour garder le timer actif.",
+          "spoken_instruction_fr": "Reliez la broche 4 en ligne 13 au 5 volts pour garder le timer activé."
         },
         {
           "step": 5,
@@ -427,7 +482,9 @@
           "to": "I12",
           "color": "blue",
           "description": "Bridge Pin 2 (Trigger) to Pin 6 (Threshold) with a jumper wire.",
-          "spoken_instruction": "Take a blue jumper wire and bridge pin 2 in row 11 across to pin 6 in row 12."
+          "spoken_instruction": "Take a blue jumper wire and bridge pin 2 in row 11 across to pin 6 in row 12.",
+          "description_fr": "Reliez la broche 2 (Trigger, ligne 11) à la broche 6 (Threshold, ligne 12).",
+          "spoken_instruction_fr": "Avec un fil bleu, ponttez la broche 2 en ligne 11 vers la broche 6 en ligne 12."
         },
         {
           "step": 6,
@@ -436,8 +493,10 @@
           "from": "H10",
           "to": "H11",
           "color": "beige",
-          "description": "Place R1 (1k\u03a9) between Pin 8 (row 10) and Pin 7 (row 11).",
-          "spoken_instruction": "Connect the 1k resistor between pin 8 and pin 7 on the right bank."
+          "description": "Place R1 (1kΩ) between Pin 8 (row 10) and Pin 7 (row 11).",
+          "spoken_instruction": "Connect the 1k resistor between pin 8 and pin 7 on the right bank.",
+          "description_fr": "Placez R1 (1 kΩ) entre broche 8 (ligne 10) et broche 7 (ligne 11).",
+          "spoken_instruction_fr": "Connectez la résistance 1 kilo-ohm entre la broche 8 et la broche 7 sur le banc droit."
         },
         {
           "step": 7,
@@ -446,8 +505,10 @@
           "from": "G11",
           "to": "G12",
           "color": "beige",
-          "description": "Place R2 (100k\u03a9) between Pin 7 (row 11) and Pin 6 (row 12).",
-          "spoken_instruction": "Connect the 100k resistor between pin 7 and pin 6."
+          "description": "Place R2 (100kΩ) between Pin 7 (row 11) and Pin 6 (row 12).",
+          "spoken_instruction": "Connect the 100k resistor between pin 7 and pin 6.",
+          "description_fr": "Placez R2 (100 kΩ) entre broche 7 (ligne 11) et broche 6 (ligne 12).",
+          "spoken_instruction_fr": "Connectez la résistance 100 kilo-ohms entre la broche 7 et la broche 6."
         },
         {
           "step": 8,
@@ -456,8 +517,10 @@
           "from": "C11",
           "to": "C7",
           "color": "blue",
-          "description": "Place 10\u00b5F capacitor: positive lead in Pin 2 (row 11), negative lead in row 7.",
-          "spoken_instruction": "Insert the 10 microfarad timing capacitor. Long positive lead goes to pin 2 row 11, and short lead to row 7."
+          "description": "Place 10µF capacitor: positive lead in Pin 2 (row 11), negative lead in row 7.",
+          "spoken_instruction": "Insert the 10 microfarad timing capacitor. Long positive lead goes to pin 2 row 11, and short lead to row 7.",
+          "description_fr": "Condensateur 10 µF : positif en broche 2 (ligne 11), négatif en ligne 7.",
+          "spoken_instruction_fr": "Insérez le condensateur de 10 microfarads. La patte positive longue va à la broche 2 ligne 11, la courte à la ligne 7."
         },
         {
           "step": 9,
@@ -466,7 +529,9 @@
           "to": "POWER_MINUS_7",
           "color": "black",
           "description": "Ground the negative lead of C1 in row 7.",
-          "spoken_instruction": "Ground the negative lead of the capacitor by connecting row 7 to the negative rail."
+          "spoken_instruction": "Ground the negative lead of the capacitor by connecting row 7 to the negative rail.",
+          "description_fr": "Mettez à la masse la patte négative du condensateur (ligne 7).",
+          "spoken_instruction_fr": "Mettez à la masse la patte négative du condensateur en reliant la ligne 7 au rail négatif."
         },
         {
           "step": 10,
@@ -475,7 +540,9 @@
           "to": "B18",
           "color": "yellow",
           "description": "Connect Pin 3 (Output) to output indicator row 18.",
-          "spoken_instruction": "Connect pin 3 in row 12 to row 18 with a yellow wire to drive your LED indicator."
+          "spoken_instruction": "Connect pin 3 in row 12 to row 18 with a yellow wire to drive your LED indicator.",
+          "description_fr": "Reliez la broche 3 (sortie, ligne 12) à la ligne indicateur 18.",
+          "spoken_instruction_fr": "Reliez la broche 3 en ligne 12 à la ligne 18 avec un fil jaune pour piloter la LED."
         },
         {
           "step": 11,
@@ -485,7 +552,9 @@
           "to": "C19",
           "color": "red",
           "description": "Insert LED anode at row 18 and cathode at row 19.",
-          "spoken_instruction": "Insert the indicator LED anode at row 18 and cathode at row 19."
+          "spoken_instruction": "Insert the indicator LED anode at row 18 and cathode at row 19.",
+          "description_fr": "LED indicateur : anode ligne 18, cathode ligne 19.",
+          "spoken_instruction_fr": "Insérez la LED indicateur : anode en ligne 18, cathode en ligne 19."
         },
         {
           "step": 12,
@@ -494,11 +563,18 @@
           "from": "D19",
           "to": "POWER_MINUS_19",
           "color": "beige",
-          "description": "Connect 330\u03a9 resistor from LED cathode to GND rail.",
-          "spoken_instruction": "Complete the circuit with a 330 ohm resistor from row 19 to ground. Your 555 clock pulse is now active and blinking!"
+          "description": "Connect 330Ω resistor from LED cathode to GND rail.",
+          "spoken_instruction": "Complete the circuit with a 330 ohm resistor from row 19 to ground. Your 555 clock pulse is now active and blinking!",
+          "description_fr": "Résistance 330 Ω de la cathode (ligne 19) vers la masse. L’horloge 555 est active.",
+          "spoken_instruction_fr": "Terminez avec une résistance 330 ohms de la ligne 19 à la masse. Votre impulsions d’horloge 555 sont actives."
         }
       ]
-    }
+    },
+    "title_fr": "Multivibrateur astable 555 (générateur d’horloge)",
+    "level_title_fr": "Niveau 2 : Temporisation et analogique",
+    "topic_fr": "Circuits timer 555",
+    "difficulty_fr": "Intermédiaire",
+    "summary_fr": "Montez un 555 en astable pour faire clignoter une LED d’indicateur."
   },
   {
     "id": "logic_01_74hc08_and",
@@ -520,9 +596,9 @@
         "image_id": "ic_74hc08"
       },
       {
-        "name": "330\u03a9 Current-Limiting Resistor",
+        "name": "330Ω Current-Limiting Resistor",
         "type": "Resistor",
-        "value": "330 \u03a9",
+        "value": "330 Ω",
         "package": "Axial",
         "pinout": "Passive",
         "quantity": 1,
@@ -565,7 +641,9 @@
           "to": "F14",
           "color": "darkgray",
           "description": "Seat the 74HC08 across center divider from row 8 to 14. Pin 1 notch facing row 1.",
-          "spoken_instruction": "Place the 74HC08 IC across the center trough from row 8 to row 14, notch facing upward."
+          "spoken_instruction": "Place the 74HC08 IC across the center trough from row 8 to row 14, notch facing upward.",
+          "description_fr": "Asseyez le 74HC08 lignes 8 à 14, cran vers le haut (rangée 1).",
+          "spoken_instruction_fr": "Placez le CI 74HC08 à cheval sur le sillon, lignes 8 à 14, cran vers le haut."
         },
         {
           "step": 2,
@@ -574,7 +652,9 @@
           "to": "POWER_MINUS_14",
           "color": "black",
           "description": "Connect Pin 7 (row 14 left side) to GND rail.",
-          "spoken_instruction": "Connect Pin 7 in row 14 to the ground rail using a black wire."
+          "spoken_instruction": "Connect Pin 7 in row 14 to the ground rail using a black wire.",
+          "description_fr": "Reliez la broche 7 (ligne 14) au rail GND.",
+          "spoken_instruction_fr": "Reliez la broche 7 en ligne 14 au rail de masse avec un fil noir."
         },
         {
           "step": 3,
@@ -583,7 +663,9 @@
           "to": "POWER_PLUS_8",
           "color": "red",
           "description": "Connect Pin 14 (row 8 right side) to +5V rail.",
-          "spoken_instruction": "Connect Pin 14 in row 8 of the right bank to the 5 volt positive rail."
+          "spoken_instruction": "Connect Pin 14 in row 8 of the right bank to the 5 volt positive rail.",
+          "description_fr": "Reliez la broche 14 (ligne 8, banc droit) au rail +5 V.",
+          "spoken_instruction_fr": "Reliez la broche 14 en ligne 8 du banc droit au rail positif 5 volts."
         },
         {
           "step": 4,
@@ -592,7 +674,9 @@
           "to": "POWER_PLUS_8",
           "color": "blue",
           "description": "Tie Input 1A (Pin 1, row 8) to +5V (Logic 1).",
-          "spoken_instruction": "Set Input A to High by connecting pin 1 in row 8 to the positive rail."
+          "spoken_instruction": "Set Input A to High by connecting pin 1 in row 8 to the positive rail.",
+          "description_fr": "Mettez l’entrée 1A (broche 1, ligne 8) à +5 V (logique 1).",
+          "spoken_instruction_fr": "Mettez l’entrée A au niveau haut en reliant la broche 1 en ligne 8 au rail positif."
         },
         {
           "step": 5,
@@ -601,7 +685,9 @@
           "to": "POWER_PLUS_9",
           "color": "blue",
           "description": "Tie Input 1B (Pin 2, row 9) to +5V (Logic 1).",
-          "spoken_instruction": "Set Input B to High by connecting pin 2 in row 9 to the positive rail."
+          "spoken_instruction": "Set Input B to High by connecting pin 2 in row 9 to the positive rail.",
+          "description_fr": "Mettez l’entrée 1B (broche 2, ligne 9) à +5 V (logique 1).",
+          "spoken_instruction_fr": "Mettez l’entrée B au niveau haut en reliant la broche 2 en ligne 9 au rail positif."
         },
         {
           "step": 6,
@@ -610,7 +696,9 @@
           "to": "B20",
           "color": "yellow",
           "description": "Run output line from Pin 1Y (Pin 3, row 10) to row 20.",
-          "spoken_instruction": "Take the output from pin 3 in row 10 and run it to row 20."
+          "spoken_instruction": "Take the output from pin 3 in row 10 and run it to row 20.",
+          "description_fr": "Tirez la sortie 1Y (broche 3, ligne 10) vers la ligne 20.",
+          "spoken_instruction_fr": "Prenez la sortie sur la broche 3 en ligne 10 et amenez-la à la ligne 20."
         },
         {
           "step": 7,
@@ -620,7 +708,9 @@
           "to": "C21",
           "color": "green",
           "description": "Insert Green LED: anode at row 20, cathode at row 21.",
-          "spoken_instruction": "Insert the green logic LED: anode in row 20, cathode in row 21."
+          "spoken_instruction": "Insert the green logic LED: anode in row 20, cathode in row 21.",
+          "description_fr": "LED verte : anode ligne 20, cathode ligne 21.",
+          "spoken_instruction_fr": "Insérez la LED logique verte : anode en ligne 20, cathode en ligne 21."
         },
         {
           "step": 8,
@@ -629,11 +719,18 @@
           "from": "D21",
           "to": "POWER_MINUS_21",
           "color": "beige",
-          "description": "Ground cathode via 330\u03a9 resistor.",
-          "spoken_instruction": "Complete the gate with a 330 ohm resistor from row 21 to ground. Since both inputs are 1, your AND gate output lights up!"
+          "description": "Ground cathode via 330Ω resistor.",
+          "spoken_instruction": "Complete the gate with a 330 ohm resistor from row 21 to ground. Since both inputs are 1, your AND gate output lights up!",
+          "description_fr": "Massez la cathode via 330 Ω. Les deux entrées à 1 allument la sortie ET.",
+          "spoken_instruction_fr": "Terminez la porte avec une résistance 330 ohms de la ligne 21 à la masse. Les deux entrées étant à 1, votre porte ET s’allume."
         }
       ]
-    }
+    },
+    "title_fr": "Porte ET 74HC08 à deux entrées",
+    "level_title_fr": "Niveau 3 : Logique numérique",
+    "topic_fr": "Portes logiques TTL / CMOS",
+    "difficulty_fr": "Intermédiaire",
+    "summary_fr": "Alimentez une porte ET et observez la sortie à 1 quand les deux entrées sont hautes."
   },
   {
     "id": "logic_02_74ls283_adder",
@@ -664,9 +761,9 @@
         "image_id": "led_red"
       },
       {
-        "name": "Resistor Network (330\u03a9)",
+        "name": "Resistor Network (330Ω)",
         "type": "Resistor",
-        "value": "330 \u03a9",
+        "value": "330 Ω",
         "package": "Axial",
         "pinout": "Passive",
         "quantity": 4,
@@ -700,7 +797,9 @@
           "to": "F12",
           "color": "darkgray",
           "description": "Place the 74LS283 DIP-16 adder across center divider spanning rows 5 to 12.",
-          "spoken_instruction": "Seat the 74LS283 adder across the center trough between rows 5 and 12."
+          "spoken_instruction": "Seat the 74LS283 adder across the center trough between rows 5 and 12.",
+          "description_fr": "Placez le 74LS283 DIP-16 à cheval, lignes 5 à 12.",
+          "spoken_instruction_fr": "Asseyez l’additionneur 74LS283 à cheval sur le sillon entre les lignes 5 et 12."
         },
         {
           "step": 2,
@@ -709,7 +808,9 @@
           "to": "POWER_MINUS_12",
           "color": "black",
           "description": "Connect Pin 8 (GND, row 12 left) to negative rail.",
-          "spoken_instruction": "Tie Pin 8 in row 12 to the ground rail."
+          "spoken_instruction": "Tie Pin 8 in row 12 to the ground rail.",
+          "description_fr": "Reliez la broche 8 (GND, ligne 12) au rail négatif.",
+          "spoken_instruction_fr": "Reliez la broche 8 en ligne 12 au rail de masse."
         },
         {
           "step": 3,
@@ -718,7 +819,9 @@
           "to": "POWER_PLUS_5",
           "color": "red",
           "description": "Connect Pin 16 (VCC, row 5 right) to +5V rail.",
-          "spoken_instruction": "Connect Pin 16 in row 5 on the right side to the positive rail."
+          "spoken_instruction": "Connect Pin 16 in row 5 on the right side to the positive rail.",
+          "description_fr": "Reliez la broche 16 (VCC, ligne 5 droite) au +5 V.",
+          "spoken_instruction_fr": "Reliez la broche 16 en ligne 5 côté droit au rail positif."
         },
         {
           "step": 4,
@@ -727,7 +830,9 @@
           "to": "POWER_MINUS_11",
           "color": "black",
           "description": "Tie Pin 7 (Carry In C0, row 11) to GND for zero initial carry.",
-          "spoken_instruction": "Ground Pin 7 in row 11 to set initial Carry-In to zero."
+          "spoken_instruction": "Ground Pin 7 in row 11 to set initial Carry-In to zero.",
+          "description_fr": "Mettez la retenue d’entrée C0 (broche 7, ligne 11) à GND.",
+          "spoken_instruction_fr": "Mettez à la masse la broche 7 en ligne 11 pour une retenue d’entrée initiale nulle."
         },
         {
           "step": 5,
@@ -736,7 +841,9 @@
           "to": "POWER_PLUS_9",
           "color": "orange",
           "description": "Set A1 (Pin 5, row 9) HIGH (binary 1).",
-          "spoken_instruction": "Set input A1 High by tying pin 5 in row 9 to 5 volts."
+          "spoken_instruction": "Set input A1 High by tying pin 5 in row 9 to 5 volts.",
+          "description_fr": "Mettez A1 (broche 5, ligne 9) à HIGH.",
+          "spoken_instruction_fr": "Mettez l’entrée A1 au niveau haut en reliant la broche 5 en ligne 9 au 5 volts."
         },
         {
           "step": 6,
@@ -745,7 +852,9 @@
           "to": "POWER_PLUS_10",
           "color": "orange",
           "description": "Set B1 (Pin 6, row 10) HIGH (binary 1).",
-          "spoken_instruction": "Set input B1 High by tying pin 6 in row 10 to 5 volts. 1 plus 1 equals binary 10."
+          "spoken_instruction": "Set input B1 High by tying pin 6 in row 10 to 5 volts. 1 plus 1 equals binary 10.",
+          "description_fr": "Mettez B1 (broche 6, ligne 10) à HIGH. 1 + 1 = binaire 10.",
+          "spoken_instruction_fr": "Mettez l’entrée B1 au niveau haut en reliant la broche 6 en ligne 10 au 5 volts. Un plus un donne le binaire dix."
         },
         {
           "step": 7,
@@ -754,7 +863,9 @@
           "to": "B18",
           "color": "yellow",
           "description": "Route Sum S1 (Pin 4, row 8) to LED display row 18.",
-          "spoken_instruction": "Connect Sum bit 1 from pin 4 in row 8 to indicator row 18."
+          "spoken_instruction": "Connect Sum bit 1 from pin 4 in row 8 to indicator row 18.",
+          "description_fr": "Routez la somme S1 (broche 4, ligne 8) vers la ligne 18.",
+          "spoken_instruction_fr": "Reliez le bit de somme 1 depuis la broche 4 en ligne 8 vers la ligne indicateur 18."
         },
         {
           "step": 8,
@@ -763,10 +874,17 @@
           "to": "B22",
           "color": "yellow",
           "description": "Route Sum S2 (Pin 1, row 5) to LED display row 22.",
-          "spoken_instruction": "Connect Sum bit 2 from pin 1 in row 5 to indicator row 22. Sum bit 2 lights up with carry generation!"
+          "spoken_instruction": "Connect Sum bit 2 from pin 1 in row 5 to indicator row 22. Sum bit 2 lights up with carry generation!",
+          "description_fr": "Routez la somme S2 (broche 1, ligne 5) vers la ligne 22 (retenue).",
+          "spoken_instruction_fr": "Reliez le bit de somme 2 depuis la broche 1 en ligne 5 vers la ligne 22. Le bit 2 s’allume avec la génération de retenue."
         }
       ]
-    }
+    },
+    "title_fr": "Additionneur binaire 4 bits 74LS283",
+    "level_title_fr": "Niveau 3 : Logique numérique",
+    "topic_fr": "Circuits arithmétiques",
+    "difficulty_fr": "Avancé",
+    "summary_fr": "Additionnez 1 + 1 et observez la somme et la retenue sur les lignes indicateur."
   },
   {
     "id": "arch_01_cpu_register",
@@ -797,9 +915,9 @@
         "image_id": "led_bargraph"
       },
       {
-        "name": "330\u03a9 SIP Resistor Array",
+        "name": "330Ω SIP Resistor Array",
         "type": "Resistor",
-        "value": "8x 330\u03a9 Isolated",
+        "value": "8x 330Ω Isolated",
         "package": "SIP-9",
         "pinout": "Common bus",
         "quantity": 1,
@@ -833,7 +951,9 @@
           "to": "F13",
           "color": "darkgray",
           "description": "Place the 74LS377 register IC spanning rows 4 to 13 across the center trough.",
-          "spoken_instruction": "Seat the 74LS377 register IC across rows 4 to 13 with the notch facing row 1."
+          "spoken_instruction": "Seat the 74LS377 register IC across rows 4 to 13 with the notch facing row 1.",
+          "description_fr": "Placez le 74LS377 lignes 4 à 13, cran vers la ligne 1.",
+          "spoken_instruction_fr": "Asseyez le CI registre 74LS377 sur les lignes 4 à 13 avec le cran vers la ligne 1."
         },
         {
           "step": 2,
@@ -842,7 +962,9 @@
           "to": "POWER_MINUS_13",
           "color": "black",
           "description": "Connect Pin 10 (GND, row 13 left) to ground rail.",
-          "spoken_instruction": "Ground Pin 10 in row 13."
+          "spoken_instruction": "Ground Pin 10 in row 13.",
+          "description_fr": "Reliez la broche 10 (GND, ligne 13) au rail de masse.",
+          "spoken_instruction_fr": "Mettez à la masse la broche 10 en ligne 13."
         },
         {
           "step": 3,
@@ -851,7 +973,9 @@
           "to": "POWER_PLUS_4",
           "color": "red",
           "description": "Connect Pin 20 (VCC, row 4 right) to +5V rail.",
-          "spoken_instruction": "Connect Pin 20 in row 4 to the positive 5 volt rail."
+          "spoken_instruction": "Connect Pin 20 in row 4 to the positive 5 volt rail.",
+          "description_fr": "Reliez la broche 20 (VCC, ligne 4) au rail +5 V.",
+          "spoken_instruction_fr": "Reliez la broche 20 en ligne 4 au rail positif 5 volts."
         },
         {
           "step": 4,
@@ -860,7 +984,9 @@
           "to": "POWER_MINUS_4",
           "color": "black",
           "description": "Tie Pin 1 (Enable /E, row 4 left) to GND to enable data latching.",
-          "spoken_instruction": "Tie Pin 1 in row 4 to ground to enable register data write."
+          "spoken_instruction": "Tie Pin 1 in row 4 to ground to enable register data write.",
+          "description_fr": "Reliez la broche 1 (Enable /E, ligne 4) à GND pour autoriser l’écriture.",
+          "spoken_instruction_fr": "Reliez la broche 1 en ligne 4 à la masse pour activer l’écriture du registre."
         },
         {
           "step": 5,
@@ -869,7 +995,9 @@
           "to": "POWER_PLUS_13",
           "color": "yellow",
           "description": "Route Clock signal line to Pin 11 (row 13 right).",
-          "spoken_instruction": "Route your master clock signal into Pin 11 in row 13."
+          "spoken_instruction": "Route your master clock signal into Pin 11 in row 13.",
+          "description_fr": "Amenez l’horloge maître sur la broche 11 (ligne 13).",
+          "spoken_instruction_fr": "Routez votre signal d’horloge maître vers la broche 11 en ligne 13."
         },
         {
           "step": 6,
@@ -878,7 +1006,9 @@
           "to": "POWER_PLUS_5",
           "color": "orange",
           "description": "Set Data Bit 0 (Pin 3, row 5 left) to HIGH.",
-          "spoken_instruction": "Set Data input D0 high by tying pin 3 to 5 volts."
+          "spoken_instruction": "Set Data input D0 high by tying pin 3 to 5 volts.",
+          "description_fr": "Mettez la donnée D0 (broche 3, ligne 5) à HIGH.",
+          "spoken_instruction_fr": "Mettez l’entrée de donnée D0 au niveau haut en reliant la broche 3 au 5 volts."
         },
         {
           "step": 7,
@@ -887,9 +1017,16 @@
           "to": "B20",
           "color": "green",
           "description": "Route Output Q0 (Pin 2, row 4 left) to output indicator LED bus.",
-          "spoken_instruction": "Connect Output Q0 to your LED register display bus. On the rising edge of the clock, the bit is latched into CPU memory!"
+          "spoken_instruction": "Connect Output Q0 to your LED register display bus. On the rising edge of the clock, the bit is latched into CPU memory!",
+          "description_fr": "Routez la sortie Q0 vers le bus LED. Sur le front montant, le bit est mémorisé.",
+          "spoken_instruction_fr": "Reliez la sortie Q0 à votre bus d’affichage LED du registre. Sur le front montant de l’horloge, le bit est verrouillé."
         }
       ]
-    }
+    },
+    "title_fr": "Registre CPU 8 bits avec 74LS377",
+    "level_title_fr": "Niveau 4 : Architecture et MCU",
+    "topic_fr": "Registres CPU et mémoire",
+    "difficulty_fr": "Avancé",
+    "summary_fr": "Latcher un bit sur un registre à bascules D commandé par horloge."
   }
 ]

@@ -4,6 +4,8 @@
  * and provides speech synthesis & Socratic feedback in standalone mode.
  */
 
+import { speakFrench, stopSpeaking } from "../../shared/stem_voice_helper.js";
+
 export class GandhoLabVoiceAssistant {
   constructor(container, getLabContextFn) {
     this.container = container;
@@ -39,8 +41,12 @@ export class GandhoLabVoiceAssistant {
       if (typeof window.updateActiveViewState === "function") {
         window.updateActiveViewState();
       }
-      window.toggleMicRaiseHand(e);
-      this.btn.classList.toggle("active");
+      const alreadyOn = !!(window.isConversationSessionActive || window._lkVoiceConnected);
+      if (!alreadyOn) {
+        window.toggleMicRaiseHand(e, true);
+      }
+      this.btn.classList.add("active");
+      this.isActive = true;
       return;
     }
 
@@ -104,13 +110,11 @@ export class GandhoLabVoiceAssistant {
   }
 
   speak(text) {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.05;
-      window.speechSynthesis.speak(utterance);
-    }
+    speakFrench(text, { rate: 1.0, pitch: 1.05 });
+  }
+
+  stopSpeak() {
+    stopSpeaking();
   }
 
   generateSocraticHint(ctx) {

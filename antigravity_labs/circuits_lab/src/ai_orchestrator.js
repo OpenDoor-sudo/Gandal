@@ -3,6 +3,8 @@
  * Fast local-first step navigation (<10ms) backed by Cloud Gemini for deep debugging.
  */
 
+import { speakFrench, stopSpeaking, createFrSpeechRecognition } from "../../shared/stem_voice_helper.js";
+
 export class AIOrchestrator {
   constructor(workflowController, options = {}) {
     this.controller = workflowController;
@@ -16,43 +18,66 @@ export class AIOrchestrator {
   }
 
   _setupSpeechRecognition() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
+    this.recognition = createFrSpeechRecognition({
+      onStart: () => {
+        this.isListening = true;
+        if (this.onListeningChange) this.onListeningChange(true);
+      },
+      onEnd: () => {
+        this.isListening = false;
+        if (this.onListeningChange) this.onListeningChange(false);
+      },
+      onError: (event) => {
+        console.warn("[AI ORCHESTRATOR] Speech error:", event?.error);
+        this.isListening = false;
+        if (this.onListeningChange) this.onListeningChange(false);
+      },
+      onResult: async (transcript) => {
+        console.log("[AI ORCHESTRATOR] Voice command received:", transcript);
+        await this.processUserIntent(transcript);
+      }
+    });
+
+    if (!this.recognition) {
       console.warn("[AI ORCHESTRATOR] SpeechRecognition API not supported in this browser. Voice fallback active.");
-      return;
     }
-
-    this.recognition = new SpeechRecognition();
-    this.recognition.continuous = false;
-    this.recognition.interimResults = false;
-    this.recognition.lang = "en-US";
-
-    this.recognition.onstart = () => {
-      this.isListening = true;
-      if (this.onListeningChange) this.onListeningChange(true);
-    };
-
-    this.recognition.onend = () => {
-      this.isListening = false;
-      if (this.onListeningChange) this.onListeningChange(false);
-    };
-
-    this.recognition.onerror = (event) => {
-      console.warn("[AI ORCHESTRATOR] Speech error:", event.error);
-      this.isListening = false;
-      if (this.onListeningChange) this.onListeningChange(false);
-    };
-
-    this.recognition.onresult = async (event) => {
-      const transcript = event.results[0][0].transcript;
-      console.log("[AI ORCHESTRATOR] Voice command received:", transcript);
-      await this.processUserIntent(transcript);
-    };
   }
 
   toggleListening() {
+    // Inside the main platform every Gandho button controls the same LiveKit
+    // call. Do not start a second Web Speech microphone (unsupported in
+    // Firefox and able to compete with LiveKit in Chromium).
+    if (typeof window.toggleMicRaiseHand === "function") {
+      const circuitState = this.controller.getCurrentState();
+      window.currentSocraticLabContext = {
+        experiment_id: "circuits_lab",
+        title: circuitState.problemTitle || "Atelier Circuits",
+        problem_id: circuitState.problemId,
+        mode: circuitState.mode,
+        current_step: circuitState.step,
+        total_steps: circuitState.totalSteps,
+        instruction: circuitState.spokenInstruction || circuitState.stepDescription,
+        expected_component: circuitState.expectedComponent,
+        expected_pins: circuitState.expectedPins,
+        satisfied: circuitState.satisfied,
+        complete: circuitState.isComplete,
+      };
+      if (typeof window.updateActiveViewState === "function") {
+        window.updateActiveViewState();
+      }
+      const alreadyOn = Boolean(
+        window.isConversationSessionActive || window._lkVoiceConnected
+      );
+      if (!alreadyOn) window.toggleMicRaiseHand(null, true);
+      this.isListening = true;
+      if (this.onListeningChange) this.onListeningChange(true);
+      return;
+    }
+
     if (!this.recognition) {
-      const promptText = window.prompt("Speech mic not available. Enter a circuit question or voice command (e.g. 'next', 'why is this 1k resistor here?'):");
+      const promptText = window.prompt(
+        "Micro indisponible. Entrez une question ou une commande (ex. « suivant », « pourquoi cette résistance 1k ? ») :"
+      );
       if (promptText) this.processUserIntent(promptText);
       return;
     }
@@ -66,6 +91,17 @@ export class AIOrchestrator {
         console.warn("[AI ORCHESTRATOR] Mic start warning:", err);
       }
     }
+  }
+
+  stopListening() {
+    stopSpeaking();
+    if (this.recognition && this.isListening) {
+      try {
+        this.recognition.stop();
+      } catch (_) {}
+    }
+    this.isListening = false;
+    if (this.onListeningChange) this.onListeningChange(false);
   }
 
   async processUserIntent(userInput) {
@@ -87,10 +123,16 @@ export class AIOrchestrator {
       problemTitle: circuitState.problemTitle,
       mode: circuitState.mode,
       currentStep: circuitState.step,
-      totalSteps: circuitState.totalSteps
+      totalSteps: circuitState.totalSteps,
+      stepDescription: circuitState.stepDescription,
+      spokenInstruction: circuitState.spokenInstruction,
+      expectedPins: circuitState.expectedPins,
+      expectedComponent: circuitState.expectedComponent,
+      satisfied: circuitState.satisfied,
+      isComplete: circuitState.isComplete
     };
 
-    this._speakFeedback("Thinking... Checking schematic specifications.");
+    this._speakFeedback("Un instant… je vérifie le schéma.");
 
     try {
       const res = await fetch("/api/circuits/ask", {
@@ -101,10 +143,9 @@ export class AIOrchestrator {
 
       if (res.ok) {
         const data = await res.json();
-        const answer = data.answer || "Check your connections according to the schematic.";
+        const answer = data.answer || "Vérifiez vos connexions d’après le schéma.";
         this._speakFeedback(answer);
       } else {
-        // Fallback local Socratic explanation
         this._handleLocalFallbackExplanation(cleanText, circuitState);
       }
     } catch (err) {
@@ -114,22 +155,58 @@ export class AIOrchestrator {
   }
 
   _matchLocalCommand(text) {
-    if (text.includes("next") || text.includes("forward") || text.includes("done") || text.includes("continue") || text.includes("what's next")) {
+    if (
+      text.includes("next") ||
+      text.includes("forward") ||
+      text.includes("done") ||
+      text.includes("continue") ||
+      text.includes("suivant") ||
+      text.includes("continuez") ||
+      text.includes("continuer") ||
+      text.includes("étape suivante")
+    ) {
       return "NEXT";
     }
-    if (text.includes("back") || text.includes("previous") || text.includes("last")) {
+    if (
+      text.includes("back") ||
+      text.includes("previous") ||
+      text.includes("last") ||
+      text.includes("précédent") ||
+      text.includes("precedent") ||
+      text.includes("retour")
+    ) {
       return "PREV";
     }
-    if (text.includes("repeat") || text.includes("again") || text.includes("show that again")) {
+    if (
+      text.includes("repeat") ||
+      text.includes("again") ||
+      text.includes("répète") ||
+      text.includes("repete") ||
+      text.includes("encore")
+    ) {
       return "REPEAT";
     }
-    if (text.includes("physical") || text.includes("desk") || text.includes("real")) {
+    if (
+      text.includes("physical") ||
+      text.includes("desk") ||
+      text.includes("real") ||
+      text.includes("physique") ||
+      text.includes("réel") ||
+      text.includes("reel") ||
+      text.includes("montage")
+    ) {
       return "MODE_PHYSICAL";
     }
-    if (text.includes("virtual") || text.includes("preview")) {
+    if (text.includes("virtual") || text.includes("preview") || text.includes("virtuel") || text.includes("aperçu") || text.includes("apercu")) {
       return "MODE_VIRTUAL";
     }
-    if (text.includes("reset") || text.includes("restart") || text.includes("start over")) {
+    if (
+      text.includes("reset") ||
+      text.includes("restart") ||
+      text.includes("start over") ||
+      text.includes("recommencer") ||
+      text.includes("remettre")
+    ) {
       return "RESET";
     }
     return null;
@@ -159,16 +236,28 @@ export class AIOrchestrator {
   }
 
   _handleLocalFallbackExplanation(text, circuitState) {
-    let explanation = "Verify that power and ground rails are properly aligned before continuing.";
+    let explanation =
+      "Vérifiez d’abord l’alignement des rails VCC et masse avant de continuer.";
 
-    if (text.includes("why") || text.includes("resistor")) {
-      explanation = "Current-limiting resistors protect semiconductor diodes and transistors from thermal runaway and high current surges.";
-    } else if (text.includes("pin") || text.includes("pinout")) {
-      explanation = "Refer to the Parts Bin on the right panel for the exact pinout orientations of active ICs and diodes.";
-    } else if (text.includes("hot") || text.includes("burn") || text.includes("smoke")) {
-      explanation = "Disconnect your 5V power supply immediately! Check for short circuits between the VCC and Ground rails.";
-    } else if (text.includes("led") || text.includes("light")) {
-      explanation = "LEDs are polarized: the longer lead is the anode connecting to positive, and the flat edge is the cathode.";
+    if (circuitState?.spokenInstruction) {
+      explanation = `Pour cette étape : ${circuitState.spokenInstruction}`;
+      if (circuitState.expectedPins?.length) {
+        explanation += ` Ciblez les trous ${circuitState.expectedPins.join(" et ")}.`;
+      }
+    }
+
+    if (text.includes("why") || text.includes("pourquoi") || text.includes("resistor") || text.includes("résistance") || text.includes("resistance")) {
+      explanation =
+        "Les résistances de limitation protègent les diodes et transistors contre les surintensités et l’emballement thermique.";
+    } else if (text.includes("pin") || text.includes("pinout") || text.includes("broche")) {
+      explanation =
+        "Consultez la nomenclature à droite pour l’orientation exacte des broches des CI et diodes.";
+    } else if (text.includes("hot") || text.includes("burn") || text.includes("smoke") || text.includes("chaud") || text.includes("fumée") || text.includes("fumee")) {
+      explanation =
+        "Coupez immédiatement l’alimentation 5 V ! Cherchez un court-circuit entre VCC et la masse.";
+    } else if (text.includes("led") || text.includes("light") || text.includes("diode") || text.includes("lumière") || text.includes("lumiere")) {
+      explanation =
+        "Les LED sont polarisées : la patte longue est l’anode (positif), le méplat marque la cathode.";
     }
 
     this._speakFeedback(explanation);
@@ -178,14 +267,6 @@ export class AIOrchestrator {
     if (this.onSpokenFeedback) {
       this.onSpokenFeedback(text);
     }
-
-    // Web Speech Synthesis (offline in browser)
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
-      window.speechSynthesis.speak(utterance);
-    }
+    speakFrench(text, { rate: 1.05 });
   }
 }
