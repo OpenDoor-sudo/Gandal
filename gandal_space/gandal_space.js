@@ -345,6 +345,385 @@ function keepDarkGraphAxisTicks(board) {
 
 const GANDAL_WB_GRAPH_ID = "gandal_wb_graph";
 
+function cloneQuizItem(q) {
+  return {
+    question: q.question || "",
+    options: Array.isArray(q.options) ? q.options.slice() : [],
+    answerIndex: typeof q.answerIndex === "number" ? q.answerIndex
+      : (typeof q.answer_index === "number" ? q.answer_index : 0),
+    explanation: q.explanation || "",
+    answered: false
+  };
+}
+
+const PRACTICE_QUIZ_BANKS = {
+  circle: [
+    {
+      question: "If a circle has a radius of $r = 5\\text{ cm}$, what is its area?",
+      options: ["$25\\pi\\text{ cm}^2 \\approx 78.54\\text{ cm}^2$", "$10\\pi\\text{ cm}^2 \\approx 31.42\\text{ cm}^2$", "$50\\pi\\text{ cm}^2 \\approx 157.08\\text{ cm}^2$", "$5\\pi\\text{ cm}^2 \\approx 15.71\\text{ cm}^2$"],
+      answerIndex: 0,
+      explanation: "Area is $A = \\pi r^2 = 25\\pi$. $10\\pi$ is the circumference $2\\pi r$."
+    },
+    {
+      question: "If $r = 4$, what is the diameter $d$?",
+      options: ["$8$", "$4$", "$2$", "$16$"],
+      answerIndex: 0,
+      explanation: "Diameter is twice the radius: $d = 2r = 8$."
+    },
+    {
+      question: "A circle has $r = 3$. What is its circumference $C$?",
+      options: ["$6\\pi$", "$9\\pi$", "$3\\pi$", "$12\\pi$"],
+      answerIndex: 0,
+      explanation: "$C = 2\\pi r = 6\\pi$."
+    },
+    {
+      question: "If you double the radius, what happens to the circumference?",
+      options: ["It doubles", "It quadruples", "It stays the same", "It is halved"],
+      answerIndex: 0,
+      explanation: "$C = 2\\pi r$ is linear in $r$, so doubling $r$ doubles $C$. Area $A = \\pi r^2$ would quadruple."
+    },
+    {
+      question: "The equation $x^2 + y^2 = 9$ describes a circle of radius…",
+      options: ["$3$", "$9$", "$81$", "$\\sqrt{3}$"],
+      answerIndex: 0,
+      explanation: "$x^2 + y^2 = r^2$ with $r^2 = 9$ so $r = 3$."
+    }
+  ],
+  triangle: [
+    {
+      question: "If a triangle has two angles measuring $55^\\circ$ and $65^\\circ$, what is the third angle?",
+      options: ["$60^\\circ$", "$50^\\circ$", "$70^\\circ$", "$80^\\circ$"],
+      answerIndex: 0,
+      explanation: "$180^\\circ - (55^\\circ + 65^\\circ) = 60^\\circ$."
+    },
+    {
+      question: "The sum of interior angles in any Euclidean triangle is…",
+      options: ["$180^\\circ$", "$90^\\circ$", "$360^\\circ$", "$270^\\circ$"],
+      answerIndex: 0,
+      explanation: "The angle sum theorem: $\\angle A + \\angle B + \\angle C = 180^\\circ$."
+    },
+    {
+      question: "An equilateral triangle has all angles equal to…",
+      options: ["$60^\\circ$", "$45^\\circ$", "$90^\\circ$", "$120^\\circ$"],
+      answerIndex: 0,
+      explanation: "$180^\\circ / 3 = 60^\\circ$."
+    },
+    {
+      question: "Can sides $3$, $4$, and $10$ form a triangle?",
+      options: ["No — $3+4 < 10$", "Yes", "Only if it is right-angled", "Only if it is isosceles"],
+      answerIndex: 0,
+      explanation: "Triangle inequality: $a+b>c$. Here $3+4=7<10$."
+    },
+    {
+      question: "A triangle has base $6$ and height $4$. What is its area?",
+      options: ["$12$", "$24$", "$10$", "$8$"],
+      answerIndex: 0,
+      explanation: "$\\text{Area} = \\tfrac{1}{2}bh = \\tfrac{1}{2}\\cdot 6\\cdot 4 = 12$."
+    }
+  ],
+  pythagoras: [
+    {
+      question: "A right triangle has legs $a=6$ and $b=8$. What is hypotenuse $c$?",
+      options: ["$10$", "$14$", "$12$", "$48$"],
+      answerIndex: 0,
+      explanation: "$c=\\sqrt{6^2+8^2}=\\sqrt{100}=10$."
+    },
+    {
+      question: "In a $3$-$4$-$5$ triangle, $3^2+4^2$ equals…",
+      options: ["$5^2 = 25$", "$7$", "$12$", "$9$"],
+      answerIndex: 0,
+      explanation: "$9+16=25=5^2$."
+    },
+    {
+      question: "The hypotenuse is always…",
+      options: ["Opposite the right angle, and longest", "A leg of the right angle", "Equal to $a+b$", "Shorter than each leg"],
+      answerIndex: 0,
+      explanation: "Side $c$ opposite $90^\\circ$ is strictly the longest."
+    },
+    {
+      question: "A right triangle has $a=5$, $c=13$. What is $b$?",
+      options: ["$12$", "$8$", "$18$", "$\\sqrt{13}$"],
+      answerIndex: 0,
+      explanation: "$b=\\sqrt{c^2-a^2}=\\sqrt{169-25}=12$."
+    },
+    {
+      question: "If $a^2+b^2=c^2$ with $a=b=1$, then $c$ is…",
+      options: ["$\\sqrt{2}$", "$2$", "$1$", "$0$"],
+      answerIndex: 0,
+      explanation: "$c=\\sqrt{1+1}=\\sqrt{2}$."
+    }
+  ],
+  ellipse: [
+    {
+      question: "The standard ellipse equation $\\frac{x^2}{a^2}+\\frac{y^2}{b^2}=1$ has semi-axes…",
+      options: ["$a$ and $b$", "$a+b$ and $a-b$", "Only $r$", "$\\pi a b$"],
+      answerIndex: 0,
+      explanation: "$a$ and $b$ are the semi-major / semi-minor axes."
+    },
+    {
+      question: "If $a=b$ on an ellipse, the figure is…",
+      options: ["A circle", "A parabola", "A hyperbola", "A rectangle"],
+      answerIndex: 0,
+      explanation: "Equal semi-axes recover $x^2+y^2=a^2$."
+    },
+    {
+      question: "Linear eccentricity of an ellipse is $c=\\sqrt{|a^2-b^2|}$. The foci lie…",
+      options: ["On the major axis, at $(\\pm c,0)$ if $a>b$", "At the origin only", "Outside $x=\\pm a$ always", "On the directrix"],
+      answerIndex: 0,
+      explanation: "Foci are inside the ellipse along the longer axis."
+    },
+    {
+      question: "Area of an ellipse is…",
+      options: ["$\\pi a b$", "$2\\pi a$", "$\\pi a^2$", "$ab$"],
+      answerIndex: 0,
+      explanation: "The circle area $\\pi r^2$ generalizes to $\\pi a b$."
+    },
+    {
+      question: "For $a=5$, $b=4$, $c=\\sqrt{a^2-b^2}$ equals…",
+      options: ["$3$", "$1$", "$\\sqrt{41}$", "$9$"],
+      answerIndex: 0,
+      explanation: "$\\sqrt{25-16}=\\sqrt{9}=3$."
+    }
+  ],
+  rectangle: [
+    {
+      question: "A rectangle has length $\\ell=5$ and width $w=3$. What is its area?",
+      options: ["$15$", "$16$", "$8$", "$30$"],
+      answerIndex: 0,
+      explanation: "Area $= \\ell w = 15$."
+    },
+    {
+      question: "Perimeter of a rectangle is…",
+      options: ["$2(\\ell+w)$", "$\\ell w$", "$\\ell+w$", "$4\\ell$"],
+      answerIndex: 0,
+      explanation: "Two lengths and two widths."
+    },
+    {
+      question: "The diagonals of a rectangle are…",
+      options: ["Equal", "Perpendicular but unequal", "Parallel", "Never equal unless it is a square"],
+      answerIndex: 0,
+      explanation: "Both diagonals equal $\\sqrt{\\ell^2+w^2}$."
+    },
+    {
+      question: "If $\\ell=w$, the rectangle is a…",
+      options: ["Square", "Rhombus that is not a square", "Circle", "Trapezoid"],
+      answerIndex: 0,
+      explanation: "Equal sides and right angles make a square."
+    },
+    {
+      question: "A $6\\times 8$ rectangle has diagonal…",
+      options: ["$10$", "$14$", "$48$", "$7$"],
+      answerIndex: 0,
+      explanation: "$\\sqrt{36+64}=10$."
+    }
+  ],
+  square: [
+    {
+      question: "A square of side $s=4$ has area…",
+      options: ["$16$", "$8$", "$12$", "$4$"],
+      answerIndex: 0,
+      explanation: "Area $= s^2 = 16$."
+    },
+    {
+      question: "Perimeter of a square is…",
+      options: ["$4s$", "$s^2$", "$2s$", "$s\\sqrt{2}$"],
+      answerIndex: 0,
+      explanation: "Four equal sides."
+    },
+    {
+      question: "Diagonal of a square of side $s$ is…",
+      options: ["$s\\sqrt{2}$", "$2s$", "$s/2$", "$s^2$"],
+      answerIndex: 0,
+      explanation: "Pythagoras: $\\sqrt{s^2+s^2}=s\\sqrt{2}$."
+    },
+    {
+      question: "Every square is a rectangle. Is every rectangle a square?",
+      options: ["No", "Yes", "Only if $\\ell=2w$", "Only in 3D"],
+      answerIndex: 0,
+      explanation: "A square is the special rectangle with $\\ell=w$."
+    },
+    {
+      question: "If you double the side of a square, area…",
+      options: ["Quadruples", "Doubles", "Stays the same", "Is multiplied by $2\\sqrt{2}$"],
+      answerIndex: 0,
+      explanation: "$(2s)^2 = 4s^2$."
+    }
+  ],
+  polygon: [
+    {
+      question: "A regular hexagon has how many sides?",
+      options: ["$6$", "$5$", "$8$", "$4$"],
+      answerIndex: 0,
+      explanation: "Hexa- means six."
+    },
+    {
+      question: "Interior angle sum of a convex $n$-gon is…",
+      options: ["$(n-2)180^\\circ$", "$n\\cdot 180^\\circ$", "$360^\\circ$", "$n\\cdot 90^\\circ$"],
+      answerIndex: 0,
+      explanation: "Split into $n-2$ triangles."
+    },
+    {
+      question: "Each interior angle of a regular pentagon is…",
+      options: ["$108^\\circ$", "$90^\\circ$", "$120^\\circ$", "$72^\\circ$"],
+      answerIndex: 0,
+      explanation: "$(5-2)180^\\circ/5 = 108^\\circ$."
+    },
+    {
+      question: "A regular polygon with $n=4$ is a…",
+      options: ["Square", "Equilateral triangle", "Hexagon", "Circle"],
+      answerIndex: 0,
+      explanation: "Four equal sides and equal angles."
+    },
+    {
+      question: "Circumradius $R$ of a regular $n$-gon with side $s$ is…",
+      options: ["$R = s / (2\\sin(\\pi/n))$", "$R = ns$", "$R = s/n$", "$R = 2s$"],
+      answerIndex: 0,
+      explanation: "Central angle $2\\pi/n$ bisects each side."
+    }
+  ],
+  default: [
+    {
+      question: "What is a good next step when you see a geometric figure?",
+      options: ["Name the given lengths and what you must find", "Ignore the labels", "Assume every angle is $90^\\circ$", "Multiply all sides"],
+      answerIndex: 0,
+      explanation: "Socratic geometry starts from the given data."
+    },
+    {
+      question: "If a formula has $\\pi$, the figure is most likely related to…",
+      options: ["A circle or ellipse", "A square only", "A triangle only", "A line"],
+      answerIndex: 0,
+      explanation: "$\\pi$ appears in round-figure perimeter and area."
+    },
+    {
+      question: "Changing one side of a triangle can change…",
+      options: ["Angles and the other sides' roles via constraints", "Nothing else", "Only the color", "$\\pi$"],
+      answerIndex: 0,
+      explanation: "Sides and angles are coupled."
+    },
+    {
+      question: "A variable slider should…",
+      options: ["Update the drawn figure", "Be a dead label", "Only change the title", "Reset the topic"],
+      answerIndex: 0,
+      explanation: "Controls exist to experiment with the model."
+    },
+    {
+      question: "The Cartesian plane origin is the point…",
+      options: ["$(0,0)$", "$(1,1)$", "$(0,1)$", "$(1,0)$"],
+      answerIndex: 0,
+      explanation: "Axes meet at the origin."
+    }
+  ]
+};
+
+function inferQuizBankKey(topic, modelType) {
+  const t = `${topic || ""} ${modelType || ""}`.toLowerCase();
+  if (/ellips/.test(t)) return "ellipse";
+  if (/rectangl/.test(t)) return "rectangle";
+  if (/\bsquare\b|carr[eé]/.test(t)) return "square";
+  if (/polygon|hexagon|pentagon|octagon|n-gon/.test(t)) return "polygon";
+  if (/pythagor|hypotenuse|right[\s-]?triangle|triangle rectangle/.test(t)) return "pythagoras";
+  if (/triangle/.test(t)) return "triangle";
+  if (/circle|cercle|radius|circumfer/.test(t)) return "circle";
+  if (/alphabet|letter|phonic/.test(t)) return "alphabet";
+  return "default";
+}
+
+function inferGeometryModelType(comp, topic) {
+  const t = `${topic || ""} ${(comp && comp.model_type) || ""} ${(comp && comp.formula) || ""} ${(comp && comp.title) || ""}`.toLowerCase();
+  if (/ellips/.test(t)) return "geometry_ellipse";
+  if (/rectangl/.test(t)) return "geometry_rectangle";
+  if (/\bsquare\b|carr[eé]/.test(t)) return "geometry_square";
+  if (/polygon|hexagon|pentagon|octagon|n-gon/.test(t)) return "geometry_polygon";
+  if (/pythagor|hypotenuse|right[\s-]?triangle|triangle rectangle/.test(t)) return "geometry_pythagoras";
+  if (/triangle/.test(t)) return "geometry_triangle";
+  if (/circle|cercle|radius|circumfer/.test(t)) return "geometry_circle";
+  if (comp && typeof comp.model_type === "string" && comp.model_type.indexOf("geometry_") === 0) {
+    return comp.model_type;
+  }
+  return (comp && comp.model_type) || null;
+}
+
+function inferGeometryVarSpecs(modelType, values) {
+  const v = values || {};
+  if (modelType === "geometry_circle") {
+    return [
+      { key: "r", label: "r", min: 0.5, max: 8, step: 0.1, value: v.r ?? 3 },
+      { key: "d", label: "d", min: 1, max: 16, step: 0.1, value: v.d ?? 6 },
+      { key: "pi", label: "π", min: 3.0, max: 3.2, step: 0.01, value: v.pi ?? 3.14 },
+      { key: "c", label: "C", min: 3, max: 50, step: 0.1, value: v.c ?? 18.84 }
+    ];
+  }
+  if (modelType === "geometry_triangle") {
+    return [
+      { key: "a", label: "a", min: 0.8, max: 8, step: 0.1, value: v.a ?? 4.19 },
+      { key: "b", label: "b", min: 0.8, max: 8, step: 0.1, value: v.b ?? 3.67 },
+      { key: "c", label: "c", min: 0.8, max: 8, step: 0.1, value: v.c ?? 4.5 }
+    ];
+  }
+  if (modelType === "geometry_pythagoras") {
+    return [
+      { key: "a", label: "a", min: 1, max: 7, step: 0.1, value: v.a ?? 4 },
+      { key: "b", label: "b", min: 1, max: 7, step: 0.1, value: v.b ?? 3 },
+      { key: "c", label: "c", min: 1, max: 10, step: 0.1, value: v.c ?? 5, readonly: true }
+    ];
+  }
+  if (modelType === "geometry_ellipse") {
+    return [
+      { key: "a", label: "a", min: 0.5, max: 6, step: 0.1, value: v.a ?? 4 },
+      { key: "b", label: "b", min: 0.5, max: 6, step: 0.1, value: v.b ?? 2 },
+      { key: "f", label: "c (foci)", min: 0, max: 6, step: 0.1, value: v.f ?? 3.46, readonly: true }
+    ];
+  }
+  if (modelType === "geometry_rectangle") {
+    return [
+      { key: "l", label: "ℓ", min: 0.5, max: 8, step: 0.1, value: v.l ?? 5 },
+      { key: "w", label: "w", min: 0.5, max: 8, step: 0.1, value: v.w ?? 3 }
+    ];
+  }
+  if (modelType === "geometry_square") {
+    return [
+      { key: "s", label: "s", min: 0.5, max: 8, step: 0.1, value: v.s ?? 3 }
+    ];
+  }
+  if (modelType === "geometry_polygon") {
+    return [
+      { key: "n", label: "n", min: 3, max: 12, step: 1, value: v.n ?? 6 },
+      { key: "s", label: "s", min: 0.5, max: 5, step: 0.1, value: v.s ?? 2 }
+    ];
+  }
+  return [];
+}
+
+function formatGeomVarValue(key, value) {
+  if (key === "n") return String(Math.round(value));
+  if (key === "pi") return Number(value).toFixed(2);
+  return Number(value).toFixed(2);
+}
+
+function clampTriangleSides(a, b, c) {
+  const min = 0.8;
+  a = Math.max(min, a);
+  b = Math.max(min, b);
+  c = Math.max(min, c);
+  if (a + b <= c) c = a + b - 0.12;
+  if (a + c <= b) b = a + c - 0.12;
+  if (b + c <= a) a = b + c - 0.12;
+  return { a, b, c };
+}
+
+function sssTrianglePoints(a, b, c) {
+  const sides = clampTriangleSides(a, b, c);
+  a = sides.a; b = sides.b; c = sides.c;
+  const cosA = Math.max(-1, Math.min(1, (b * b + c * c - a * a) / (2 * b * c)));
+  const sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
+  return {
+    a, b, c,
+    A: [0, 0],
+    B: [c, 0],
+    C: [b * cosA, b * sinA]
+  };
+}
+
 class GandalSpaceClient {
   constructor(containerId = "gandalSpaceMountPoint") {
     this.containerId = containerId;
@@ -366,6 +745,8 @@ class GandalSpaceClient {
     this.quizCards = {};
     this._wbFlipAnim = null;
     this._wbQuizCardId = null;
+    this._wbQuizSet = [];
+    this._wbQuizIndex = 0;
   }
 
   init() {
@@ -1279,6 +1660,8 @@ class GandalSpaceClient {
   clearWhiteboard() {
     this.freeWhiteboardGraph();
     this._wbQuizCardId = null;
+    this._wbQuizSet = [];
+    this._wbQuizIndex = 0;
     this.collapseWhiteboard();
     const wbText = document.getElementById("gandalWhiteboardText");
     const wbStatus = document.getElementById("gandalWhiteboardStatus");
@@ -1363,13 +1746,25 @@ class GandalSpaceClient {
   socraticGraphPrompt(comp, topic) {
     const model = (comp && comp.model_type) || "";
     if (model === "geometry_circle") {
-      return "Voici le cercle $x^2 + y^2 = r^2$. (Il peut paraître elliptique si le cadre n'est pas carré.) Si tu déplaces $P$, comment $r$ change-t-il l'aire $A = \\pi r^2$ ?";
+      return "Voici le cercle $x^2 + y^2 = r^2$. Change $r$, $d$, $\\pi$ ou $C$ — le dessin doit suivre. Comment $C = 2\\pi r$ réagit-il ?";
     }
     if (model === "geometry_pythagoras") {
-      return "Regarde $a^2 = 16$ et $b^2 = 9$. Que dois-tu lire pour $c^2$, et pourquoi $a^2 + b^2 = c^2$ ?";
+      return "Règle les jambes $a$ et $b$. Que devient $c = \\sqrt{a^2+b^2}$, et les carrés sur les côtés ?";
     }
     if (model === "geometry_triangle") {
-      return "Déplace un sommet. Que se passe-t-il pour $\\alpha + \\beta + \\gamma$ ? Pourquoi la somme reste-t-elle $180^\\circ$ ?";
+      return "Les curseurs $a$, $b$, $c$ sont les côtés. Que se passe-t-il pour les angles si tu allonges un côté ?";
+    }
+    if (model === "geometry_ellipse") {
+      return "Varie les semi-axes $a$ et $b$. Où vont les foyers $c = \\sqrt{|a^2-b^2|}$ ? Quand $a=b$, que vois-tu ?";
+    }
+    if (model === "geometry_rectangle") {
+      return "Change la longueur $\\ell$ et la largeur $w$. Quand $\\ell=w$, quelle figure obtiens-tu ?";
+    }
+    if (model === "geometry_square") {
+      return "Le seul paramètre est le côté $s$. Que font l'aire $s^2$ et la diagonale $s\\sqrt{2}$ ?";
+    }
+    if (model === "geometry_polygon") {
+      return "Un polygone régulier : nombre de côtés $n$ et longueur $s$. Que devient l'angle central $2\\pi/n$ ?";
     }
     if (model.startsWith("physics_")) {
       return `Observe ce modèle de **${topic}**. Que change un déplacement le long de la courbe — et que cela te dit-il physiquement ?`;
@@ -1378,6 +1773,74 @@ class GandalSpaceClient {
       return `Lis ce graphe de **${topic}**. Quel point ou quelle région est le plus important, et pourquoi ?`;
     }
     return `Voici le graphe de **${topic}**. Choisis un point, dis ce qu'il représente, puis formule une question de suivi.`;
+  }
+
+  geometryCompForTopic(comp, topic) {
+    const inferred = inferGeometryModelType(comp, topic);
+    const base = (comp && typeof comp === "object") ? Object.assign({}, comp) : {};
+    if (inferred) base.model_type = inferred;
+    if (!base.domain) {
+      if (inferred === "geometry_pythagoras") { base.domain = [-5, 9]; base.range = [-6, 9]; }
+      else if (inferred === "geometry_ellipse") { base.domain = [-6, 6]; base.range = [-4, 4]; }
+      else if (inferred === "geometry_polygon") { base.domain = [-5, 5]; base.range = [-5, 5]; }
+      else { base.domain = [-5, 5]; base.range = [-5, 5]; }
+    }
+    return base;
+  }
+
+  bindGeometryControls(cardId, modelType, values, onUserChange) {
+    const host = document.getElementById(`${cardId}_vars`);
+    const specs = inferGeometryVarSpecs(modelType, values);
+    if (!host || !specs.length) {
+      if (host) {
+        host.innerHTML = "";
+        host.style.display = "none";
+      }
+      return { lock: false, values, sync() {} };
+    }
+    host.style.display = "";
+    host.innerHTML = specs.map((s) => {
+      const val = formatGeomVarValue(s.key, values[s.key] ?? s.value);
+      if (s.readonly) {
+        return `<div class="gandal-wb-geom-var">
+          <div class="gandal-wb-geom-var-top"><span>${s.label}</span><span id="${cardId}_var_${s.key}_out">${val}</span></div>
+        </div>`;
+      }
+      return `<div class="gandal-wb-geom-var">
+        <div class="gandal-wb-geom-var-top"><label for="${cardId}_var_${s.key}">${s.label}</label><span id="${cardId}_var_${s.key}_out">${val}</span></div>
+        <input type="range" id="${cardId}_var_${s.key}" min="${s.min}" max="${s.max}" step="${s.step}" value="${values[s.key] ?? s.value}" />
+      </div>`;
+    }).join("");
+    const api = {
+      lock: false,
+      values,
+      sync() {
+        specs.forEach((s) => {
+          const input = document.getElementById(`${cardId}_var_${s.key}`);
+          const out = document.getElementById(`${cardId}_var_${s.key}_out`);
+          const shown = formatGeomVarValue(s.key, values[s.key]);
+          if (input && !s.readonly && document.activeElement !== input) {
+            input.value = String(values[s.key]);
+          } else if (input && !s.readonly) {
+            input.value = String(values[s.key]);
+          }
+          if (out) out.textContent = shown;
+        });
+      }
+    };
+    specs.forEach((s) => {
+      if (s.readonly) return;
+      const input = document.getElementById(`${cardId}_var_${s.key}`);
+      if (!input) return;
+      input.addEventListener("input", () => {
+        if (api.lock) return;
+        const raw = s.key === "n" ? parseInt(input.value, 10) : parseFloat(input.value);
+        onUserChange(s.key, raw);
+        api.sync();
+      });
+    });
+    api.sync();
+    return api;
   }
 
   presentGraphOnTableau(comp, topic) {
@@ -1397,6 +1860,7 @@ class GandalSpaceClient {
             <canvas id="${GANDAL_WB_GRAPH_ID}_canvas" class="a2ui-graph-canvas"></canvas>
           </div>
         </div>
+        <div class="gandal-wb-geom-vars" id="${GANDAL_WB_GRAPH_ID}_vars"></div>
       </div>
     `;
     this.setWhiteboardHtml(html, "Graphe sur le tableau", "speaking");
@@ -1422,6 +1886,42 @@ class GandalSpaceClient {
   presentQuizOnTableau(cardId) {
     const quiz = this.quizCards[cardId];
     if (!quiz) return false;
+    this._wbQuizSet = [cloneQuizItem(quiz)];
+    this._wbQuizIndex = 0;
+    return this.presentCurrentTableauQuiz();
+  }
+
+  buildPracticeQuizSet(topic, modelType, existingQuiz) {
+    const key = inferQuizBankKey(topic, modelType);
+    let bank = PRACTICE_QUIZ_BANKS[key];
+    if (key === "alphabet") {
+      const start = this.activeAlphabetIndex || 0;
+      bank = GANDAL_ALPHABET_DICTIONARY.slice(start, start + 5).map((item) => ({
+        question: (item.quiz && item.quiz.question) || `Which word starts with ${item.letter}?`,
+        options: (item.quiz && item.quiz.options) || [item.word, "Apple", "Ball"],
+        answerIndex: (item.quiz && item.quiz.answerIndex) || 0,
+        explanation: (item.quiz && item.quiz.explanation) || ""
+      }));
+    }
+    if (!bank || !bank.length) bank = PRACTICE_QUIZ_BANKS.default;
+    const set = [];
+    const seen = new Set();
+    const push = (q) => {
+      if (!q || !q.question || seen.has(q.question) || set.length >= 5) return;
+      seen.add(q.question);
+      set.push(cloneQuizItem(q));
+    };
+    if (existingQuiz) push(existingQuiz);
+    bank.forEach(push);
+    PRACTICE_QUIZ_BANKS.default.forEach(push);
+    return set.slice(0, 5);
+  }
+
+  presentCurrentTableauQuiz() {
+    const quiz = this._wbQuizSet[this._wbQuizIndex];
+    if (!quiz) return false;
+    const cardId = `wb_set_${this._wbQuizIndex}`;
+    this.quizCards[cardId] = quiz;
     this._wbQuizCardId = cardId;
     this.openTableauNoir();
     const letters = ["A", "B", "C", "D", "E", "F"];
@@ -1436,14 +1936,22 @@ class GandalSpaceClient {
         </button>
       `;
     }).join("");
+    const total = this._wbQuizSet.length;
+    const idx = this._wbQuizIndex;
+    const hasMore = idx < total - 1;
     const html = `
-      <div class="gandal-wb-socratic">
-        <div class="gandal-wb-kicker">❓ Question socratique — quiz</div>
+      <div class="gandal-wb-socratic gandal-wb-socratic-quiz">
+        <div class="gandal-wb-kicker">❓ Question socratique — quiz ${idx + 1} / ${total}</div>
         <div class="gandal-wb-question">${this.formatMathWithKaTeX(quiz.question || "")}</div>
         <p class="gandal-wb-hint">Réfléchis d'abord, puis choisis une réponse — ou dis-la au micro.</p>
         <div class="gandal-wb-quiz-options">${optionsHtml}</div>
         <div class="gandal-wb-quiz-explanation" id="wb_quiz_explanation" hidden>
           ${this.formatMathWithKaTeX(quiz.explanation || "")}
+        </div>
+        <div class="gandal-wb-quiz-footer">
+          <span class="gandal-wb-quiz-count">${idx + 1} / ${total}</span>
+          <button type="button" class="gandal-wb-show-more" ${hasMore ? "" : "disabled"}
+            onclick="window.gandalSpaceApp.showNextTableauQuiz()">Show more</button>
         </div>
       </div>
     `;
@@ -1453,6 +1961,12 @@ class GandalSpaceClient {
       this.syncTableauQuizMarks(cardId, guessed);
     }
     return true;
+  }
+
+  showNextTableauQuiz() {
+    if (!this._wbQuizSet || this._wbQuizIndex >= this._wbQuizSet.length - 1) return;
+    this._wbQuizIndex += 1;
+    this.presentCurrentTableauQuiz();
   }
 
   syncTableauQuizMarks(cardId, selectedIndex) {
@@ -1489,8 +2003,8 @@ class GandalSpaceClient {
     const topic = this.currentContext || "right triangle";
     const show = (card) => {
       if (card) this.highlightA2UICard(card);
-      const comp = (card && this.activeModels && this.activeModels[card.id])
-        || { model_type: "function_plot", formula: "sgn(x)", domain: [-5, 5], range: [-3, 3] };
+      const raw = (card && this.activeModels && this.activeModels[card.id]) || {};
+      const comp = this.geometryCompForTopic(raw, topic);
       this.presentGraphOnTableau(comp, topic);
     };
 
@@ -1504,10 +2018,16 @@ class GandalSpaceClient {
       "Chargement du graphe",
       "speaking"
     );
+    const inferred = inferGeometryModelType({}, topic);
+    if (inferred && inferred.indexOf("geometry_") === 0) {
+      show(null);
+      return;
+    }
     this.submitQuery(`Graph and interactive visual model for ${topic}`, false).then(() => {
       setTimeout(() => {
         const newGraph = document.getElementById("gandalA2UISurface")?.querySelector(".a2ui-graph-card");
         if (newGraph) show(newGraph);
+        else if (inferred) this.presentGraphOnTableau(this.geometryCompForTopic({}, topic), topic);
         else this.writeToWhiteboard("Je n'ai pas pu charger le graphe. Reformule le sujet, puis réessaie.", "Gandho");
       }, 350);
     });
@@ -1516,29 +2036,16 @@ class GandalSpaceClient {
   handleQuizMe() {
     this.openTableauNoir();
     const surface = document.getElementById("gandalA2UISurface");
-    const existingQuiz = surface ? surface.querySelector(".a2ui-quiz-card") : null;
+    const existingQuizEl = surface ? surface.querySelector(".a2ui-quiz-card") : null;
     const topic = this.currentContext || "right triangle";
-
-    if (existingQuiz && this.presentQuizOnTableau(existingQuiz.id)) {
-      this.highlightA2UICard(existingQuiz);
-      return;
-    }
-
-    this.setWhiteboardHtml(
-      `<div class="gandal-wb-socratic"><div class="gandal-wb-kicker">❓ Question socratique — quiz</div><p class="gandal-wb-hint">Je prépare une question de suivi sur <strong>${escapeHtml(topic)}</strong>…</p></div>`,
-      "Préparation du quiz",
-      "speaking"
-    );
-    this.submitQuery(`Quiz question and practice test for ${topic}`, false).then(() => {
-      setTimeout(() => {
-        const newQuiz = document.getElementById("gandalA2UISurface")?.querySelector(".a2ui-quiz-card");
-        if (newQuiz && this.presentQuizOnTableau(newQuiz.id)) {
-          this.highlightA2UICard(newQuiz);
-        } else {
-          this.writeToWhiteboard("Je n'ai pas pu générer le quiz. Reformule le sujet, puis réessaie.", "Gandho");
-        }
-      }, 350);
-    });
+    const existingQuiz = existingQuizEl && this.quizCards[existingQuizEl.id]
+      ? this.quizCards[existingQuizEl.id]
+      : null;
+    const modelHint = (this.activeModels && Object.values(this.activeModels)[0] && Object.values(this.activeModels)[0].model_type) || "";
+    this._wbQuizSet = this.buildPracticeQuizSet(topic, modelHint, existingQuiz);
+    this._wbQuizIndex = 0;
+    if (existingQuizEl) this.highlightA2UICard(existingQuizEl);
+    this.presentCurrentTableauQuiz();
   }
 
   async handleExplainSimpler() {
@@ -1971,6 +2478,7 @@ class GandalSpaceClient {
           <canvas id="${cardId}_canvas" class="a2ui-graph-canvas"></canvas>
         </div>
       </div>
+      ${String(modelType).indexOf("geometry_") === 0 ? `<div class="gandal-wb-geom-vars" id="${cardId}_vars"></div>` : ""}
 
       <div class="a2ui-graph-actions">
         ${modelType === "function_plot" ? `
@@ -2064,142 +2572,305 @@ class GandalSpaceClient {
         viewport._jxgBoard = board;
 
         // ====================================================================
-        // MODEL 1: GEOMETRY TRIANGLE ABC (Interactive Draggable Vertices)
+        // MODEL 1: GEOMETRY TRIANGLE ABC (sides a, b, c drive the figure)
         // ====================================================================
         if (modelType === "geometry_triangle") {
-          const pA = board.create('point', [0, 0], {
+          const placed = sssTrianglePoints(4.19, 3.67, 4.5);
+          const vals = { a: placed.a, b: placed.b, c: placed.c };
+          const pA = board.create('point', placed.A, {
             name: 'A', size: 5, strokeColor: '#38bdf8', fillColor: '#38bdf8', fixed: false
           });
-          const pB = board.create('point', [4.5, 0], {
+          const pB = board.create('point', placed.B, {
             name: 'B', size: 5, strokeColor: '#a855f7', fillColor: '#a855f7', fixed: false
           });
-          const pC = board.create('point', [1.8, 3.2], {
+          const pC = board.create('point', placed.C, {
             name: 'C', size: 5, strokeColor: '#ec4899', fillColor: '#ec4899', fixed: false
           });
-
-          // Draw filled polygon
           board.create('polygon', [pA, pB, pC], {
-            fillColor: '#8b5cf6',
-            fillOpacity: 0.22,
+            fillColor: '#8b5cf6', fillOpacity: 0.22,
             borders: { strokeColor: '#a855f7', strokeWidth: 3 }
           });
+          board.create('angle', [pB, pA, pC], { radius: 0.7, name: 'α', fillColor: '#38bdf8', fillOpacity: 0.35, strokeColor: '#38bdf8' });
+          board.create('angle', [pC, pB, pA], { radius: 0.7, name: 'β', fillColor: '#a855f7', fillOpacity: 0.35, strokeColor: '#a855f7' });
+          board.create('angle', [pA, pC, pB], { radius: 0.7, name: 'γ', fillColor: '#ec4899', fillOpacity: 0.35, strokeColor: '#ec4899' });
 
-          // Create angle arcs
-          board.create('angle', [pB, pA, pC], {
-            radius: 0.7, name: 'α', fillColor: '#38bdf8', fillOpacity: 0.35, strokeColor: '#38bdf8'
-          });
-          board.create('angle', [pC, pB, pA], {
-            radius: 0.7, name: 'β', fillColor: '#a855f7', fillOpacity: 0.35, strokeColor: '#a855f7'
-          });
-          board.create('angle', [pA, pC, pB], {
-            radius: 0.7, name: 'γ', fillColor: '#ec4899', fillOpacity: 0.35, strokeColor: '#ec4899'
-          });
-
-          // Dynamic update listener for angles and sum
-          const updateTriangleHUD = () => {
-            if (!coordsEl) return;
-            const xA = pA.X(), yA = pA.Y();
-            const xB = pB.X(), yB = pB.Y();
-            const xC = pC.X(), yC = pC.Y();
-
-            const a = Math.hypot(xB - xC, yB - yC); // opposite A
-            const b = Math.hypot(xA - xC, yA - yC); // opposite B
-            const c = Math.hypot(xA - xB, yA - yB); // opposite C
-
-            if (a > 0.001 && b > 0.001 && c > 0.001) {
-              const cosA = Math.max(-1, Math.min(1, (b*b + c*c - a*a) / (2 * b * c)));
-              const cosB = Math.max(-1, Math.min(1, (a*a + c*c - b*b) / (2 * a * c)));
-              const degA = Math.acos(cosA) * (180 / Math.PI);
-              const degB = Math.acos(cosB) * (180 / Math.PI);
-              const degC = Math.max(0, 180.0 - degA - degB);
-
-              const area = 0.5 * Math.abs(xA*(yB - yC) + xB*(yC - yA) + xC*(yA - yB));
-
-              coordsEl.innerHTML = `<span style="color:#38bdf8;font-weight:700;">∠A: ${degA.toFixed(1)}°</span> + <span style="color:#a855f7;font-weight:700;">∠B: ${degB.toFixed(1)}°</span> + <span style="color:#ec4899;font-weight:700;">∠C: ${degC.toFixed(1)}°</span> = <strong style="color:#34d399;font-weight:800;">180.0°</strong> | Area: ${area.toFixed(2)}`;
-            }
+          const applySides = () => {
+            const pts = sssTrianglePoints(vals.a, vals.b, vals.c);
+            vals.a = pts.a; vals.b = pts.b; vals.c = pts.c;
+            pA.moveTo(pts.A, 0);
+            pB.moveTo(pts.B, 0);
+            pC.moveTo(pts.C, 0);
+            board.update();
           };
-
+          const ctrl = this.bindGeometryControls(cardId, modelType, vals, (key, raw) => {
+            ctrl.lock = true;
+            vals[key] = raw;
+            applySides();
+            ctrl.lock = false;
+            ctrl.sync();
+          });
+          const updateTriangleHUD = () => {
+            const a = Math.hypot(pB.X() - pC.X(), pB.Y() - pC.Y());
+            const b = Math.hypot(pA.X() - pC.X(), pA.Y() - pC.Y());
+            const c = Math.hypot(pA.X() - pB.X(), pA.Y() - pB.Y());
+            if (!(ctrl && ctrl.lock)) {
+              vals.a = a; vals.b = b; vals.c = c;
+              if (ctrl) ctrl.sync();
+            }
+            if (!coordsEl || a < 0.001 || b < 0.001 || c < 0.001) return;
+            const cosA = Math.max(-1, Math.min(1, (b*b + c*c - a*a) / (2 * b * c)));
+            const cosB = Math.max(-1, Math.min(1, (a*a + c*c - b*b) / (2 * a * c)));
+            const degA = Math.acos(cosA) * (180 / Math.PI);
+            const degB = Math.acos(cosB) * (180 / Math.PI);
+            const degC = Math.max(0, 180.0 - degA - degB);
+            const area = 0.5 * Math.abs(pA.X()*(pB.Y() - pC.Y()) + pB.X()*(pC.Y() - pA.Y()) + pC.X()*(pA.Y() - pB.Y()));
+            coordsEl.innerHTML = `a=${a.toFixed(2)} b=${b.toFixed(2)} c=${c.toFixed(2)} | ∠A ${degA.toFixed(1)}° + ∠B ${degB.toFixed(1)}° + ∠C ${degC.toFixed(1)}° = 180° | Area ${area.toFixed(2)}`;
+          };
           board.on('update', updateTriangleHUD);
-          board.on('move', updateTriangleHUD);
           updateTriangleHUD();
           return;
         }
 
         // ====================================================================
-        // MODEL 2: GEOMETRY CIRCLE (Radius, Circumference, Area)
+        // MODEL 2: GEOMETRY CIRCLE (r, d, π, C drive the figure)
         // ====================================================================
         else if (modelType === "geometry_circle") {
+          const vals = { r: 3, d: 6, pi: 3.14, c: 2 * 3.14 * 3 };
           const pO = board.create('point', [0, 0], {
             name: 'O(0,0)', size: 4, strokeColor: '#94a3b8', fillColor: '#64748b', fixed: true
           });
-          const pP = board.create('point', [3, 0], {
+          const pP = board.create('point', [vals.r, 0], {
             name: 'P(r)', size: 5, strokeColor: '#38bdf8', fillColor: '#38bdf8', fixed: false
           });
-
           board.create('circle', [pO, pP], {
-            strokeColor: '#38bdf8',
-            strokeWidth: 3,
-            fillColor: 'rgba(56, 189, 248, 0.15)'
+            strokeColor: '#38bdf8', strokeWidth: 3, fillColor: 'rgba(56, 189, 248, 0.15)'
           });
-
           board.create('segment', [pO, pP], {
-            strokeColor: '#f43f5e',
-            strokeWidth: 2.5,
-            dash: 2,
-            name: 'r',
-            withLabel: true
+            strokeColor: '#f43f5e', strokeWidth: 2.5, dash: 2, name: 'r', withLabel: true
           });
-
-          const updateCircleHUD = () => {
-            if (!coordsEl) return;
-            const r = Math.hypot(pP.X() - pO.X(), pP.Y() - pO.Y());
-            const circum = 2 * Math.PI * r;
-            const area = Math.PI * r * r;
-            coordsEl.innerHTML = `Radius: <strong style="color:#38bdf8">r = ${r.toFixed(2)}</strong> | Circumference: <strong style="color:#f472b6">C = 2πr = ${circum.toFixed(2)}</strong> | Area: <strong style="color:#34d399">A = πr² = ${area.toFixed(2)}</strong>`;
+          const applyRadius = (r) => {
+            vals.r = Math.max(0.5, Math.min(8, r));
+            vals.d = 2 * vals.r;
+            vals.c = 2 * vals.pi * vals.r;
+            pP.moveTo([vals.r, 0], 0);
+            board.update();
           };
-
+          const ctrl = this.bindGeometryControls(cardId, modelType, vals, (key, raw) => {
+            ctrl.lock = true;
+            if (key === "r") applyRadius(raw);
+            else if (key === "d") applyRadius(raw / 2);
+            else if (key === "pi") {
+              vals.pi = raw;
+              vals.c = 2 * vals.pi * vals.r;
+            } else if (key === "c") {
+              vals.pi = vals.pi || 3.14;
+              applyRadius(raw / (2 * vals.pi));
+            }
+            ctrl.lock = false;
+            ctrl.sync();
+          });
+          const updateCircleHUD = () => {
+            const r = Math.hypot(pP.X() - pO.X(), pP.Y() - pO.Y());
+            if (!(ctrl && ctrl.lock)) {
+              vals.r = r;
+              vals.d = 2 * r;
+              vals.c = 2 * vals.pi * r;
+              if (ctrl) ctrl.sync();
+            }
+            if (!coordsEl) return;
+            const circum = 2 * vals.pi * r;
+            const area = vals.pi * r * r;
+            coordsEl.innerHTML = `r = ${r.toFixed(2)} | d = ${(2*r).toFixed(2)} | π = ${vals.pi.toFixed(2)} | C = ${circum.toFixed(2)} | A = ${area.toFixed(2)}`;
+          };
           board.on('update', updateCircleHUD);
-          board.on('move', updateCircleHUD);
           updateCircleHUD();
           return;
         }
 
         // ====================================================================
-        // MODEL 3: PYTHAGOREAN THEOREM (3-4-5 Triangle with Squares on Sides)
+        // MODEL 3: PYTHAGOREAN THEOREM (legs a, b drive c and the squares)
         // ====================================================================
         else if (modelType === "geometry_pythagoras") {
-          const pA = board.create('point', [0, 0], { name: 'A(90°)', size: 4, strokeColor: '#94a3b8', fillColor: '#94a3b8', fixed: true });
-          const pB = board.create('point', [4, 0], { name: 'B', size: 4, strokeColor: '#38bdf8', fillColor: '#38bdf8', fixed: true });
-          const pC = board.create('point', [0, 3], { name: 'C', size: 4, strokeColor: '#a855f7', fillColor: '#a855f7', fixed: true });
-
-          // Central right triangle
+          const vals = { a: 4, b: 3, c: 5 };
+          const pA = board.create('point', [() => 0, () => 0], { name: 'A(90°)', size: 4, strokeColor: '#94a3b8', fillColor: '#94a3b8', fixed: true });
+          const pB = board.create('point', [() => vals.a, () => 0], { name: 'B', size: 4, strokeColor: '#38bdf8', fillColor: '#38bdf8', fixed: true });
+          const pC = board.create('point', [() => 0, () => vals.b], { name: 'C', size: 4, strokeColor: '#a855f7', fillColor: '#a855f7', fixed: true });
           board.create('polygon', [pA, pB, pC], {
-            fillColor: '#6366f1',
-            fillOpacity: 0.25,
-            borders: { strokeColor: '#6366f1', strokeWidth: 3 }
+            fillColor: '#6366f1', fillOpacity: 0.25, borders: { strokeColor: '#6366f1', strokeWidth: 3 }
           });
-
-          // Square on leg b (height 3): area 9
-          board.create('polygon', [[0, 0], [0, 3], [-3, 3], [-3, 0]], {
-            fillColor: '#a855f7', fillOpacity: 0.35, borders: { strokeColor: '#c084fc', strokeWidth: 2 }
+          const sqB = [
+            board.create('point', [() => 0, () => 0], { visible: false, fixed: true }),
+            board.create('point', [() => 0, () => vals.b], { visible: false, fixed: true }),
+            board.create('point', [() => -vals.b, () => vals.b], { visible: false, fixed: true }),
+            board.create('point', [() => -vals.b, () => 0], { visible: false, fixed: true })
+          ];
+          board.create('polygon', sqB, { fillColor: '#a855f7', fillOpacity: 0.35, borders: { strokeColor: '#c084fc', strokeWidth: 2 } });
+          const txtB = board.create('text', [() => -vals.b / 2, () => vals.b / 2, () => `b² = ${(vals.b * vals.b).toFixed(1)}`], { color: '#e9d5ff', fontSize: 13, strokeColor: 'none' });
+          const sqA = [
+            board.create('point', [() => 0, () => 0], { visible: false, fixed: true }),
+            board.create('point', [() => vals.a, () => 0], { visible: false, fixed: true }),
+            board.create('point', [() => vals.a, () => -vals.a], { visible: false, fixed: true }),
+            board.create('point', [() => 0, () => -vals.a], { visible: false, fixed: true })
+          ];
+          board.create('polygon', sqA, { fillColor: '#38bdf8', fillOpacity: 0.35, borders: { strokeColor: '#7dd3fc', strokeWidth: 2 } });
+          board.create('text', [() => vals.a / 2, () => -vals.a / 2, () => `a² = ${(vals.a * vals.a).toFixed(1)}`], { color: '#bae6fd', fontSize: 13, strokeColor: 'none' });
+          const sqC = [
+            pB,
+            pC,
+            board.create('point', [() => vals.b, () => vals.a + vals.b], { visible: false, fixed: true }),
+            board.create('point', [() => vals.a + vals.b, () => vals.a], { visible: false, fixed: true })
+          ];
+          board.create('polygon', sqC, { fillColor: '#10b981', fillOpacity: 0.35, borders: { strokeColor: '#34d399', strokeWidth: 2 } });
+          board.create('text', [() => (vals.a + vals.b) / 2, () => (vals.a + vals.b) / 2, () => `c² = ${(vals.c * vals.c).toFixed(1)}`], { color: '#a7f3d0', fontSize: 14, strokeColor: 'none' });
+          const ctrl = this.bindGeometryControls(cardId, modelType, vals, (key, raw) => {
+            if (key === "c") return;
+            vals[key] = raw;
+            vals.c = Math.hypot(vals.a, vals.b);
+            board.update();
+            ctrl.sync();
+            if (coordsEl) {
+              coordsEl.innerHTML = `a² (${(vals.a*vals.a).toFixed(1)}) + b² (${(vals.b*vals.b).toFixed(1)}) = c² (${(vals.c*vals.c).toFixed(1)})`;
+            }
           });
-          board.create('text', [-1.8, 1.5, 'b² = 9'], { color: '#e9d5ff', fontSize: 13, strokeColor: 'none' });
-
-          // Square on leg a (base 4): area 16
-          board.create('polygon', [[0, 0], [4, 0], [4, -4], [0, -4]], {
-            fillColor: '#38bdf8', fillOpacity: 0.35, borders: { strokeColor: '#7dd3fc', strokeWidth: 2 }
-          });
-          board.create('text', [1.5, -2.2, 'a² = 16'], { color: '#bae6fd', fontSize: 13, strokeColor: 'none' });
-
-          // Square on hypotenuse c (length 5): area 25
-          board.create('polygon', [[4, 0], [0, 3], [3, 7], [7, 4]], {
-            fillColor: '#10b981', fillOpacity: 0.35, borders: { strokeColor: '#34d399', strokeWidth: 2 }
-          });
-          board.create('text', [3.2, 3.5, 'c² = 25'], { color: '#a7f3d0', fontSize: 14, strokeColor: 'none' });
-
           if (coordsEl) {
-            coordsEl.innerHTML = `<span style="color:#bae6fd">a² (16)</span> + <span style="color:#e9d5ff">b² (9)</span> = <span style="color:#a7f3d0;font-weight:800;">c² (25)</span> ➔ <strong style="color:#34d399">9 + 16 = 25 (Proof Verified!)</strong>`;
+            coordsEl.innerHTML = `a² (16) + b² (9) = c² (25)`;
           }
+          return;
+        }
+
+        // ====================================================================
+        // MODEL 3b: ELLIPSE (semi-axes a, b + foci)
+        // ====================================================================
+        else if (modelType === "geometry_ellipse") {
+          const vals = { a: 4, b: 2, f: Math.sqrt(12) };
+          const curve = board.create('curve', [
+            (t) => vals.a * Math.cos(t),
+            (t) => vals.b * Math.sin(t),
+            0, 2 * Math.PI
+          ], { strokeColor: '#38bdf8', strokeWidth: 3, fillColor: 'rgba(56, 189, 248, 0.12)', fillOpacity: 0.35 });
+          const f1 = board.create('point', [() => vals.f, 0], { name: 'F₁', size: 4, strokeColor: '#f472b6', fillColor: '#f472b6', fixed: true });
+          const f2 = board.create('point', [() => -vals.f, 0], { name: 'F₂', size: 4, strokeColor: '#f472b6', fillColor: '#f472b6', fixed: true });
+          const refreshF = () => {
+            vals.f = Math.sqrt(Math.abs(vals.a * vals.a - vals.b * vals.b));
+          };
+          const ctrl = this.bindGeometryControls(cardId, modelType, vals, (key, raw) => {
+            vals[key] = raw;
+            refreshF();
+            board.update();
+            ctrl.sync();
+            if (coordsEl) {
+              coordsEl.innerHTML = `a = ${vals.a.toFixed(2)} | b = ${vals.b.toFixed(2)} | c foci = ${vals.f.toFixed(2)} | Area = ${(Math.PI * vals.a * vals.b).toFixed(2)}`;
+            }
+          });
+          refreshF();
+          if (coordsEl) {
+            coordsEl.innerHTML = `a = 4.00 | b = 2.00 | c foci = ${vals.f.toFixed(2)}`;
+          }
+          return;
+        }
+
+        // ====================================================================
+        // MODEL 3c: RECTANGLE (length ℓ, width w)
+        // ====================================================================
+        else if (modelType === "geometry_rectangle") {
+          const vals = { l: 5, w: 3 };
+          const pts = [
+            board.create('point', [() => 0, () => 0], { name: 'A', size: 4, strokeColor: '#38bdf8', fillColor: '#38bdf8', fixed: true }),
+            board.create('point', [() => vals.l, () => 0], { name: 'B', size: 4, strokeColor: '#a855f7', fillColor: '#a855f7', fixed: true }),
+            board.create('point', [() => vals.l, () => vals.w], { name: 'C', size: 4, strokeColor: '#34d399', fillColor: '#34d399', fixed: true }),
+            board.create('point', [() => 0, () => vals.w], { name: 'D', size: 4, strokeColor: '#f472b6', fillColor: '#f472b6', fixed: true })
+          ];
+          board.create('polygon', pts, {
+            fillColor: '#38bdf8', fillOpacity: 0.18, borders: { strokeColor: '#7dd3fc', strokeWidth: 3 }
+          });
+          const ctrl = this.bindGeometryControls(cardId, modelType, vals, (key, raw) => {
+            vals[key] = raw;
+            board.update();
+            ctrl.sync();
+            if (coordsEl) {
+              coordsEl.innerHTML = `ℓ = ${vals.l.toFixed(2)} | w = ${vals.w.toFixed(2)} | Area = ${(vals.l*vals.w).toFixed(2)} | P = ${(2*(vals.l+vals.w)).toFixed(2)}`;
+            }
+          });
+          if (coordsEl) coordsEl.innerHTML = `ℓ = 5.00 | w = 3.00 | Area = 15.00`;
+          return;
+        }
+
+        // ====================================================================
+        // MODEL 3d: SQUARE (side s)
+        // ====================================================================
+        else if (modelType === "geometry_square") {
+          const vals = { s: 3 };
+          const pts = [
+            board.create('point', [() => 0, () => 0], { name: 'A', size: 4, strokeColor: '#38bdf8', fillColor: '#38bdf8', fixed: true }),
+            board.create('point', [() => vals.s, () => 0], { name: 'B', size: 4, strokeColor: '#a855f7', fillColor: '#a855f7', fixed: true }),
+            board.create('point', [() => vals.s, () => vals.s], { name: 'C', size: 4, strokeColor: '#34d399', fillColor: '#34d399', fixed: true }),
+            board.create('point', [() => 0, () => vals.s], { name: 'D', size: 4, strokeColor: '#f472b6', fillColor: '#f472b6', fixed: true })
+          ];
+          board.create('polygon', pts, {
+            fillColor: '#a855f7', fillOpacity: 0.18, borders: { strokeColor: '#c084fc', strokeWidth: 3 }
+          });
+          const ctrl = this.bindGeometryControls(cardId, modelType, vals, (key, raw) => {
+            vals.s = raw;
+            board.update();
+            ctrl.sync();
+            if (coordsEl) {
+              coordsEl.innerHTML = `s = ${vals.s.toFixed(2)} | Area = ${(vals.s*vals.s).toFixed(2)} | diagonal = ${(vals.s * Math.SQRT2).toFixed(2)}`;
+            }
+          });
+          if (coordsEl) coordsEl.innerHTML = `s = 3.00 | Area = 9.00`;
+          return;
+        }
+
+        // ====================================================================
+        // MODEL 3e: REGULAR POLYGON (n sides, side length s)
+        // ====================================================================
+        else if (modelType === "geometry_polygon") {
+          const vals = { n: Math.max(3, Math.round(comp.n || 6)), s: comp.side || 2 };
+          const n0 = vals.n;
+          const R0 = vals.s / (2 * Math.sin(Math.PI / n0));
+          const polyPts = [];
+          for (let k = 0; k < n0; k++) {
+            polyPts.push(board.create('point', [
+              R0 * Math.cos(2 * Math.PI * k / n0),
+              R0 * Math.sin(2 * Math.PI * k / n0)
+            ], {
+              name: String.fromCharCode(65 + (k % 26)), size: 3,
+              strokeColor: '#38bdf8', fillColor: '#38bdf8', fixed: true
+            }));
+          }
+          board.create('polygon', polyPts, {
+            fillColor: '#38bdf8', fillOpacity: 0.16, borders: { strokeColor: '#7dd3fc', strokeWidth: 2.5 }
+          });
+          const place = () => {
+            const n = Math.max(3, Math.round(vals.n));
+            const R = vals.s / (2 * Math.sin(Math.PI / n));
+            polyPts.forEach((p, k) => {
+              if (k < n) p.moveTo([R * Math.cos(2 * Math.PI * k / n), R * Math.sin(2 * Math.PI * k / n)], 0);
+            });
+            board.update();
+          };
+          const ctrl = this.bindGeometryControls(cardId, modelType, vals, (key, raw) => {
+            if (key === "n") {
+              const nextN = Math.max(3, Math.min(12, Math.round(raw)));
+              if (nextN !== n0) {
+                comp.n = nextN;
+                comp.side = vals.s;
+                this.initGraphPlot(cardId, comp);
+                return;
+              }
+              vals.n = nextN;
+            } else {
+              vals.s = raw;
+              comp.side = raw;
+              place();
+            }
+            ctrl.sync();
+            const R = vals.s / (2 * Math.sin(Math.PI / vals.n));
+            if (coordsEl) {
+              coordsEl.innerHTML = `n = ${vals.n} | s = ${vals.s.toFixed(2)} | R = ${R.toFixed(2)} | interior ${(180 * (vals.n - 2) / vals.n).toFixed(1)}°`;
+            }
+          });
+          if (coordsEl) coordsEl.innerHTML = `n = ${vals.n} | s = ${vals.s.toFixed(2)} | regular polygon`;
           return;
         }
 

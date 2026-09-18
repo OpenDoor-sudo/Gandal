@@ -2297,8 +2297,85 @@
 
 .gandal-wb-graph-wrap {
   flex: 1 1 auto;
-  min-height: 240px;
-  height: min(52vh, 420px);
+  min-height: 220px;
+  height: min(44vh, 380px);
+}
+
+.gandal-wb-geom-vars {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  flex: 0 0 auto;
+  padding: 8px 2px 4px;
+}
+
+.gandal-wb-geom-var {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.gandal-wb-geom-var-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.78rem;
+  color: #e9d5ff;
+  font-weight: 600;
+}
+
+.gandal-wb-geom-var-top span:last-child {
+  color: #7dd3fc;
+  font-variant-numeric: tabular-nums;
+}
+
+.gandal-wb-geom-var input[type="range"] {
+  width: 100%;
+  accent-color: #a855f7;
+  cursor: pointer;
+}
+
+.gandal-wb-socratic-quiz {
+  position: relative;
+  padding-bottom: 52px;
+}
+
+.gandal-wb-quiz-footer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.gandal-wb-quiz-count {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.gandal-wb-show-more {
+  margin-left: auto;
+  background: rgba(168, 85, 247, 0.28);
+  border: 1px solid rgba(192, 132, 252, 0.55);
+  color: #f8fafc;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gandal-wb-show-more:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.45);
+}
+
+.gandal-wb-show-more:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .gandal-wb-quiz-options {
