@@ -16,5 +16,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY . .
 
-# Launch the LiveKit Agent in start mode
-CMD ["python", "tutor_agent.py", "start"]
+# Watcher honors FORCE_OFFLINE / OFFLINE_MODE / --offline vs Gemini online.
+CMD ["python", "run_agent.py", "start"]

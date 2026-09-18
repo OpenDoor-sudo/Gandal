@@ -52,9 +52,13 @@ export class ChemApiClient {
 
       if (resp.ok) {
         const result = await resp.json();
-        this.isServerOnline = true;
-        result.offline_fallback = false;
-        return result;
+        if (result && result.success === false) {
+          this.isServerOnline = false;
+        } else {
+          this.isServerOnline = true;
+          result.offline_fallback = false;
+          return result;
+        }
       }
     } catch (err) {
       // Backend not running yet or unreachable, fall back to embedded solver

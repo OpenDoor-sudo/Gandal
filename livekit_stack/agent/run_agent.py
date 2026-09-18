@@ -30,8 +30,14 @@ def check_cloud_connectivity(timeout=1.5):
             continue
     return False
 
+def _truthy_env(*names):
+    for name in names:
+        if os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on"):
+            return True
+    return False
+
 # Mode flags
-explicit_offline = "--offline" in sys.argv or os.environ.get("OFFLINE_MODE") == "1"
+explicit_offline = "--offline" in sys.argv or _truthy_env("OFFLINE_MODE", "FORCE_OFFLINE")
 explicit_online = "--online" in sys.argv
 auto_mode = not explicit_offline and not explicit_online
 

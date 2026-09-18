@@ -201,11 +201,13 @@ ventuno_ai_testbed/
 - Google Chrome or Microsoft Edge (with WebGL and Web Audio API enabled)
 - *(Optional for offline mode)*: Local Ollama instance with `qwen2.5` installed and Piper TTS.
 
-### 2. Launch the Edge Server
+### 2. Launch the Edge Server (Windows or Linux)
 Start the central HTTP and WebSocket coordinator:
 ```bash
 python display_client.py
 ```
+On Linux, `./boot_linux.sh` waits for `/api/health` and prints the session file path. See the Linux run notes if this tree was checked out without lecture MP4s or `.env` keys.
+
 > The dashboard will be live at `http://localhost:8000/`.
 
 ### 3. Start the Omni Graph Engine (Optional)
