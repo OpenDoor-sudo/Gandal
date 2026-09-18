@@ -205,6 +205,8 @@ import hashlib
 import urllib.parse
 import urllib.request
 import urllib.error
+import socket
+import shutil
 
 TRANSLATION_CACHE_FILE = os.path.join(PROJECT_ROOT, "translation_cache.json")
 SESSION_JSON_PATH = os.path.join(PROJECT_ROOT, "active_session.json")
@@ -424,7 +426,59 @@ def livekit_http_origin(ws_url):
         return "http://" + u[5:]
     if u.startswith("http://") or u.startswith("https://"):
         return u
-    return "http://" + u if u else "http://localhost:7880"
+    return "http://" + u if u else "http://127.0.0.1:7880"
+
+
+def prefer_ipv4_livekit_url(ws_url):
+    """Rewrite localhost → 127.0.0.1 so Linux does not hang on ::1 while LiveKit is IPv4-only."""
+    u = (ws_url or "").strip()
+    if not u:
+        return u
+    for scheme in ("ws://", "wss://", "http://", "https://"):
+        needle = scheme + "localhost"
+        if u.lower().startswith(needle):
+            return scheme + "127.0.0.1" + u[len(needle):]
+    return u
+
+
+def livekit_tcp_target(ws_url):
+    u = prefer_ipv4_livekit_url(ws_url or "ws://127.0.0.1:7880")
+    for prefix in ("wss://", "ws://", "https://", "http://"):
+        if u.lower().startswith(prefix):
+            u = u[len(prefix):]
+            break
+    u = u.split("/", 1)[0]
+    host, _, port_s = u.partition(":")
+    host = host.strip() or "127.0.0.1"
+    if host.lower() == "localhost":
+        host = "127.0.0.1"
+    try:
+        port = int(port_s) if port_s else (443 if str(ws_url).startswith(("wss://", "https://")) else 7880)
+    except ValueError:
+        port = 7880
+    return host, port
+
+
+def probe_livekit_tcp(ws_url, timeout=0.8):
+    host, port = livekit_tcp_target(ws_url)
+    sock = None
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((host, port))
+        return True, host, port, ""
+    except Exception as err:
+        return False, host, port, str(err)
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+
+
+def ffmpeg_on_path():
+    return bool(shutil.which("ffmpeg"))
 
 
 def mint_socratic_room(identity):
@@ -439,9 +493,19 @@ def mint_socratic_room(identity):
 
 def livekit_connect_urls(primary):
     urls = []
-    for candidate in (primary, os.environ.get("LIVEKIT_FALLBACK_URL", "").strip()):
+    rewritten = prefer_ipv4_livekit_url(primary)
+    for candidate in (
+        rewritten,
+        primary,
+        prefer_ipv4_livekit_url(os.environ.get("LIVEKIT_FALLBACK_URL", "").strip()),
+        os.environ.get("LIVEKIT_FALLBACK_URL", "").strip(),
+    ):
+        candidate = (candidate or "").strip()
         if candidate and candidate not in urls:
             urls.append(candidate)
+    if rewritten.startswith("ws://127.0.0.1:") or rewritten.startswith("ws://localhost:"):
+        if "ws://127.0.0.1:7880" not in urls:
+            urls.append("ws://127.0.0.1:7880")
     return urls
 
 
@@ -2115,7 +2179,9 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if clean_path == '/api/voice_status':
-            livekit_url = os.environ.get("LIVEKIT_URL", "ws://localhost:7880").strip()
+            livekit_url = prefer_ipv4_livekit_url(
+                os.environ.get("LIVEKIT_URL", "ws://127.0.0.1:7880").strip() or "ws://127.0.0.1:7880"
+            )
             session_data = load_session_info()
             engine = "gemini" if (
                 str(os.environ.get("VOICE_ENGINE", "auto")).lower() == "gemini"
@@ -2134,11 +2200,29 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 or str(os.environ.get("VOICE_ENGINE", "auto")).lower() == "gemini"
             ):
                 engine = "gemini"
+            reachable, lk_host, lk_port, lk_err = probe_livekit_tcp(livekit_url)
+            has_google = bool(os.environ.get("GOOGLE_API_KEY", "").strip())
+            hints = []
+            if not reachable:
+                hints.append(
+                    "No LiveKit server on %s:%s (%s). On Linux start one with "
+                    "bash livekit_stack/run_livekit_server.sh, or set LIVEKIT_URL to your LiveKit Cloud wss:// URL."
+                    % (lk_host, lk_port, lk_err or "connection refused")
+                )
+            if not has_google and engine != "gemma":
+                hints.append("GOOGLE_API_KEY is unset in .env — Gemini Live cannot speak.")
+            if not ffmpeg_on_path():
+                hints.append("ffmpeg is not on PATH. Install it (sudo apt install ffmpeg) so LiveKit can encode tutor audio.")
+            hints.append("Open http://127.0.0.1:8000/ (not a LAN hostname) so the browser allows the microphone.")
+            hints.append("Start the worker with python3 livekit_stack/agent/run_agent.py --online start  (never sudo).")
             body = json.dumps({
                 "success": True,
                 "livekit_url": livekit_url,
                 "livekit_host": livekit_http_origin(livekit_url),
-                "has_google_api_key": bool(os.environ.get("GOOGLE_API_KEY", "").strip()),
+                "livekit_reachable": reachable,
+                "livekit_tcp": {"host": lk_host, "port": lk_port, "error": lk_err},
+                "ffmpeg": ffmpeg_on_path(),
+                "has_google_api_key": has_google,
                 "has_livekit_api_key": bool(os.environ.get("LIVEKIT_API_KEY", "").strip()) and os.environ.get("LIVEKIT_API_KEY") != "devkey",
                 "gemini_live_model": gemini_live_model_for_client(),
                 "agent_name": livekit_agent_name(),
@@ -2146,6 +2230,10 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "active_livekit_room": session_data.get("active_livekit_room"),
                 "voice_engine": engine,
                 "force_offline": os.environ.get("FORCE_OFFLINE", os.environ.get("OFFLINE_MODE", "0")),
+                "platform": sys.platform,
+                "secure_origin_hint": "http://127.0.0.1:8000/",
+                "hint": " ".join(hints),
+                "hints": hints,
             }).encode("utf-8")
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -3949,13 +4037,26 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
             api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretsecretsecretsecretsecretsecretsecret")
-            offline_default = os.environ.get("OFFLINE_MODE", "1") == "1"
-            online_testing = os.environ.get("ONLINE_MODE") == "1" or os.environ.get("OFFLINE_MODE") == "0"
-            livekit_url = os.environ.get("LIVEKIT_URL", "ws://localhost:7880").strip()
-            if not livekit_url:
-                livekit_url = "ws://127.0.0.1:7880"
+            force_offline = os.environ.get("FORCE_OFFLINE", "").strip().lower() in ("1", "true", "yes", "on")
+            offline_env = os.environ.get("OFFLINE_MODE")
+            online_testing = (
+                os.environ.get("ONLINE_MODE") == "1"
+                or offline_env == "0"
+                or (
+                    (not force_offline)
+                    and bool(os.environ.get("GOOGLE_API_KEY", "").strip())
+                    and (offline_env or "").strip().lower() not in ("1", "true", "yes", "on")
+                )
+            )
+            offline_default = (not online_testing) and (
+                force_offline or (os.environ.get("OFFLINE_MODE", "1") == "1")
+            )
+            livekit_url = prefer_ipv4_livekit_url(
+                os.environ.get("LIVEKIT_URL", "ws://127.0.0.1:7880").strip() or "ws://127.0.0.1:7880"
+            )
             if online_testing:
-                livekit_url = os.environ.get("LIVEKIT_CLOUD_URL", "").strip() or livekit_url
+                cloud = prefer_ipv4_livekit_url(os.environ.get("LIVEKIT_CLOUD_URL", "").strip())
+                livekit_url = cloud or livekit_url
             fallbacks = livekit_connect_urls(livekit_url)
             if livekit_url in fallbacks:
                 fallbacks = [u for u in fallbacks if u != livekit_url]
@@ -5662,6 +5763,10 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         use_google_tts = False
                 
                 if not use_google_tts:
+                    if sys.platform != "win32":
+                        print("[TTS SERVER] SAPI5 is Windows-only. Start Kokoro on :8880 for /v1/audio/speech on Linux.", flush=True)
+                        self.send_error(503, "Speech synthesis unavailable on Linux without Kokoro")
+                        return
                     # Import native Windows COM library
                     import win32com.client
                     import pythoncom

@@ -44,6 +44,45 @@ if ! python3 -c "import websockets" 2>/dev/null; then
 fi
 echo "[OK] websockets importable"
 
+if command -v ffmpeg >/dev/null 2>&1; then
+  echo "[OK] ffmpeg $(ffmpeg -version 2>/dev/null | head -n 1)"
+else
+  echo "[WARN] ffmpeg is not on PATH. LiveKit tutor audio often fails on Linux without it."
+  echo "       sudo apt install ffmpeg"
+fi
+
+if [ -n "${SUDO_USER:-}" ] || [ "$(id -u)" = "0" ]; then
+  echo "[FAIL] Do not boot with sudo. The browser, PulseAudio, and .env must belong to your user."
+  echo "       python3 livekit_stack/agent/run_agent.py --online start"
+  exit 1
+fi
+
+probe_livekit() {
+  local host="127.0.0.1"
+  local port="7880"
+  if python3 - "$host" "$port" <<'PY'
+import socket, sys
+host, port = sys.argv[1], int(sys.argv[2])
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.settimeout(0.6)
+try:
+    s.connect((host, port))
+except Exception:
+    sys.exit(1)
+finally:
+    s.close()
+PY
+  then
+    echo "[OK] LiveKit TCP $host:$port is open"
+    return 0
+  fi
+  echo "[WARN] No LiveKit server on $host:$port. Gandho cannot talk until you start one:"
+  echo "       bash livekit_stack/run_livekit_server.sh"
+  echo "       or set LIVEKIT_URL=wss://YOUR_PROJECT.livekit.cloud in .env"
+  return 1
+}
+probe_livekit || true
+
 if [ ! -f "$ROOT/.env" ]; then
   echo "[WARN] .env is missing (gitignored). Gemini Live, Spatius, and cloud Gandal Space will stay unavailable."
 else
@@ -114,12 +153,20 @@ if [ "$WITH_AGENT" = "1" ]; then
     exit 1
   fi
   echo "[VOICE] Starting LiveKit watcher (FORCE_OFFLINE=${FORCE_OFFLINE:-0} OFFLINE_MODE=${OFFLINE_MODE:-0})"
+  echo "[VOICE] Never sudo this process. Use python3, in the same conda env as the classroom."
   pkill -f "run_agent.py" 2>/dev/null || true
-  nohup python3 -u "$ROOT/livekit_stack/agent/run_agent.py" start > "$ROOT/tutor_agent.log" 2>&1 &
+  if [ "${FORCE_OFFLINE:-0}" = "1" ] || [ "${OFFLINE_MODE:-0}" = "1" ]; then
+    AGENT_ARGS=(--offline start)
+  else
+    AGENT_ARGS=(--online start)
+  fi
+  nohup python3 -u "$ROOT/livekit_stack/agent/run_agent.py" "${AGENT_ARGS[@]}" > "$ROOT/tutor_agent.log" 2>&1 &
   echo "[VOICE] run_agent.py pid=$!  log=$ROOT/tutor_agent.log"
-  echo "[WARN] Voice still needs LiveKit (:7880) plus either GOOGLE_API_KEY (Gemini) or a local LLM + Kokoro + Faster-Whisper."
+  echo "[WARN] Voice still needs LiveKit (:7880 or Cloud) plus GOOGLE_API_KEY (Gemini)."
 else
-  echo "[INFO] Voice worker not started. Pass --with-agent after LiveKit + keys/models are available."
+  echo "[INFO] Voice worker not started."
+  echo "       Terminal 2: bash livekit_stack/run_livekit_server.sh   # skip if LIVEKIT_URL is Cloud wss://"
+  echo "       Terminal 3: python3 livekit_stack/agent/run_agent.py --online start"
 fi
 
 echo "======================================================================"
