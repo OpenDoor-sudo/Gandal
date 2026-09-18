@@ -206,9 +206,8 @@ class GandalSpaceEngine:
         model = local_llm_model()
         return (
             f"Gemma 4 E4B is not running at {base} (model {model}). "
-            "Start the same OpenAI-compatible local LLM the rest of Gandal uses "
-            "(LOCAL_LLM_URL, default http://127.0.0.1:8080/v1) or set GOOGLE_API_KEY "
-            "for Gemini online fallback. This is not Hexagon NPU or native-audio STT."
+            "Start the OpenAI-compatible local LLM on :8080 (LOCAL_LLM_URL / gemma-4-e4b) "
+            "or set GOOGLE_API_KEY for Gemini online fallback."
         )
 
     def _init_gemini(self):
