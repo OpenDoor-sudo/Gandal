@@ -28,6 +28,12 @@ sys.modules["livekit.local_inference"] = mock_module
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("realtime-agent")
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+SESSION_JSON_PATH = os.environ.get(
+    "SESSION_JSON_PATH",
+    os.path.join(os.environ.get("GANDHO_PROJECT_ROOT", PROJECT_ROOT), "active_session.json"),
+)
+
 # Load environment variables from parent directory .env
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 if os.path.exists(env_path):
@@ -80,7 +86,7 @@ async def entrypoint(ctx: JobContext):
 
     # 1. Resolve Active Video ID and Human-Readable Title
     active_video_id = None
-    session_json_path = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"
+    session_json_path = SESSION_JSON_PATH
     if os.path.exists(session_json_path):
         try:
             with open(session_json_path, "r", encoding="utf-8") as f:

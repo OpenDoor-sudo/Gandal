@@ -42,7 +42,12 @@ for handler in logger.handlers:
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 os.chdir(PROJECT_ROOT)
 
-SESSION_JSON_PATH = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"
+# Same file display_client.py writes (PROJECT_ROOT/active_session.json). Override with SESSION_JSON_PATH or GANDHO_PROJECT_ROOT.
+SESSION_JSON_PATH = os.environ.get(
+    "SESSION_JSON_PATH",
+    os.path.join(os.environ.get("GANDHO_PROJECT_ROOT", PROJECT_ROOT), "active_session.json"),
+)
+logger.info(f"[SESSION] Using session file: {SESSION_JSON_PATH} (exists={os.path.exists(SESSION_JSON_PATH)})")
 
 # Global memory cache to track greeted videos within the active server process
 GREETED_VIDEOS_CACHE = set()
@@ -149,6 +154,12 @@ async def entrypoint(ctx: JobContext):
                     active_mode = s_data.get("active_mode")
         except Exception as e:
             logger.warning(f"Failed to read active_session.json: {e}")
+    else:
+        logger.warning(
+            f"[SESSION] {session_json_path} is missing. Using defaults "
+            f"(student={student_name!r}, video={active_video_id!r}). "
+            "Start display_client.py so the classroom can write this file."
+        )
 
     # Check connected remote participants for dynamic student name and mode metadata
     for p in ctx.room.remote_participants.values():

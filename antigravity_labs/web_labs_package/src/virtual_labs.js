@@ -6,12 +6,12 @@
  * - Simulation HTML locale Viewer & Gandho Socratic Voice Assistant
  */
 
-import { ChemistryBench } from "./chemistry/chem_bench.js?v=20260328c";
-import { PhysicsCanvasView } from "./physics/physics_canvas_view.js?v=20260328c";
-import { RdkitViewer } from "./chemistry/rdkit_viewer.js?v=20260328c";
-import { MathPhysicsLab } from "./physics/math_physics.js?v=20260328c";
-import { PubchemInspector } from "./chemistry/pubchem_inspector.js?v=20260328c";
-import { GandhoLabVoiceAssistant } from "./gandho_voice_helper.js?v=20260328c";
+import { ChemistryBench } from "./chemistry/chem_bench.js?v=20260328d";
+import { PhysicsCanvasView } from "./physics/physics_canvas_view.js?v=20260328d";
+import { RdkitViewer } from "./chemistry/rdkit_viewer.js?v=20260328d";
+import { MathPhysicsLab } from "./physics/math_physics.js?v=20260328d";
+import { PubchemInspector } from "./chemistry/pubchem_inspector.js?v=20260328d";
+import { GandhoLabVoiceAssistant } from "./gandho_voice_helper.js?v=20260328d";
 import { saveLabsProgress, getLabsProgress } from "../../shared/lab_progress_store.js";
 import { challengeManager } from "./challenges/lab_challenges.js";
 
@@ -533,6 +533,8 @@ export class VirtualLabsApp {
     }
     if (this.activeSubModule && typeof this.activeSubModule.executeVoiceCommand === "function") {
       this.activeSubModule.executeVoiceCommand(cmd);
+    } else {
+      console.warn("[LABS VOICE] Active lab has no executeVoiceCommand; command dropped:", cmd);
     }
   }
 }

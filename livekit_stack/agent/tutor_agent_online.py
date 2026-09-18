@@ -38,6 +38,12 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("online-agent")
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+SESSION_JSON_PATH = os.environ.get(
+    "SESSION_JSON_PATH",
+    os.path.join(os.environ.get("GANDHO_PROJECT_ROOT", PROJECT_ROOT), "active_session.json"),
+)
+
 # Load environment variables from parent directory .env
 env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 if os.path.exists(env_path):
@@ -143,7 +149,7 @@ async def entrypoint(ctx: JobContext):
     
     # Load active session info to determine locale
     active_locale = "en_US"
-    session_file = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"
+    session_file = SESSION_JSON_PATH
     if os.path.exists(session_file):
         try:
             with open(session_file, "r") as sf:
