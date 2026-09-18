@@ -264,6 +264,8 @@ class GandalSpaceClient {
     this.chatHistory = [];
     this.searchHistory = [];
     this.quizCards = {};
+    this._wbFlipAnim = null;
+    this._tableauResizeBound = false;
   }
 
   init() {
@@ -598,6 +600,8 @@ class GandalSpaceClient {
       this.convoRecognition.onstart = () => {
         this.isConvoListening = true;
         this.setConvoStateUI("listening", "Listening... speak now");
+        this.switchCompanionTab("whiteboard");
+        this.expandWhiteboard(true);
       };
 
       this.convoRecognition.onresult = (event) => {
@@ -659,6 +663,12 @@ class GandalSpaceClient {
       window.toggleMicRaiseHand(event);
       const isLkActive = !!window.isConversationSessionActive;
       this.setConvoStateUI(isLkActive ? "listening" : "idle", isLkActive ? "Gandho listening..." : "Tap mic to speak or press Enter");
+      if (isLkActive) {
+        this.switchCompanionTab("whiteboard");
+        this.expandWhiteboard(true);
+      } else {
+        this.collapseWhiteboard();
+      }
       return;
     }
 
@@ -690,6 +700,7 @@ class GandalSpaceClient {
     }
     this.isConvoListening = false;
     this.setConvoStateUI("idle", "Tap mic to speak or press Enter");
+    this.collapseWhiteboard();
   }
 
   setConvoStateUI(state, text) {
@@ -931,6 +942,61 @@ class GandalSpaceClient {
     }
   }
 
+  _bindTableauResize() {
+    if (this._tableauResizeBound) return;
+    this._tableauResizeBound = true;
+    window.addEventListener("resize", () => {
+      const wbPane = document.getElementById("gandalWhiteboardPane");
+      const wrapper = wbPane && wbPane.closest(".gandal-space-wrapper");
+      if (wbPane && wrapper && wrapper.classList.contains("tableau-explaining")) {
+        this._dockTableauNoirToAnswersPane(wbPane, wrapper);
+      }
+    });
+  }
+
+  _dockTableauNoirToAnswersPane(wbPane, wrapper) {
+    if (!wbPane || !wrapper) return;
+    const answers = wrapper.querySelector(".gandal-space-answers-pane");
+    const wr = wrapper.getBoundingClientRect();
+    const ar = answers ? answers.getBoundingClientRect() : null;
+    if (ar && ar.width > 40 && ar.height > 40) {
+      wrapper.style.setProperty("--tableau-dock-top", `${Math.max(0, ar.top - wr.top)}px`);
+      wrapper.style.setProperty("--tableau-dock-left", `${Math.max(0, ar.left - wr.left)}px`);
+      wrapper.style.setProperty("--tableau-dock-width", `${ar.width}px`);
+      wrapper.style.setProperty("--tableau-dock-height", `${ar.height}px`);
+    }
+  }
+
+  _playTableauFlip(wbPane, firstRect) {
+    if (!wbPane || !firstRect || typeof wbPane.animate !== "function") return;
+    const lastRect = wbPane.getBoundingClientRect();
+    const dx = firstRect.left - lastRect.left;
+    const dy = firstRect.top - lastRect.top;
+    const sx = firstRect.width / Math.max(1, lastRect.width);
+    const sy = firstRect.height / Math.max(1, lastRect.height);
+    if (this._wbFlipAnim) {
+      try { this._wbFlipAnim.cancel(); } catch (e) {}
+      this._wbFlipAnim = null;
+    }
+    if (Math.abs(dx) < 2 && Math.abs(dy) < 2 && Math.abs(sx - 1) < 0.03 && Math.abs(sy - 1) < 0.03) {
+      return;
+    }
+    wbPane.style.transformOrigin = "top left";
+    this._wbFlipAnim = wbPane.animate(
+      [
+        { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
+        { transform: "translate(0px, 0px) scale(1, 1)" }
+      ],
+      { duration: 440, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }
+    );
+    const clear = () => {
+      wbPane.style.transformOrigin = "";
+      this._wbFlipAnim = null;
+    };
+    this._wbFlipAnim.addEventListener("finish", clear);
+    this._wbFlipAnim.addEventListener("cancel", clear);
+  }
+
   expandWhiteboard(isExplaining = true) {
     const wbPane = document.getElementById("gandalWhiteboardPane");
     const expandBtn = document.getElementById("gandalWhiteboardExpandBtn");
@@ -938,14 +1004,27 @@ class GandalSpaceClient {
     if (!wbPane) return;
 
     this.initWhiteboardHoverListeners();
+    this._bindTableauResize();
 
     if (this._wbCollapseTimeout) {
       clearTimeout(this._wbCollapseTimeout);
       this._wbCollapseTimeout = null;
     }
 
+    const wrapper = wbPane.closest(".gandal-space-wrapper");
+    const alreadyDocked = wbPane.classList.contains("expanded-explaining") &&
+      wrapper && wrapper.classList.contains("tableau-explaining");
+    if (alreadyDocked) return;
+
+    const firstRect = wbPane.getBoundingClientRect();
     wbPane.classList.remove("sliding-down");
+    if (wrapper) {
+      this._dockTableauNoirToAnswersPane(wbPane, wrapper);
+      wrapper.classList.add("tableau-explaining");
+    }
     wbPane.classList.add("expanded-explaining");
+    void wbPane.offsetWidth;
+    this._playTableauFlip(wbPane, firstRect);
 
     // Show dedicated manual "Réduire" button
     if (dismissBtn) {
@@ -971,9 +1050,21 @@ class GandalSpaceClient {
     const dismissBtn = document.getElementById("gandalWhiteboardDismissBtn");
     if (!wbPane || !wbPane.classList.contains("expanded-explaining")) return;
 
+    const wrapper = wbPane.closest(".gandal-space-wrapper");
+    const firstRect = wbPane.getBoundingClientRect();
     wbPane.classList.add("sliding-down");
-    setTimeout(() => {
-      wbPane.classList.remove("expanded-explaining", "sliding-down");
+    wbPane.classList.remove("expanded-explaining");
+    if (wrapper) {
+      wrapper.classList.remove("tableau-explaining");
+    }
+    void wbPane.offsetWidth;
+    this._playTableauFlip(wbPane, firstRect);
+
+    if (this._wbCollapseUiTimeout) {
+      clearTimeout(this._wbCollapseUiTimeout);
+    }
+    this._wbCollapseUiTimeout = setTimeout(() => {
+      wbPane.classList.remove("sliding-down");
       if (dismissBtn) {
         dismissBtn.style.display = "none";
       }
@@ -988,7 +1079,8 @@ class GandalSpaceClient {
         `;
         expandBtn.title = "Agrandir le tableau";
       }
-    }, 380);
+      this._wbCollapseUiTimeout = null;
+    }, 440);
   }
 
   toggleWhiteboardExpansion() {
