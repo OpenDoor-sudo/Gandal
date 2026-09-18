@@ -4437,7 +4437,7 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     history=data.get("history", [])
                 )
             except Exception as e:
-                result = {"success": False, "reply": f"Gandho: I'm here! Let's explore together.", "provider": "Error"}
+                result = {"success": False, "reply": str(e), "error": str(e), "provider": "Error"}
             body = json.dumps(result).encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')

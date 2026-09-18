@@ -2,7 +2,7 @@
  * gandal_space.js - Gandal Space Client & Declarative A2UI DOM Renderer
  * Integrates:
  *   1. 70% Answers & Exploration Pane + 30% Gandho Avatar & Voice Companion Pane
- *   2. Dual-mode routing (Ollama Edge Gemma 4 e4b / Gemini Cloud)
+ *   2. Dual-mode routing (Edge/Gemma 4 E4B on LOCAL_LLM_URL :8080 / optional Gemini)
  *   3. Declarative A2UI layout renderer (TextBlock, FormulaCard, PronunciationCard)
  *   4. Continuous voice conversation loop with Gandho (Web Speech API + Socratic Chat API)
  *   5. Seamless LiveKit / Spatius Avatar coordination
@@ -990,27 +990,28 @@ class GandalSpaceClient {
         const compText = document.getElementById("gandalCompanionStatusText");
 
         if (data.local_edge && data.local_edge.available) {
+          const modelName = data.local_edge.model || "gemma-4-e4b";
           if (dot) dot.className = "status-dot edge-online";
-          if (text) text.innerHTML = `<strong>Edge Active</strong>: ${data.local_edge.model} (Offline on Ventuno Q)`;
+          if (text) text.innerHTML = `<strong>Edge/Gemma</strong>: ${escapeHtml(modelName)}`;
           if (compDot) compDot.className = "status-dot edge-online";
-          if (compText) compText.innerText = "Edge Offline Voice Engine Active";
+          if (compText) compText.innerText = "Edge/Gemma on :8080";
         } else if (data.cloud_fallback && data.cloud_fallback.available) {
           if (dot) dot.className = "status-dot cloud-online";
-          if (text) text.innerHTML = `<strong>Cloud Turbo</strong>: ${data.cloud_fallback.model} (Gemini Online Fallback)`;
+          if (text) text.innerHTML = `<strong>Cloud Turbo</strong>: ${escapeHtml(data.cloud_fallback.model || "Gemini")} (online fallback)`;
           if (compDot) compDot.className = "status-dot cloud-online";
           if (compText) compText.innerText = "Gemini Cloud Voice Turbo Active";
         } else {
           if (dot) dot.className = "status-dot offline";
-          if (text) text.innerText = "Deterministic Knowledge Engine (Offline)";
+          if (text) text.innerText = "Gemma 4 E4B not running on :8080";
           if (compDot) compDot.className = "status-dot offline";
-          if (compText) compText.innerText = "Deterministic Socratic Companion";
+          if (compText) compText.innerText = "Start LOCAL_LLM_URL (gemma-4-e4b) or set GOOGLE_API_KEY";
         }
       }
     } catch (e) {
       const dot = document.getElementById("statusDot");
       const text = document.getElementById("statusText");
       if (dot) dot.className = "status-dot offline";
-      if (text) text.innerText = "Offline Mode (Deterministic Engine Ready)";
+      if (text) text.innerText = "Gemma 4 E4B not running on :8080";
     }
   }
 
@@ -1266,7 +1267,7 @@ class GandalSpaceClient {
 
       if (resp.ok) {
         const data = await resp.json();
-        const reply = data.reply || "I am reflecting on that!";
+        const reply = data.reply || data.error || "Gemma 4 E4B is not running on :8080.";
         this.chatHistory.push({ role: "assistant", content: reply });
 
         // 3. Append Gandho Bubble
@@ -1274,6 +1275,10 @@ class GandalSpaceClient {
 
         // 4. Stream onto the Tableau Noir Socratique with full KaTeX formatting
         this.writeToWhiteboard(reply, "Gandho");
+        if (data.success === false) {
+          this.setConvoStateUI("idle", "Gemma not running");
+          return;
+        }
       } else {
         throw new Error(`HTTP ${resp.status}`);
       }
@@ -2069,7 +2074,7 @@ class GandalSpaceClient {
       });
       if (resp.ok) {
         const data = await resp.json();
-        const reply = data.reply || "Voici les points essentiels à retenir.";
+        const reply = data.reply || data.error || "Gemma 4 E4B is not running on :8080.";
         this.chatHistory.push({ role: "assistant", content: reply });
         this.writeToWhiteboard(reply, "Gandho");
       }
@@ -2097,7 +2102,7 @@ class GandalSpaceClient {
       });
       if (resp.ok) {
         const data = await resp.json();
-        const reply = data.reply || "Voici une application concrète de ce concept.";
+        const reply = data.reply || data.error || "Gemma 4 E4B is not running on :8080.";
         this.chatHistory.push({ role: "assistant", content: reply });
         this.writeToWhiteboard(reply, "Gandho");
       }
@@ -2181,6 +2186,9 @@ class GandalSpaceClient {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const result = await resp.json();
 
+      if (result && result.success === false) {
+        throw new Error(result.error || "Gemma 4 E4B is not running on :8080.");
+      }
       if (result && result.ui_payload) {
         this.renderA2UI(result.ui_payload, result);
         const title = result.ui_payload.title || query;
@@ -2188,7 +2196,7 @@ class GandalSpaceClient {
           this.appendGandhoBubble(`I've loaded "${title}" on the left! Let me know if you want me to explain any part or test your understanding.`);
         }
       } else {
-        throw new Error("Invalid A2UI response payload");
+        throw new Error((result && result.error) || "Invalid A2UI response payload");
       }
     } catch (err) {
       console.error("[GANDAL SPACE] Query failed:", err);
@@ -3702,14 +3710,18 @@ class GandalSpaceClient {
 
       if (resp.ok) {
         const data = await resp.json();
-        const reply = data.reply || "Great effort!";
-        feedbackEl.innerHTML = `<strong>AI Assessment:</strong> ${escapeHtml(reply)}`;
+        const reply = data.reply || data.error || "Gemma 4 E4B is not running on :8080.";
+        if (data.success === false) {
+          feedbackEl.innerHTML = `<strong>Gemma unavailable:</strong> ${escapeHtml(reply)}`;
+        } else {
+          feedbackEl.innerHTML = `<strong>AI Assessment:</strong> ${escapeHtml(reply)}`;
+        }
       } else {
         throw new Error(`HTTP ${resp.status}`);
       }
     } catch (err) {
       console.warn("[GANDAL QUIZ] AI check error:", err);
-      feedbackEl.innerHTML = `<strong>AI Assessment:</strong> Thoughtful reasoning! Compare your thought process with the official solution above.`;
+      feedbackEl.innerHTML = `<strong>Gemma unavailable:</strong> Start LOCAL_LLM_URL (gemma-4-e4b on :8080) or set GOOGLE_API_KEY.`;
     }
   }
 

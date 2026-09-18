@@ -36,8 +36,13 @@ def run_test():
             assert resp.status == 200
             data = json.loads(resp.read().decode("utf-8"))
             print("Status response:", data.get("active_preference"))
+            print("Local edge:", data.get("local_edge"))
             assert "local_edge" in data
             assert "cloud_fallback" in data
+            assert data["local_edge"]["model"] == "gemma-4-e4b"
+            assert ":8080" in data["local_edge"]["endpoint"]
+            assert "11434" not in data["local_edge"]["endpoint"]
+            assert data["local_edge"]["available"] is False
         print("GET status: PASSED!\n")
 
         # 2. Test Audio Eval
@@ -76,6 +81,38 @@ def run_test():
             assert data.get("success") is True
             assert "ui_payload" in data
         print("POST ask: PASSED!\n")
+
+        print("Testing POST /api/gandal_space/ask photosynthesis (honest failure)...")
+        photo_data = json.dumps({"prompt": "How does Photosynthesis work?"}).encode("utf-8")
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/gandal_space/ask",
+            data=photo_data,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            assert resp.status == 200
+            data = json.loads(resp.read().decode("utf-8"))
+            print("Photosynthesis success:", data.get("success"), "error:", data.get("error"))
+            assert data.get("success") is False
+            assert "Gemma" in (data.get("error") or "")
+            assert "Comprehensive educational overview" not in json.dumps(data)
+        print("POST ask photosynthesis: PASSED!\n")
+
+        print("Testing POST /api/gandal_space/chat (honest failure)...")
+        chat_data = json.dumps({"message": "Why is the sky blue?"}).encode("utf-8")
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/gandal_space/chat",
+            data=chat_data,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            assert resp.status == 200
+            data = json.loads(resp.read().decode("utf-8"))
+            print("Chat success:", data.get("success"), "provider:", data.get("provider"))
+            assert data.get("success") is False
+            assert "Offline Persona" not in (data.get("provider") or "")
+            assert "Gemma" in (data.get("reply") or data.get("error") or "")
+        print("POST chat: PASSED!\n")
 
         # 3. Test Static files
         print("Testing GET /gandal_space/gandal_space.css...")
