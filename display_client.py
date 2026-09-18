@@ -238,11 +238,12 @@ def merge_session_info(updates):
 def save_session_info(video_id, pdf_path=None):
     try:
         updates = {}
-        if video_id:
+        if video_id and isinstance(video_id, str) and video_id.startswith("vid_") and video_id != "gandal_space_active":
             updates["active_video_id"] = video_id
         if pdf_path:
             updates["active_pdf_path"] = pdf_path
-        merge_session_info(updates)
+        if updates:
+            merge_session_info(updates)
         print(f"[SESSION] Saved session info: active_video_id={video_id}", flush=True)
     except Exception as e:
         print(f"[SESSION ERROR] Failed to save session info: {e}", flush=True)
@@ -2063,6 +2064,22 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         import urllib.parse
         clean_path = self.path.split('?')[0]
 
+        if clean_path == '/api/gandal_space/status':
+            try:
+                from gandal_space.agent_engine import default_engine
+                status_data = default_engine.get_system_status()
+            except Exception as _e:
+                status_data = {"error": str(_e)}
+            body = json.dumps(status_data).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            return
+
         if clean_path == '/api/proctor_pin_status':
             session_data = load_session_info()
             body = json.dumps({
@@ -3180,6 +3197,8 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 video_id = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques"
             elif video_id == "vid_chemistry_organic_chemistry":
                 video_id = "vid_chemistry_organic_chemistry_chemistry"
+            elif not video_id or video_id == "gandal_space_active" or not video_id.startswith("vid_"):
+                video_id = "vid_economics_extraeconomiques_01_les_probl_mes_d_mographiques"
             
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -4218,11 +4237,92 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 
         super().do_GET()
 
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
     def do_POST(self):
         import urllib.request
         import urllib.parse
         global DEPLOYMENT_MODE
         clean_path = self.path.split('?')[0]
+
+        if clean_path == '/api/gandal_space/ask':
+            content_length = int(self.headers.get('Content-Length', 0) or 0)
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+                prompt = data.get("prompt", "") or data.get("query", "")
+                context = data.get("context", "")
+                history = data.get("history", [])
+                import importlib
+                import gandal_space.agent_engine as ae
+                importlib.reload(ae)
+                result = ae.default_engine.process_query(prompt, context=context, history=history)
+            except Exception as e:
+                result = {"success": False, "error": str(e)}
+            body = json.dumps(result).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            return
+
+        if clean_path == '/api/gandal_space/eval_audio':
+            content_length = int(self.headers.get('Content-Length', 0) or 0)
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+                import importlib
+                import gandal_space.agent_engine as ae
+                importlib.reload(ae)
+                result = ae.default_engine.evaluate_pronunciation(
+                    target_letter=data.get("target_letter", "A"),
+                    expected_phoneme=data.get("expected_phoneme", "/eɪ/"),
+                    student_transcript=data.get("student_transcript", ""),
+                    audio_base64=data.get("audio_base64", "")
+                )
+            except Exception as e:
+                result = {"type": "AudioFeedback", "status": "retry", "score": 60, "feedback_text": str(e)}
+            body = json.dumps(result).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            return
+
+        if clean_path == '/api/gandal_space/chat':
+            content_length = int(self.headers.get('Content-Length', 0) or 0)
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+                from gandal_space.agent_engine import default_engine
+                result = default_engine.chat_with_gandho(
+                    message=data.get("message", ""),
+                    context=data.get("context", ""),
+                    history=data.get("history", [])
+                )
+            except Exception as e:
+                result = {"success": False, "reply": f"Gandho: I'm here! Let's explore together.", "provider": "Error"}
+            body = json.dumps(result).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            return
 
         if clean_path == '/api/omni_graph/voice_to_math':
             content_length = int(self.headers.get('Content-Length', 0) or 0)
@@ -4865,11 +4965,12 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "active_view_state": state,
                     "active_view_context": context,
                 }
-                if data.get("active_video_id"):
-                    updates["active_video_id"] = data["active_video_id"]
-                if data.get("active_video_title"):
+                act_vid = data.get("active_video_id")
+                if act_vid and isinstance(act_vid, str) and act_vid.startswith("vid_") and act_vid != "gandal_space_active":
+                    updates["active_video_id"] = act_vid
+                if data.get("active_video_title") and act_vid != "gandal_space_active":
                     updates["active_video_title"] = data["active_video_title"]
-                if data.get("active_video_time") is not None:
+                if data.get("active_video_time") is not None and act_vid != "gandal_space_active":
                     updates["active_video_time"] = data["active_video_time"]
                 merge_session_info(updates)
                 print(f"[SESSION] Updated active view state: '{state}' with context: '{context[:50]}...'", flush=True)
@@ -5716,6 +5817,15 @@ def start_http_server():
     handler = QuietHTTPRequestHandler
     ThreadingTCPServerQuietErrors.allow_reuse_address = True
     
+    # Pre-warm Gandal Space AI Engine in background so first user query has 0s cold start
+    def _prewarm_gandal_space():
+        try:
+            from gandal_space.agent_engine import default_engine
+            default_engine._init_gemini()
+        except Exception:
+            pass
+    threading.Thread(target=_prewarm_gandal_space, daemon=True).start()
+
     # Direct to workspace directory (where display_client.py and index.html are located)
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
     
@@ -6047,6 +6157,34 @@ async def ws_handler(websocket):
                         "next_chapter": next_chapter
                     }
                     await broadcast(json.dumps(quiz_result_payload))
+                elif act == "GANDAL_SPACE_ASK":
+                    prompt = data.get("prompt", "")
+                    try:
+                        from gandal_space.agent_engine import default_engine
+                        res = default_engine.process_query(prompt)
+                    except Exception as err:
+                        res = {"success": False, "error": str(err)}
+                    await websocket.send(json.dumps({
+                        "action": "GANDAL_SPACE_RESPONSE",
+                        "result": res
+                    }))
+
+                elif act == "GANDAL_SPACE_AUDIO":
+                    try:
+                        from gandal_space.agent_engine import default_engine
+                        eval_res = default_engine.evaluate_pronunciation(
+                            target_letter=data.get("target_letter", "A"),
+                            expected_phoneme=data.get("expected_phoneme", "/eɪ/"),
+                            student_transcript=data.get("student_transcript", ""),
+                            audio_base64=data.get("audio_base64", "")
+                        )
+                    except Exception as err:
+                        eval_res = {"type": "AudioFeedback", "status": "retry", "score": 60, "feedback_text": str(err)}
+                    await websocket.send(json.dumps({
+                        "action": "GANDAL_SPACE_AUDIO_RESPONSE",
+                        "result": eval_res
+                    }))
+
                 elif act == "RAISE_HAND":
                     print(f"[WS] Received RAISE_HAND from client")
                     print(f"[WS] Hand-raise query detected. Broadcasting PAUSE_VIDEO to client.")

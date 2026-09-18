@@ -5,6 +5,12 @@
 *.avi
 *.mkv
 *.webm
+*.mp3
+*.wav
+
+# Scratch temp files and runtime logs
+scratch/temp_*
+student_profiles/*/logs/
 
 # Python & Virtual Environments
 __pycache__/

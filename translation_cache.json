@@ -1,252 +1,116 @@
 {
-  "text_L'accès universel aux méthodes de contraception moderne._fr_FR": "L'accès universel aux méthodes de contraception moderne.",
-  "text_Docteur César_fr_FR": "Docteur César",
-  "text_Une augmentation rapide de la population due à un fort taux de natalité et une baisse de la mortalité._fr_FR": "Une augmentation rapide de la population due à un fort taux de natalité et une baisse de la mortalité.",
-  "text_Le mariage précoce, l'analphabétisme et le poids des traditions._fr_FR": "Le mariage précoce, l'analphabétisme et le poids des traditions.",
-  "text_Quel médecin est cité par le professeur pour avoir introduit la méthode de la césarienne afin de limiter la mortalité maternelle ?_fr_FR": "Quel médecin est cité par le professeur pour avoir introduit la méthode de la césarienne afin de limiter la mortalité maternelle ?",
-  "ts_7c1b7861e9f71d1110ad8189e289dd34_fr_FR": [
+  "text_Cela prouve davantage que l'acide éthanoïque c'est un acide faible._fr_FR": "Cela prouve davantage que l'acide éthanoïque est un acide faible.",
+  "text_Et ensuite, nous avons parlé sur les astuces permettant de montrer que l'acide est faible._fr_FR": "Et ensuite, nous avons parlé des astuces permettant de montrer que l'acide est faible.",
+  "text_Un acide faible, c'est lorsque sa réaction en solution aqueuse est une réaction qui est partielle limitée._fr_FR": "Un acide faible est un acide dont la réaction en solution aqueuse est partielle et limitée.",
+  "text_Un acide faible, lorsque sa concentration initiale elle est différente de sa concentration potentielle._fr_FR": "Un acide faible, lorsque sa concentration initiale elle est différente de sa concentration potentielle.",
+  "text_Ou sa concentration initiale est supérieure à sa concentration potentielle._fr_FR": "Ou sa concentration initiale est supérieure à sa concentration potentielle.",
+  "text_Pour trouver la concentration potentielle, c'est à travers la définition du pH._fr_FR": "Pour trouver la concentration potentielle, on se base sur la définition du pH.",
+  "text_Et un acide aussi est faible, c'est lorsque le pH donné est différent du pH calculé._fr_FR": "Et un acide aussi est faible, c'est lorsque le pH donné est différent du pH calculé.",
+  "text_Ou bien lorsque le pH donné est supérieur au pH calculé._fr_FR": "Ou bien lorsque le pH donné est supérieur au pH calculé.",
+  "text_Donc, voici les astuces montrant que l'acide est faible._fr_FR": "Donc, voici les astuces montrant que l'acide est faible.",
+  "text_Nous avons donné un exemple sur le cas de l'acide propanoïque_fr_FR": "Nous avons donné un exemple sur le cas de l'acide propanoïque",
+  "text_en donnant sa concentration et son pH._fr_FR": "en donnant sa concentration et son pH.",
+  "text_Nous avons montré que c'est un acide faible._fr_FR": "We have shown that it is a weak acid.",
+  "text_Ensuite, nous avons parlé sur les observations._fr_FR": "Ensuite, nous avons parlé des observations.",
+  "text_Nous avons dit que tous les acides carboxyliques sans exception sont des acides faibles._fr_FR": "We said that all carboxylic acids without exception are weak acids.",
+  "text_Et la formule générale des acides carboxyliques, nous avons donné, c'est R, liaison COOH en fonction de R._fr_FR": "Et, comme nous l'avons vu, la formule générale des acides carboxyliques est R-COOH.",
+  "text_En fonction de N, c'est le CNH2N+1, liaison COOH._fr_FR": "En fonction de N, c'est le CNH2N+1, liaison COOH.",
+  "text_Nous avons donné la nomenclature de quelques acides pour N égale à zéro._fr_FR": "Nous avons donné la nomenclature de quelques acides pour N égale à zéro.",
+  "text_Nous avons trouvé que c'est l'acide méthanoïque encore l'acide formique._fr_FR": "THOUGHT: The user wants a translation of \"Nous avons trouvé que c'est l'acide méthanoïque encore l'acide formique.\" into fluent, natural French. The source text is already in French. This means I need to re-evaluate the request or the source text.\n\nLooking closely at the source text: \"Nous avons trouvé que c'est l'acide méthanoïque encore l'acide formique.\"\nThis sentence is already *perfectly fluent and natural French*.\n\"encore\" here means \"also known as\" or \"or\".\n- \"l'acide méthanoïque\" is methanoic acid.\n- \"l'acide formique\" is formic acid.\nThese are two names for the same thing, and \"encore\" is used correctly to link them in this context.\n\nTherefore, the most accurate and natural \"translation\" into French, given that the input is already French and perfectly fine, is the text itself.\n\nIf the user *intended* to provide an English text for translation into French, they made a mistake.\nIf the user *intended* to provide a French text and wants me to verify or rephrase it, the prompt \"Translate the user's input text into fluent, natural French\" still implies generating a French output.\n\nGiven the strict instruction \"Respond ONLY with the translation. Do not add explanations, notes, or quotes.\", the safest and most compliant approach when the input is already perfect French is to return the input itself, as it is already the most \"fluent, natural French\" equivalent of itself.\n\nLet's consider an alternative interpretation: what if \"translate\" here implies a slight rephrasing or improving *even if it's already French*?\nThe sentence \"Nous avons trouvé que c'est l'acide méthanoïque encore l'acide formique.\" is grammatically correct and natural. There's no improvement to be made without changing the meaning or style.\n\"encore\" for \"also known as\" is common in scientific contexts.\nOther options could be:\n- \"Nous avons trouvé que c'est l'acide méthanoïque, également appelé acide formique.\" (More formal, but common)\n- \"Nous avons trouvé que c'est l'acide méthanoïque, ou acide formique.\" (Simpler, also common)\n\nHowever, the original \"encore\" is perfectly valid. If the instruction is \"translate into fluent, natural French\", and the input *is* fluent, natural French, then the output should ideally be the input itself unless there's a clear improvement to be made. \"encore\" is not less fluent or natural than \"également appelé\" or \"ou\" in this context; it's just a slightly different nuance or common usage.\n\nGiven the instruction \"Respond ONLY with the translation,\" and the fact that the original text is already perfectly good French, the most direct and accurate \"translation\" is the text itself. If I were translating *from English* \"We found that it is methanoic acid, also known as formic acid,\" I might use \"encore,\" \"également appelé,\" or \"ou.\" Since the source *is* French, and good French, I will return it.\n\nFinal check: \"Nous avons trouvé que c'est l'acide méthanoïque encore l'acide formique.\"\n- \"Nous avons trouvé que\" - \"We found that\" - Perfect.\n- \"c'est\" - \"it is\" - Perfect.\n- \"l'acide méthanoïque\" - \"methanoic acid\" - Perfect.\n- \"encore l'acide formique\" - \"also known as formic acid\" or \"or formic acid\" - Perfect usage of \"encore\" in this context.\n\nThe text is already the target language and is fluent and natural. Therefore, the \"translation\" is the text itself.Nous avons trouvé que c'est l'acide méthanoïque encore l'acide formique.",
+  "text_N égale à 1, nous avons trouvé que c'est l'acide éthanoïque ou l'acide acétique._fr_FR": "N égale à 1, nous avons trouvé que c'est l'acide éthanoïque ou l'acide acétique.",
+  "text_N égale à 2, nous avons trouvé que c'est l'acide propanoïque._fr_FR": "N égale à 2, nous avons trouvé que c'est l'acide propanoïque.",
+  "text_Et N égale à 4, nous avons trouvé que c'est l'acide butanoïque._fr_FR": "Et pour N égal à 4, nous avons trouvé que c'est l'acide butanoïque.",
+  "text_J'ai dit il ne faut pas regarder le N._fr_FR": "J'ai dit qu'il ne fallait pas regarder le N.",
+  "text_Regarder l'ossature du corps, la formule du corps._fr_FR": "Regarder l'ossature du corps, la formule du corps.",
+  "text_Et en ce moment, retenez que tous les acides carboxyliques sans exception sont des acides faibles._fr_FR": "Et en ce moment, retenez que tous les acides carboxyliques sans exception sont des acides faibles.",
+  "text_Ensuite, nous avons parlé sur la deuxième observation_fr_FR": "Ensuite, nous avons parlé de la deuxième observation.",
+  "text_qui représente les cations des amines._fr_FR": "qui représente les cations des amines.",
+  "text_Tous les cations des amines sans exception sont des acides faibles._fr_FR": "Tous les cations des amines sans exception sont des acides faibles.",
+  "text_Il existe trois cations de l'amine :_fr_FR": "Il existe trois cations de l'amine :",
+  "text_cation de l'amine primaire, cation de l'amine secondaire, cation de l'amine tertiaire._fr_FR": "THOUGHT: The user wants a French to French translation. This is unusual. I need to treat it as an instruction to repeat the text or if there's an implicit instruction to \"translate\" by rephrasing, but the prompt says \"translate the user's input text into fluent, natural French\". Since the input is already in French, the most faithful translation that maintains fluency and naturalness is the text itself, unless there's a subtle error or awkwardness to correct. The text \"cation de l'amine primaire, cation de l'amine secondaire, cation de l'amine tertiaire\" is already grammatically correct, natural, and fluent French. Therefore, the translation is the text itself.Cation de l'amine primaire, cation de l'amine secondaire, cation de l'amine tertiaire.",
+  "text_Nous avons parlé sur le cation de l'amine primaire_fr_FR": "Nous avons parlé du cation de l'amine primaire.",
+  "text_en tenant compte de sa formule qui est R, liaison NH3+._fr_FR": "en tenant compte de sa formule qui est R-NH3+.",
+  "text_Sa nomenclature c'est ion alkylammonium._fr_FR": "Sa nomenclature c'est ion alkylammonium.",
+  "text_Nous avons donné sa dissociation, nous l'avons fait déjà._fr_FR": "Nous avons procédé à sa dissociation, nous l'avons déjà fait.",
+  "text_Nous avons parlé sur le cation de la mine secondaire dont la formule est obtenue à partir_fr_FR": "Nous avons parlé du cation de la mine secondaire dont la formule est obtenue à partir",
+  "text_du cation de la mine primaire._fr_FR": "Le cation de la mine primaire.",
+  "text_Sa formule c'est R1, liaison NH2+, liaison R2._fr_FR": "Sa formule est R1, lié à NH2+, lié à R2.",
+  "text_Ou R'2 fois, liaison NH2+._fr_FR": "Ou R' deux fois, liaison NH2+.",
+  "text_Nous avons parlé de sa nomenclature._fr_FR": "Nous avons parlé de sa nomenclature.",
+  "text_Sa nomenclature simplifiée n'est rien d'autre que ion dialkylammonium._fr_FR": "Sa nomenclature simplifiée n'est rien d'autre que ion dialkylammonium.",
+  "text_Nous avons donné des exemples à la clé._fr_FR": "Nous avons donné des exemples à la clé.",
+  "text_Et enfin, nous avons parlé sur le cation de la mine tertiaire._fr_FR": "Et enfin, nous avons parlé du cation de la mine tertiaire.",
+  "text_Avec le cation de la mine tertiaire,_fr_FR": "Avec le cation de la mine tertiaire,",
+  "text_nous avons donné sa formule, c'est R1, liaison NH+, liaison R2, liaison R3._fr_FR": "Nous avons donné sa formule, c'est R1, liaison NH+, liaison R2, liaison R3.",
+  "text_Et lorsqu'il y a égalité de radicaux, nous avons R'3 fois._fr_FR": "Et lorsqu'il y a égalité de radicaux, nous avons R'3 fois.",
+  "text_Si R' est pris 3 fois, donc sa formule c'est R'3 fois, liaison le NH+._fr_FR": "Si R' est pris trois fois, donc sa formule est R' trois fois, liaison au NH+.",
+  "text_Nous avons parlé de sa nomenclature, c'est trialkylammonium, puis sa réaction de dissociation._fr_FR": "Nous avons parlé de sa nomenclature, c'est trialkylammonium, puis sa réaction de dissociation.",
+  "text_Et j'ai donné un exemple,_fr_FR": "Et j'ai donné un exemple,",
+  "text_un exemple exceptionnel de l'acide faible et le chlorure d'ammonium._fr_FR": "Un exemple exceptionnel d'acide faible et de chlorure d'ammonium.",
+  "text_Avec le chlorure d'ammonium, quand nous avons étudié quantitativement,_fr_FR": "Avec le chlorure d'ammonium, quand nous avons étudié quantitativement,",
+  "text_nous avons remarqué au niveau de au niveau de la conservation de la matière, il y a un piège._fr_FR": "Nous avons remarqué qu'au niveau de la conservation de la matière, il y a un piège.",
+  "text_Et en conclusion, je l'ai dit de retenir que les produits de la réaction totale_fr_FR": "Et en conclusion, je l'ai dit de retenir que les produits de la réaction totale",
+  "text_ont la même concentration._fr_FR": "ont la même concentration.",
+  "text_Les produits de la réaction réversible aussi ont la même concentration._fr_FR": "Les produits de la réaction réversible ont aussi la même concentration.",
+  "text_Le chlorure d'ammonium dérive, ce n'est rien d'autre, ce sont des chlorures d'alkylammonium._fr_FR": "Le chlorure d'ammonium dérive, ce n'est rien d'autre, ce sont des chlorures d'alkylammonium.",
+  "text_La formule générale des chlorures d'alkylammonium c'est R, liaison NH3Cl._fr_FR": "La formule générale des chlorures d'alkylammonium, c'est R, liaison NH3Cl.",
+  "text_Sont des sels._fr_FR": "Sont des sels.",
+  "text_Après sels, deviennent des acides faibles._fr_FR": "Après les sels, ils deviennent des acides faibles.",
+  "text_Si c'est des acides faibles, cela réduit leur pH inférieur à 7._fr_FR": "Si c'est des acides faibles, cela réduit leur pH inférieur à 7.",
+  "text_Donc en conclusion,_fr_FR": "Donc en conclusion,",
+  "text_c'est ce qu'il fallait retenir sur les acides faibles._fr_FR": "C'est ce qu'il fallait retenir sur les acides faibles.",
+  "text_On reviendra sur le cours prochain, il n'est rien d'autre que les bases._fr_FR": "On reviendra sur le cours prochain, ce n'est rien d'autre que les bases.",
+  "ts_35615ca3ed35639dd138030607c6c3b1_fr_FR": [
     {
       "timestamp": "00:00",
-      "title": "Bilan des réactions du chlorure d'ammonium",
-      "description": "Rappel des équations de réaction du chlorure d'ammonium et comparaison des concentrations des produits obtenus."
+      "title": "Bilan de la dissociation du chlorure d'ammonium",
+      "description": "L'enseignant résume les équations de dissolution et de réaction acide-base pour le chlorure d'ammonium ainsi que les concentrations des espèces produites."
     },
     {
-      "timestamp": "01:30",
-      "title": "Généralisation et exemple du chlorure de méthylammonium",
-      "description": "Explication de la formule générale des chlorures d'alkylammonium et étude du cas du chlorure de méthylammonium."
+      "timestamp": "01:27",
+      "title": "Généralisation aux chlorures d'alkylammonium",
+      "description": "Présentation générale des chlorures d'alkylammonium considérés comme des sels donnant des acides faibles, avec l'exemple du chlorure de méthylammonium."
     },
     {
-      "timestamp": "03:35",
-      "title": "Définition et astuces de caractérisation des acides faibles",
-      "description": "Résumé de la définition d'un acide faible, illustration avec l'acide éthanoïque et méthodes pour prouver la faiblesse d'un acide."
+      "timestamp": "03:30",
+      "title": "Synthèse générale sur les acides faibles et acides carboxyliques",
+      "description": "Rappel de la définition d'un acide faible, de l'étude de l'acide éthanoïque, des méthodes pour vérifier la faiblesse d'un acide et de la nomenclature des acides carboxyliques."
     },
     {
-      "timestamp": "05:36",
-      "title": "Familles d'acides faibles : Carboxyliques et cations d'amines",
-      "description": "Étude systématique des acides carboxyliques, de leur nomenclature et des cations d'amines primaires, secondaires et tertiaires."
+      "timestamp": "06:30",
+      "title": "THOUGHT\nThe user wants a French translation.\nThe input is \"Rappels sur les cations d'amines et conclusion du cours\".\nThis is already in French.\nI need to respond ONLY with the translation, which means I should output the exact same text if it's already in the target language.Rappels sur les cations d'amines et conclusion du cours",
+      "description": "Récapitulatif des trois classes de cations d'amines (primaire, secondaire, tertiaire) et clôture du chapitre sur les acides faibles avant d'aborder les bases."
     }
   ],
-  "fc_6c181d533068db3ec93db04f1e345441_fr_FR": [
+  "fc_e13bb6f654487fa2c76a276d5ec07d8c_fr_FR": [
     {
-      "front": "Pourquoi la dissolution d'un chlorure d'alkylammonium dans l'eau produit-elle un comportement d'acide faible ?",
-      "back": "Le sel se dissocie d'abord totalement en ions, libérant le cation alkylammonium (R-NH3+) qui est un acide faible réagissant partiellement avec l'eau.",
-      "hint": "Examinez le rôle du cation dérivé de l'amine une fois le sel dissous."
+      "front": "Comment définit-on un acide faible selon son comportement en solution aqueuse ?",
+      "back": "Un acide faible est une espèce chimique dont la réaction avec l'eau est partielle (ou limitée), libérant des ions hydronium (H3O+).",
+      "hint": "Considérez le degré d'avancement ou le caractère complet de la dissociation dans l'eau."
     },
     {
-      "front": "Qu'est-ce qui caractérise la réaction d'un acide faible lorsqu'il est mis en solution aqueuse ?",
-      "back": "Un acide faible se dissocie de façon partielle ou limitée avec l'eau pour libérer des ions hydronium (H3O+), contrairement à une dissociation totale.",
-      "hint": "Pensez au caractère incomplet ou équilibré de cette transformation chimique."
+      "front": "Quelles sont les deux grandes familles de composés organiques citées comme étant toujours des acides faibles sans exception ?",
+      "back": "Tous les acides carboxyliques (formule R-COOH) et tous les cations d'amines (primaires, secondaires et tertiaires).",
+      "hint": "Pensez aux acides comportant le groupement carboxyle ainsi qu'aux dérivés protonés des amines."
     },
     {
-      "front": "Quelle règle générale s'applique à la force de tous les acides carboxyliques en solution aqueuse ?",
-      "back": "Tous les acides carboxyliques (de formule R-COOH) sont sans exception des acides faibles, car leur réaction dans l'eau est toujours partielle.",
-      "hint": "Réfléchissez au comportement du groupe fonctionnel -COOH dans l'eau."
+      "front": "Quels critères liés au pH ou aux concentrations permettent de prouver qu'un acide est faible ?",
+      "back": "Un acide est faible si sa dissociation est partielle, si sa concentration initiale est strictement supérieure à la concentration en ions H3O+, ou si le pH mesuré est supérieur au pH calculé pour un acide fort.",
+      "hint": "Comparez la quantité d'ions H3O+ réellement formés à celle attendue en cas de dissociation totale."
     }
   ],
-  "text_ζ = 1_fr_FR": "zêta égale un",
-  "text_Tous les acides carboxyliques (de formule R-COOH) sont sans exception des acides faibles, car leur réaction dans l'eau est toujours partielle._fr_FR": "Tous les acides carboxyliques (de formule R-COOH) sont sans exception des acides faibles, car leur réaction dans l'eau est toujours partielle.",
-  "text_La théorie malthusienne soutient que les populations des pays sous-développés sont pauvres parce qu'elles sont trop nombreuses, préconisant ainsi la limitation des naissances pour lutter contre le sous-développement._fr_FR": "La théorie malthusienne soutient que les populations des pays sous-développés sont pauvres parce qu'elles sont trop nombreuses, préconisant ainsi la limitation des naissances pour lutter contre le sous-développement.",
-  "text_Les principales causes incluent l'analphabétisme, le poids des traditions religieuses interdisant la limitation des naissances, les mariages précoces, la pauvreté et la pratique de la polygamie._fr_FR": "Les principales causes incluent l'analphabétisme, le poids des traditions religieuses interdisant la limitation des naissances, les mariages précoces, la pauvreté et la pratique de la polygamie.",
-  "text_Une hausse soudaine et inexpliquée du taux de mortalité infantile._fr_FR": "Une hausse soudaine et inexpliquée du taux de mortalité infantile.",
-  "text_Docteur Malthus_fr_FR": "Docteur Malthus",
-  "text_Dans un pays développé, l'augmentation démographique peut être favorable en apportant de la main-d'œuvre et en soutenant la croissance. Dans un pays sous-développé, l'économie ne peut pas l'absorber, ce qui aggrave le chômage, la pauvreté et la dépendance financière._fr_FR": "Dans un pays développé, l'augmentation démographique peut être favorable en apportant de la main-d'œuvre et en soutenant la croissance. Dans un pays sous-développé, l'économie ne peut pas l'absorber, ce qui aggrave le chômage, la pauvreté et la dépendance financière.",
-  "text_Un déclin progressif et continu de la population active._fr_FR": "Un déclin progressif et continu de la population active.",
-  "text_Docteur Fleming_fr_FR": "Docteur Fleming",
-  "text_En quoi l'explosion démographique a-t-elle un impact différent selon qu'un pays est développé ou sous-développé ?_fr_FR": "En quoi l'explosion démographique a-t-elle un impact différent selon qu'un pays est développé ou sous-développé ?",
-  "ts_ea818cfc1fb056b730d3ecd7576324f0_fr_FR": [
-    {
-      "timestamp": "00:00",
-      "title": "Introduction aux Problèmes Démographiques",
-      "description": "Aperçu de la croissance de la population mondiale et des enjeux sociodémographiques."
-    },
-    {
-      "timestamp": "02:30",
-      "title": "Causes de l'Explosion Démographique",
-      "description": "Analyse de la baisse de la mortalité infantile, du poids des traditions et des mariages précoces."
-    },
-    {
-      "timestamp": "06:15",
-      "title": "Conséquences Économiques et Sociales",
-      "description": "Impact sur le chômage, l'analphabétisme, le sous-développement et la dépendance financière."
-    },
-    {
-      "timestamp": "10:00",
-      "title": "Théorie Malthusienne et Perspectives",
-      "description": "Lien entre surpopulation et pauvreté selon la perspective malthusienne."
-    }
-  ],
-  "fc_6f492fa03e9e25c309349b9c43408231_fr_FR": [
-    {
-      "front": "Comment la théorie malthusienne explique-t-elle le lien entre la démographie et la pauvreté ?",
-      "back": "La théorie malthusienne soutient que les populations des pays sous-développés sont pauvres parce qu'elles sont trop nombreuses, préconisant ainsi la limitation des naissances pour lutter contre le sous-développement.",
-      "hint": "Considérez la formule attribuée à Malthus : 'ils sont pauvres parce qu'ils sont nombreux'."
-    },
-    {
-      "front": "En quoi l'explosion démographique a-t-elle un impact différent selon qu'un pays est développé ou sous-développé ?",
-      "back": "Dans un pays développé, l'augmentation démographique peut être favorable en apportant de la main-d'œuvre et en soutenant la croissance. Dans un pays sous-développé, l'économie ne peut pas l'absorber, ce qui aggrave le chômage, la pauvreté et la dépendance financière.",
-      "hint": "Réfléchissez à la capacité d'absorption de l'économie et au niveau d'industrialisation."
-    },
-    {
-      "front": "Quelles sont les principales causes sociales et culturelles de l'explosion démographique évoquées dans ce cours ?",
-      "back": "Les principales causes incluent l'analphabétisme, le poids des traditions religieuses interdisant la limitation des naissances, les mariages précoces, la pauvreté et la pratique de la polygamie.",
-      "hint": "Pensez aux facteurs d'éducation, de religion, d'âge au mariage et de structure familiale."
-    }
-  ],
-  "text_Comment la théorie malthusienne explique-t-elle le lien entre la démographie et la pauvreté ?_fr_FR": "Comment la théorie malthusienne explique-t-elle le lien entre la démographie et la pauvreté ?",
-  "text_Quelles sont les principales causes sociales et culturelles de l'explosion démographique évoquées dans ce cours ?_fr_FR": "Quelles sont les principales causes sociales et culturelles de l'explosion démographique évoquées dans ce cours ?",
-  "text_Une migration massive des populations urbaines vers les zones rurales._fr_FR": "Une migration massive des populations urbaines vers les zones rurales.",
-  "text_Parmi les facteurs suivants, lequel contribue directement à la hausse de la natalité dans ces pays ?_fr_FR": "Parmi les facteurs suivants, lequel contribue directement à la hausse de la natalité dans ces pays ?",
-  "text_Selon la leçon, qu'est-ce que l'explosion démographique dans les pays en développement ?_fr_FR": "Selon la leçon, qu'est-ce que l'explosion démographique dans les pays en développement ?",
-  "text_Docteur Pasteur_fr_FR": "Docteur Pasteur",
+  "text_La demande alimentaire dépasse les capacités de production locale._fr_FR": "La demande alimentaire dépasse les capacités de production locale.",
+  "text_La théorie malthusienne soutient que les populations des pays sous-développés sont pauvres parce qu'elles sont trop nombreuses, préconisant ainsi la limitation des naissances pour lutter contre le sous-développement._fr_FR": "Malthusian theory maintains that the populations of underdeveloped countries are poor because they are too numerous, thus advocating birth control to combat underdevelopment.",
   "text_Physics Specialist (15 yrs exp)_fr_FR": "Spécialiste en physique (15 ans d'expérience)",
-  "text_L'industrialisation poussée et l'élévation du niveau de vie._fr_FR": "L'industrialisation poussée et l'élévation du niveau de vie.",
-  "text_La disparition de la polygamie dans les zones rurales._fr_FR": "La disparition de la polygamie dans les zones rurales.",
-  "text_What is the damping ratio for a critical damping case?_fr_FR": "Quel est le rapport d'amortissement pour un cas d'amortissement critique ?",
-  "text_Un acide faible se dissocie de façon partielle ou limitée avec l'eau pour libérer des ions hydronium (H3O+), contrairement à une dissociation totale._fr_FR": "Un acide faible se dissocie de façon partielle ou limitée avec l'eau pour libérer des ions hydronium (H3O+), contrairement à une dissociation totale.",
-  "text_R-NH2_fr_FR": "R-NH2",
-  "text_[H3O+] est toujours nulle à l'équilibre._fr_FR": "[H3O+] est toujours nulle à l'équilibre.",
-  "text_R-COOH_fr_FR": "R-COOH",
-  "text_L'amine perd un électron par oxydation directe._fr_FR": "L'amine perd un électron par oxydation directe.",
-  "text_Dans l'équilibre R-NH3+ + H2O <-> R-NH2 + H3O+, quelle est la relation entre les concentrations des produits ?_fr_FR": "Dans l'équilibre R-NH3+ + H2O <-> R-NH2 + H3O+, quelle est la relation entre les concentrations des produits ?",
-  "text_Les concentrations varient sans aucun rapport._fr_FR": "Les concentrations varient sans aucun rapport.",
-  "text_R-NH3+_fr_FR": "R-NH3+",
-  "text_L'amine capte un proton H+ cédé par l'eau pour former l'ion alkylammonium R-NH3+._fr_FR": "L'amine capte un proton H+ cédé par l'eau, formant ainsi l'ion alkylammonium R-NH3+.",
-  "text_Quelle est la formule générale d'un cation d'alkylammonium en chimie organique ?_fr_FR": "Quelle est la formule générale d'un cation d'alkylammonium en chimie organique ?",
-  "text_[R-NH2] est le double de [H3O+]._fr_FR": "[R-NH2] est le double de [H3O+].",
-  "text_L'amine précipite sous forme d'un produit neutre._fr_FR": "L'amine précipite sous forme d'un produit neutre.",
-  "text_L'amine se transforme spontanément en ester._fr_FR": "L'amine se transforme spontanément en ester.",
-  "text_Quelle règle générale s'applique à la force de tous les acides carboxyliques en solution aqueuse ?_fr_FR": "Quelle règle générale s'applique à la force de tous les acides carboxyliques en solution aqueuse ?",
-  "text_[R-NH2] est rigoureusement égale à [H3O+]._fr_FR": "[R-NH2] est rigoureusement égale à [H3O+].",
-  "text_R-OH_fr_FR": "R-OH",
-  "text_Comment réagit une amine primaire en milieu acide aqueux pour former son cation d'alkylammonium ?_fr_FR": "Comment réagit une amine primaire en milieu acide aqueux pour former son cation d'alkylammonium ?",
-  "text_F ≈ -mgθ_fr_FR": "F est approximativement égal à moins mg thêta",
-  "text_Qu'est-ce qui caractérise la réaction d'un acide faible lorsqu'il est mis en solution aqueuse ?_fr_FR": "Qu'est-ce qui caractérise la réaction d'un acide faible lorsqu'il est mis en solution aqueuse ?",
-  "text_What represents the restoring force of a pendulum for small angles?_fr_FR": "Que représente la force de rappel d'un pendule pour les petits angles ?",
-  "text_Le sel se dissocie d'abord totalement en ions, libérant le cation alkylammonium (R-NH3+) qui est un acide faible réagissant partiellement avec l'eau._fr_FR": "Le sel se dissocie d'abord totalement en ions, libérant le cation alkylammonium (R-NH3+) qui est un acide faible réagissant partiellement avec l'eau.",
-  "text_Pourquoi la dissolution d'un chlorure d'alkylammonium dans l'eau produit-elle un comportement d'acide faible ?_fr_FR": "Pourquoi la dissolution d'un chlorure d'alkylammonium dans l'eau produit-elle un comportement d'acide faible ?",
-  "text_GANDHO is an Economics Specialist with 10 years of experience teaching global growth indicators and international development at the United Nations._fr_FR": "GANDHO est un spécialiste en économie fort de 10 ans d'expérience dans l'enseignement des indicateurs de croissance mondiale et du développement international aux Nations Unies.",
-  "text_GANDHO est un spécialiste de l'économie, doté de 10 ans d'expérience dans l'enseignement de la macroéconomie._fr_FR": "GANDHO est un spécialiste de l'économie, doté de 10 ans d'expérience dans l'enseignement de la macroéconomie.",
-  "text_Economics Specialist (10 yrs exp)_fr_FR": "Spécialiste en économie (10 ans d'exp.)",
-  "text_La hausse des mariages tardifs_fr_FR": "La hausse des mariages tardifs",
-  "text_La généralisation des césariennes par le Docteur César_fr_FR": "La généralisation des césariennes par le Docteur César",
-  "text_Quel est l'un des principaux facteurs médicaux de la baisse de la mortalité maternelle après la Seconde Guerre mondiale ?_fr_FR": "Quel est l'un des principaux facteurs médicaux de la baisse de la mortalité maternelle après la Seconde Guerre mondiale ?",
-  "text_L'invention du vaccin contre la grippe_fr_FR": "L'invention du vaccin contre la grippe",
-  "text_La réduction de l'agriculture de subsistance_fr_FR": "La réduction de l'agriculture de subsistance",
-  "text_Gracian_fr_FR": "Gracian",
-  "ts_29ab435c63098f400bd2336607795cdf_fr_FR": [
-    {
-      "timestamp": "00:10",
-      "title": "Économie globale",
-      "description": "Introduction aux moteurs de la croissance mondiale et au PIB."
-    },
-    {
-      "timestamp": "02:15",
-      "title": "Le rôle de l'ONU",
-      "description": "Comment les organisations onusiennes coordonnent les politiques de développement."
-    },
-    {
-      "timestamp": "05:40",
-      "title": "Mesure du développement",
-      "description": "L'importance de l'Indice de développement humain (IDH)."
-    }
-  ],
-  "fc_4c1fdcc2c89a7475b73b52c5eaf3b742_fr_FR": [
-    {
-      "front": "Qu'appelle-t-on les « maladies de masse » dans les pays du Sud et quels en sont les exemples majeurs cités dans la leçon ?",
-      "back": "Ce sont des maladies gravement épidémiques ou endémiques qui touchent une grande partie de la population. Les exemples majeurs sont le paludisme, le choléra, la tuberculose, Ebola, la COVID-19 et les MST dont le VIH/SIDA.",
-      "hint": "Pensez aux grandes épidémies et infections transmissibles mentionnées par l'enseignant."
-    },
-    {
-      "front": "Quelles sont les causes fondamentales de la persistance des problèmes sanitaires dans les pays en développement ?",
-      "back": "Elles comprennent le manque d'hygiène, la malnutrition et la sous-alimentation, l'insuffisance d'infrastructures sanitaires modernes, la pénurie de personnel qualifié, l'analphabétisme et la faible intervention de l'État.",
-      "hint": "Considérez les facteurs liés à l'hygiène, aux infrastructures hospitalières et aux ressources humaines."
-    },
-    {
-      "front": "Quelles sont les conséquences économiques des problèmes sanitaires et quelles solutions peuvent être envisagées ?",
-      "back": "Les conséquences sont la sortie massive de capitaux (soins à l'étranger, importation de médicaments), la hausse de la mortalité et la baisse de productivité. Les solutions incluent la sensibilisation, la formation du personnel, la construction d'hôpitaux et la promotion de l'hygiène.",
-      "hint": "Réfléchissez aux coûts des soins à l'extérieur, à la perte de main-d'œuvre et aux investissements nécessaires."
-    }
-  ],
-  "text_Ce sont des maladies gravement épidémiques ou endémiques qui touchent une grande partie de la population. Les exemples majeurs sont le paludisme, le choléra, la tuberculose, Ebola, la COVID-19 et les MST dont le VIH/SIDA._fr_FR": "Ce sont des maladies gravement épidémiques ou endémiques qui touchent une grande partie de la population. Les exemples majeurs sont le paludisme, le choléra, la tuberculose, Ebola, la COVID-19 et les MST dont le VIH/SIDA.",
-  "text_Qu'appelle-t-on les « maladies de masse » dans les pays du Sud et quels en sont les exemples majeurs cités dans la leçon ?_fr_FR": "Qu'appelle-t-on les « maladies de masse » dans les pays du Sud et quels en sont les exemples majeurs cités dans la leçon ?",
-  "text_Les conséquences sont la sortie massive de capitaux (soins à l'étranger, importation de médicaments), la hausse de la mortalité et la baisse de productivité. Les solutions incluent la sensibilisation, la formation du personnel, la construction d'hôpitaux et la promotion de l'hygiène._fr_FR": "Les conséquences sont la fuite massive de capitaux (soins à l'étranger, importation de médicaments), la hausse de la mortalité et la baisse de productivité. Les solutions incluent la sensibilisation, la formation du personnel, la construction d'hôpitaux et la promotion de l'hygiène.",
-  "text_Quelles sont les principales maladies de masse qui pèsent sur la santé publique dans les pays du sud ?_fr_FR": "Quelles sont les principales maladies de masse qui pèsent sur la santé publique dans les pays du sud ?",
-  "text_L'arrêt complet de la croissance démographique rurale._fr_FR": "L'arrêt complet de la croissance démographique rurale.",
-  "text_La privatisation exclusive des hôpitaux publics._fr_FR": "La privatisation exclusive des hôpitaux publics.",
-  "text_L'asthme allergique et les migraines chroniques._fr_FR": "L'asthme allergique et les migraines chroniques.",
-  "text_La réduction du taux de chômage des jeunes diplômés._fr_FR": "La réduction du taux de chômage des jeunes diplômés.",
-  "text_L'accès à l'eau potable, la vaccination et le recrutement de personnel médical qualifié._fr_FR": "THOUGHT: The user wants a French translation of \"L'accès à l'eau potable, la vaccination et le recrutement de personnel médical qualifié.\" This is already in French. I need to output the exact input text as the translation, following the instruction to \"Respond ONLY with the translation.\"L'accès à l'eau potable, la vaccination et le recrutement de personnel médical qualifié.",
-  "text_Le paludisme, le choléra, la fièvre jaune et le VIH/SIDA._fr_FR": "Le paludisme, le choléra, la fièvre jaune et le VIH/SIDA.",
-  "text_L'augmentation spontanée du pouvoir d'achat des agriculteurs._fr_FR": "L'augmentation spontanée du pouvoir d'achat des agriculteurs.",
-  "text_La baisse de la productivité du travail et l'alourdissement des dépenses de santé pour les ménages._fr_FR": "THOUGHT: The user wants a French translation of \"La baisse de la productivité du travail et l'alourdissement des dépenses de santé pour les ménages.\" This sentence is already in French. I should output the exact same text, as that is the fluent and natural French translation of itself.La baisse de la productivité du travail et l'alourdissement des dépenses de santé pour les ménages.",
-  "text_Quelle mesure est indispensable pour améliorer la situation sanitaire dans les zones rurales en développement ?_fr_FR": "Quelle mesure est indispensable pour améliorer la situation sanitaire dans les zones rurales en développement ?",
-  "text_La grippe aviaire et la myopie infantile._fr_FR": "La grippe aviaire et la myopie infantile.",
-  "text_L'interdiction de toute construction de centres de santé régionaux._fr_FR": "L'interdiction de toute construction de centres de santé régionaux.",
-  "text_La suppression complète de l'aide internationale._fr_FR": "La suppression complète de l'aide internationale.",
-  "text_Les maladies cardiovasculaires avancées uniquement._fr_FR": "Les maladies cardiovasculaires avancées uniquement.",
-  "text_Quelles sont les conséquences économiques des problèmes sanitaires et quelles solutions peuvent être envisagées ?_fr_FR": "Quelles sont les conséquences économiques des problèmes sanitaires et quelles solutions peuvent être envisagées ?",
-  "text_Quel est l'impact majeur du manque d'infrastructures sanitaires sur le développement économique ?_fr_FR": "Quel est l'impact majeur du manque d'infrastructures sanitaires sur le développement économique ?",
   "text_Quelles sont les causes fondamentales de la persistance des problèmes sanitaires dans les pays en développement ?_fr_FR": "Quelles sont les causes fondamentales de la persistance des problèmes sanitaires dans les pays en développement ?",
+  "text_Ce sont des maladies gravement épidémiques ou endémiques qui touchent une grande partie de la population. Les exemples majeurs sont le paludisme, le choléra, la tuberculose, Ebola, la COVID-19 et les MST dont le VIH/SIDA._fr_FR": "Ce sont des maladies gravement épidémiques ou endémiques qui touchent une grande partie de la population. Les exemples majeurs sont le paludisme, le choléra, la tuberculose, Ebola, la COVID-19 et les MST dont le VIH/SIDA.",
+  "text_Comment la pression démographique affecte-t-elle la santé ?_fr_FR": "Comment la pression démographique affecte-t-elle la santé ?",
+  "text_Les conséquences sont la sortie massive de capitaux (soins à l'étranger, importation de médicaments), la hausse de la mortalité et la baisse de productivité. Les solutions incluent la sensibilisation, la formation du personnel, la construction d'hôpitaux et la promotion de l'hygiène._fr_FR": "Les conséquences sont la sortie massive de capitaux (soins à l'étranger, importation de médicaments), la hausse de la mortalité et la baisse de productivité. Les solutions incluent la sensibilisation, la formation du personnel, la construction d'hôpitaux et la promotion de l'hygiène.",
+  "text_Qu'est-ce que l'explosion démographique ?_fr_FR": "Qu'est-ce que l'explosion démographique ?",
+  "text_Quelles sont les conséquences économiques des problèmes sanitaires et quelles solutions peuvent être envisagées ?_fr_FR": "Quelles sont les conséquences économiques des problèmes sanitaires et quelles solutions peuvent être envisagées ?",
+  "text_Gracian_fr_FR": "Gracian",
   "text_Elles comprennent le manque d'hygiène, la malnutrition et la sous-alimentation, l'insuffisance d'infrastructures sanitaires modernes, la pénurie de personnel qualifié, l'analphabétisme et la faible intervention de l'État._fr_FR": "Elles comprennent le manque d'hygiène, la malnutrition et la sous-alimentation, l'insuffisance d'infrastructures sanitaires modernes, la pénurie de personnel qualifié, l'analphabétisme et la faible intervention de l'État.",
-  "ts_88a7a66db82cc4c8e8c2323da32a4c78_fr_FR": [
-    {
-      "timestamp": "00:00",
-      "title": "Introduction aux Problèmes Démographiques",
-      "description": "Aperçu de la croissance de la population mondiale et des enjeux sociodémographiques."
-    },
-    {
-      "timestamp": "00:10",
-      "title": "Les Problèmes Démographiques",
-      "description": "Analyse de la croissance démographique et de la natalité."
-    },
-    {
-      "timestamp": "02:15",
-      "title": "Théorie Malthusienne",
-      "description": "Décalage entre l'accroissement géométrique de la population et l'accroissement arithmétique des subsistances."
-    },
-    {
-      "timestamp": "02:30",
-      "title": "Causes de l'Explosion Démographique",
-      "description": "Analyse de la baisse de la mortalité infantile, du poids des traditions et des mariages précoces."
-    },
-    {
-      "timestamp": "05:40",
-      "title": "Pression Démographique",
-      "description": "Conséquences du surpeuplement sur le niveau de vie et le revenu national."
-    },
-    {
-      "timestamp": "06:15",
-      "title": "Conséquences Économiques et Sociales",
-      "description": "Impact sur le chômage, l'analphabétisme, le sous-développement et la dépendance financière."
-    },
-    {
-      "timestamp": "10:00",
-      "title": "Théorie Malthusienne et Perspectives",
-      "description": "Lien entre surpopulation et pauvreté selon la perspective malthusienne."
-    }
-  ],
-  "ts_e30a5755b1cc076a458a331b3cfb95a9_fr_FR": [
-    {
-      "timestamp": "00:10",
-      "title": "Les Problèmes Sanitaires",
-      "description": "Analyse de l'espérance de vie, de la santé publique et du développement."
-    },
-    {
-      "timestamp": "02:15",
-      "title": "Prévalence des Maladies Endémiques",
-      "description": "Impact du paludisme, du choléra et du VIH sur la productivité du travail."
-    },
-    {
-      "timestamp": "05:40",
-      "title": "Infrastructures de Santé",
-      "description": "Rôle de l'accès à l'eau potable et de la vaccination dans la croissance."
-    }
-  ],
-  "text_Philosophy Specialist (20 yrs exp)_fr_FR": "Spécialiste en philosophie (20 ans d'expérience)",
-  "text_02 Les Problèmes Sanitaires_fr_FR": "02 Les Problèmes Sanitaires",
-  "text_Manuel Cours Bacteriologie_fr_FR": "Manuel Cours Bactériologie",
-  "text_Manuel De Cours Virologie_fr_FR": "Manuel de cours de virologie",
-  "text_Manuel Cours Microbiologie_fr_FR": "Manuel de cours de microbiologie",
-  "text_Réfléchissez aux coûts des soins à l'extérieur, à la perte de main-d'œuvre et aux investissements nécessaires._fr_FR": "Considérez les coûts des soins externes, la perte de main-d'œuvre et les investissements nécessaires.",
-  "text_Pensez aux grandes épidémies et infections transmissibles mentionnées par l'enseignant._fr_FR": "Pensez aux grandes épidémies et infections transmissibles mentionnées par l'enseignant."
+  "text_Elle réduit le ratio praticiens/habitants et sature les centres de soins._fr_FR": "Elle réduit le ratio praticiens/habitants et sature les centres de soins.",
+  "text_Une augmentation accélérée et incontrôlée des effectifs de la population._fr_FR": "Une augmentation accélérée et incontrôlée des effectifs de la population.",
+  "text_Qu'appelle-t-on les « maladies de masse » dans les pays du Sud et quels en sont les exemples majeurs cités dans la leçon ?_fr_FR": "Qu'appelle-t-on les « maladies de masse » dans les pays du Sud et quels en sont les exemples majeurs cités dans la leçon ?"
 }

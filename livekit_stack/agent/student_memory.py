@@ -256,7 +256,7 @@ async def synthesize_session_memory(student_id, subject, transcript_list, google
                if genai is not None:
                    client = genai.Client(api_key=google_api_key)
                    response = client.models.generate_content(
-                       model='gemini-2.0-flash',
+                       model='gemini-2.5-flash',
                        contents=prompt
                    )
                    res_text = response.text.strip()

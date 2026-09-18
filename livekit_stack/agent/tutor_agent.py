@@ -295,6 +295,7 @@ async def entrypoint(ctx: JobContext):
             "- LISTEN & FOLLOW USER INTENT IN TEXTBOOKS/PDFs: When the student opens or navigates a textbook, PDF, or audiobook, acknowledge their exact location. Ask if they want a conceptual explanation first, or if they prefer to jump straight into questions or debate. Follow their preference!\n"
             "- INTELLECTUAL DEBATE & RESPECTFUL PUSHBACK (Philosophy, Ethics, Literature, History): For debate-oriented subjects, act as a real Socratic debate partner! Do NOT just passively agree with everything the student says. If the student makes an assertion or argument, respectfully push back with counter-arguments, test their logic, and foster a vibrant back-and-forth intellectual dialogue!\n"
             "- VIDEO LESSON MODE & HAND-RAISE: When watching a video lesson or when the student raises their hand/asks a question, answer their specific question about '" + video_title + "' directly and guide them with a Socratic question.\n"
+            "- VERTICAL COLUMN ARITHMETIC (L'addition posée en colonnes): When explaining addition (especially adding 2, 3, 4 or more numbers like 12 + 10 or 125 + 48 + 37), format the calculation vertically stacked like arithmetic on paper using LaTeX array block notation: $$\\begin{array}{cr} & 125 \\\\ & 48 \\\\ + & 37 \\\\ \\hline & 210 \\end{array}$$, explaining step-by-step column alignment (les unités, les dizaines, les retenues).\n"
             "- Do NOT give away direct numerical answers, final option letters (A, B, C, D) on quizzes, or formulas directly without guiding the student to reason through the steps."
         )
 
@@ -372,6 +373,34 @@ async def entrypoint(ctx: JobContext):
                 f"- Always address {student_name} warmly, acknowledge the exact experiment they are running, and refer to their real measurements (pH, mL volume, reagents, gravity, speed, formula, or molecule name).\n"
                 f"- Act as an encouraging, inspiring Socratic science professor: ask what they predict will happen, guide them to interpret their readings, and help them achieve the lab mission step-by-step.\n"
                 f"- NEVER give direct numerical answers immediately; encourage hypotheses, observation, and reasoning.\n"
+                f"{chatty_socratic_guidelines}"
+            )
+        elif view_state == "gandal_space":
+            gandal_topic = "General Exploration"
+            gandal_notes = ""
+            if view_context:
+                try:
+                    parsed = json.loads(view_context) if isinstance(view_context, str) and view_context.strip().startswith("{") else {}
+                    if isinstance(parsed, dict):
+                        gandal_topic = parsed.get("active_topic", parsed.get("topic", parsed.get("lesson_title", gandal_topic)))
+                        gandal_notes = parsed.get("notes", "")
+                    else:
+                        gandal_topic = str(view_context)
+                except Exception:
+                    gandal_topic = str(view_context)
+
+            instructions = (
+                f"Role:\n"
+                f"{role_instruction}\n"
+                f"{lang_instruction}\n"
+                f"The student's name is {student_name}.\n"
+                f"LOCATION STATUS: The student is CURRENTLY IN GANDAL SPACE (Universal K-12+ STEM & Humanities Explorer).\n"
+                f"Active Focus / Topic on the student's screen: '{gandal_topic}'.\n"
+                f"{gandal_notes}\n"
+                f"CRITICAL SOCRATIC GUIDELINES FOR GANDAL SPACE:\n"
+                f"- The student is NOT watching the dashboard video lecture! DO NOT mention, refer to, or assume the dashboard video ('{video_title}') unless the student explicitly asks about it!\n"
+                f"- Discuss strictly the topic on the student's screen: '{gandal_topic}', their math equations, formulas, graphs, or quiz questions.\n"
+                f"- Offer concise, step-by-step Socratic guidance and ask engaging check-for-understanding questions.\n"
                 f"{chatty_socratic_guidelines}"
             )
         else:
@@ -481,7 +510,7 @@ async def entrypoint(ctx: JobContext):
                 f"Respond ONLY with the translation. Do not add explanations, notes, or quotes.\n\nText:\n{text}"
             )
             response = client.models.generate_content(
-                model='gemini-2.0-flash',
+                model='gemini-2.5-flash',
                 contents=prompt
             )
             translated = response.text.strip().strip('"')
@@ -981,16 +1010,7 @@ async def entrypoint(ctx: JobContext):
                                     logger.warning(f"Failed to query SQLite during dynamic state update: {e}")
                         
                         new_instructions = rebuild_dynamic_instructions(view_state, pdf_path, pdf_name, view_context)
-                        logger.info(f"[DYNAMIC UPDATE] View state is '{view_state}', locale is '{current_locale}', video is '{video_title}'. Updating system prompt...")
-                        
-                        # Update the active session instructions using the realtime session API.
-                        if hasattr(session, "_activity") and session._activity and hasattr(session._activity, "_rt_session") and session._activity._rt_session:
-                            try:
-                                await session._activity._rt_session.update(instructions=new_instructions)
-                            except TypeError:
-                                logger.debug("Realtime session update does not support instruction payloads in this LiveKit version; continuing with the existing session configuration.")
-                            except Exception as update_err:
-                                logger.warning(f"Failed to update active session instructions: {update_err}")
+                        logger.info(f"[DYNAMIC UPDATE] View state is '{view_state}', locale is '{current_locale}', video is '{video_title}'. Transitioning session...")
                             
                         def parse_lab_info(ctx):
                             lab_t = "Laboratoire STEM"
@@ -1022,6 +1042,16 @@ async def entrypoint(ctx: JobContext):
                                     transition_prompt = f"Dis à l'étudiant en français : 'Nous sommes dans l'espace de travail partagé pour le manuel \"{pdf_name}\". Discutons de cette section !'"
                                 elif view_state == "evaluation":
                                     transition_prompt = "Dis à l'étudiant en français : 'Je vois que vous êtes sur l'évaluation. Lisons les questions à choix multiples ensemble et résolvons-les étape par étape !'"
+                                elif view_state == "gandal_space":
+                                    gandal_t = "Gandal Space"
+                                    if view_context:
+                                        try:
+                                            p = json.loads(view_context) if isinstance(view_context, str) and view_context.strip().startswith("{") else {}
+                                            if isinstance(p, dict):
+                                                gandal_t = p.get("active_topic", gandal_t)
+                                        except Exception:
+                                            pass
+                                    transition_prompt = f"Dis à l'étudiant en français : 'Bienvenue dans Gandal Space ! Je vois que nous explorons \"{gandal_t}\". Que souhaitez-vous que nous examinions ensemble ?'"
                                 elif view_state == "virtual_labs":
                                     lab_t, lab_tel = parse_lab_info(view_context)
                                     tel_clause = f" avec vos mesures en direct ({lab_tel})" if lab_tel else ""
@@ -1035,6 +1065,16 @@ async def entrypoint(ctx: JobContext):
                                     transition_prompt = f"Tell the student: 'We are in the split-screen workspace reviewing the textbook \"{pdf_name}\". What section or concept would you like to explore?'"
                                 elif view_state == "evaluation":
                                     transition_prompt = "Tell the student: 'I see you are on the Evaluation quiz! Let's read through the multiple choice questions together and work through them step-by-step.'"
+                                elif view_state == "gandal_space":
+                                    gandal_t = "Gandal Space"
+                                    if view_context:
+                                        try:
+                                            p = json.loads(view_context) if isinstance(view_context, str) and view_context.strip().startswith("{") else {}
+                                            if isinstance(p, dict):
+                                                gandal_t = p.get("active_topic", gandal_t)
+                                        except Exception:
+                                            pass
+                                    transition_prompt = f"Tell the student: 'Welcome to Gandal Space! I see you are exploring \"{gandal_t}\". Ask me anything about the concepts, formulas, graphs, or quiz, or tell me where you would like to start!'"
                                 elif view_state == "virtual_labs":
                                     lab_t, lab_tel = parse_lab_info(view_context)
                                     tel_clause = f" with your live measurements ({lab_tel})" if lab_tel else ""
@@ -1074,12 +1114,14 @@ async def entrypoint(ctx: JobContext):
             # Resolve current view state from session json
             v_state = "dashboard"
             p_name = ""
+            v_context_str = ""
             if os.path.exists(session_json_path):
                 try:
                     with open(session_json_path, "r", encoding="utf-8") as f:
                         s_data = json.load(f)
                         v_state = s_data.get("active_view_state", "dashboard")
                         p_name = s_data.get("active_pdf_name", "")
+                        v_context_str = s_data.get("active_view_context", "")
                 except Exception:
                     pass
             
@@ -1102,6 +1144,20 @@ async def entrypoint(ctx: JobContext):
                 elif v_state == "evaluation":
                     greeting_instruction = (
                         f"Dis à {student_name} en français : '{time_salutation} {student_name} ! Je vois que vous êtes sur l'évaluation. Lisons les questions ensemble et résolvons-les pas à pas.'"
+                    )
+                elif v_state == "gandal_space":
+                    g_topic = "Gandal Space"
+                    if v_context_str:
+                        try:
+                            p = json.loads(v_context_str) if isinstance(v_context_str, str) and v_context_str.strip().startswith("{") else {}
+                            if isinstance(p, dict):
+                                g_topic = p.get("active_topic", p.get("lesson_title", g_topic))
+                        except Exception:
+                            pass
+                    if len(g_topic) > 50:
+                        g_topic = g_topic.split(".")[0].split(":")[0].strip()
+                    greeting_instruction = (
+                        f"Dis chaleureusement à {student_name} en français : '{time_salutation} {student_name} ! Bienvenue dans Gandal Space. Je vois que vous explorez \"{g_topic}\". Posez-moi vos questions ou discutons des concepts et graphiques sur votre écran !'"
                     )
                 elif active_mode == "CLASSROOM":
                     greeting_instruction = (
@@ -1127,6 +1183,18 @@ async def entrypoint(ctx: JobContext):
                 elif v_state == "evaluation":
                     greeting_instruction = (
                         f"Say to {student_name}: '{time_salutation} {student_name}! I see you are on the Evaluation quiz. Let's work through the questions step-by-step!'"
+                    )
+                elif v_state == "gandal_space":
+                    g_topic = "Gandal Space"
+                    if v_context_str:
+                        try:
+                            p = json.loads(v_context_str) if isinstance(v_context_str, str) and v_context_str.strip().startswith("{") else {}
+                            if isinstance(p, dict):
+                                g_topic = p.get("active_topic", p.get("lesson_title", g_topic))
+                        except Exception:
+                            pass
+                    greeting_instruction = (
+                        f"Say warmly to {student_name}: '{time_salutation} {student_name}! Welcome to Gandal Space. I see you are exploring \"{g_topic}\". Ask me anything or explore the concepts, formulas, graphs, and quiz on your screen!'"
                     )
                 elif active_mode == "CLASSROOM":
                     greeting_instruction = (
@@ -1156,8 +1224,7 @@ async def entrypoint(ctx: JobContext):
         except Exception as e:
             logger.error(f"Failed sending initial greeting: {e}")
 
-    # Launch background tasks for greeting and live session state monitoring
-    asyncio.create_task(send_greeting())
+    # Launch background task for live session state monitoring (greeting is triggered upon audio track subscription)
     asyncio.create_task(monitor_session_changes())
 
     # Start audio track listener and join room (blocking call)

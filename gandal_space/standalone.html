@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gandal Space - Universal K-12+ AI Explorer</title>
+  <link rel="stylesheet" href="/gandal_space/gandal_space.css" />
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #07070a;
+      overflow: hidden;
+    }
+    #gandalSpacePane {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="gandalSpacePane">
+    <div id="gandalSpaceMountPoint"></div>
+  </div>
+
+  <script src="/gandal_space/gandal_space.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      window.gandalSpaceApp = new GandalSpaceClient("gandalSpaceMountPoint");
+      window.gandalSpaceApp.init();
+    });
+  </script>
+</body>
+</html>
