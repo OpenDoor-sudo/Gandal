@@ -2004,21 +2004,28 @@
   cursor: crosshair;
 }
 
-/* Dark A2UI graph cards: JSXGraph default board is white with black ticks. */
-.a2ui-graph-viewport .jxgbox {
+/* Dark A2UI + Tableau Noir graphs: JSXGraph default board is white with black ticks. */
+.a2ui-graph-viewport .jxgbox,
+.gandal-wb-graph-viewport .jxgbox,
+.gandal-whiteboard-content .jxgbox {
   background-color: #08090d !important;
   border: none !important;
   border-radius: 0;
 }
 
-.a2ui-graph-viewport .jxgbox svg text {
+.a2ui-graph-viewport .jxgbox svg text,
+.gandal-wb-graph-viewport .jxgbox svg text,
+.gandal-whiteboard-content .jxgbox svg text {
   fill: #f8fafc !important;
   color: #f8fafc !important;
   stroke: none !important;
 }
 
-.a2ui-graph-viewport .jxgbox .JXGtext {
+.a2ui-graph-viewport .jxgbox .JXGtext,
+.gandal-wb-graph-viewport .jxgbox .JXGtext,
+.gandal-whiteboard-content .jxgbox .JXGtext {
   color: #f8fafc !important;
+  fill: #f8fafc !important;
 }
 
 .a2ui-graph-actions {
@@ -2256,6 +2263,113 @@
   overflow-y: auto;
   text-shadow: 0 0 2px rgba(255, 255, 255, 0.15);
   padding-right: 4px;
+  min-height: 0;
+}
+
+.gandal-wb-socratic {
+  white-space: normal;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.gandal-wb-kicker {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c084fc;
+}
+
+.gandal-wb-question {
+  font-size: 0.95rem;
+  color: #f8fafc;
+  line-height: 1.5;
+}
+
+.gandal-wb-hint {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.gandal-wb-graph-wrap {
+  flex: 1 1 auto;
+  min-height: 240px;
+  height: min(52vh, 420px);
+}
+
+.gandal-wb-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gandal-wb-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  color: #f1f5f9;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.gandal-wb-quiz-option:hover:not(.disabled) {
+  border-color: #c084fc;
+  background: rgba(168, 85, 247, 0.16);
+}
+
+.gandal-wb-quiz-letter {
+  flex: 0 0 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(168, 85, 247, 0.28);
+  color: #e9d5ff;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.gandal-wb-quiz-text {
+  flex: 1;
+}
+
+.gandal-wb-quiz-mark {
+  min-width: 1.2em;
+}
+
+.gandal-wb-quiz-option.correct,
+.gandal-wb-quiz-option.show-correct {
+  border-color: #34d399;
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.gandal-wb-quiz-option.incorrect {
+  border-color: #f87171;
+  background: rgba(239, 68, 68, 0.16);
+}
+
+.gandal-wb-quiz-option.disabled {
+  cursor: default;
+}
+
+.gandal-wb-quiz-explanation {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px dashed rgba(56, 189, 248, 0.3);
+  border-radius: 10px;
+  padding: 10px 12px;
 }
 
 /* Blackboard KaTeX Chalkboard Polish for Stacked Column Arithmetic */

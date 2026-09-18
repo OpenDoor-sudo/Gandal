@@ -286,6 +286,21 @@ function darkGraphDefaultAxes() {
   };
 }
 
+function paintDarkGraphTickDom(root) {
+  if (!root || typeof root.querySelectorAll !== "function") return;
+  root.querySelectorAll("svg text, .JXGtext").forEach((el) => {
+    if (!el) return;
+    if (el.tagName && el.tagName.toLowerCase() === "text") {
+      el.setAttribute("fill", DARK_GRAPH_AXIS_LABEL);
+      el.style.fill = DARK_GRAPH_AXIS_LABEL;
+      el.style.color = DARK_GRAPH_AXIS_LABEL;
+    } else {
+      el.style.color = DARK_GRAPH_AXIS_LABEL;
+      el.style.fill = DARK_GRAPH_AXIS_LABEL;
+    }
+  });
+}
+
 function applyDarkGraphAxisTicks(board) {
   if (!board || !board.defaultAxes) return;
   const labelAttrs = darkGraphAxisTickLabelAttrs();
@@ -315,7 +330,20 @@ function applyDarkGraphAxisTicks(board) {
       }
     }
   });
+  const root = board.containerObj
+    || (typeof board.container === "string" ? document.getElementById(board.container) : board.container);
+  paintDarkGraphTickDom(root);
 }
+
+function keepDarkGraphAxisTicks(board) {
+  applyDarkGraphAxisTicks(board);
+  if (!board || board._darkTickHook) return;
+  board._darkTickHook = true;
+  board.on("update", () => applyDarkGraphAxisTicks(board));
+  requestAnimationFrame(() => applyDarkGraphAxisTicks(board));
+}
+
+const GANDAL_WB_GRAPH_ID = "gandal_wb_graph";
 
 class GandalSpaceClient {
   constructor(containerId = "gandalSpaceMountPoint") {
@@ -337,6 +365,7 @@ class GandalSpaceClient {
     this.searchHistory = [];
     this.quizCards = {};
     this._wbFlipAnim = null;
+    this._wbQuizCardId = null;
   }
 
   init() {
@@ -1204,6 +1233,9 @@ class GandalSpaceClient {
     const wbStatus = document.getElementById("gandalWhiteboardStatus");
     if (!wbText) return;
 
+    this.freeWhiteboardGraph();
+    this._wbQuizCardId = null;
+
     // Ensure Tableau Noir tab is active
     this.switchCompanionTab("whiteboard");
 
@@ -1245,6 +1277,8 @@ class GandalSpaceClient {
   }
 
   clearWhiteboard() {
+    this.freeWhiteboardGraph();
+    this._wbQuizCardId = null;
     this.collapseWhiteboard();
     const wbText = document.getElementById("gandalWhiteboardText");
     const wbStatus = document.getElementById("gandalWhiteboardStatus");
@@ -1285,70 +1319,226 @@ class GandalSpaceClient {
   /* ------------------------------------------------------------------------
      QUICK PROMPT ACTIONS (Graph Engine, Quiz Engine, Explanations)
      ------------------------------------------------------------------------ */
-  handleShowGraph() {
+  freeWhiteboardGraph() {
+    const viewport = document.getElementById(`${GANDAL_WB_GRAPH_ID}_viewport`);
+    const board = viewport && viewport._jxgBoard;
+    if (board && window.JXG && typeof window.JXG.JSXGraph.freeBoard === "function") {
+      try { window.JXG.JSXGraph.freeBoard(board); } catch (e) {}
+    }
+    if (viewport) viewport._jxgBoard = null;
+  }
+
+  setWhiteboardStatus(text, className) {
+    const wbStatus = document.getElementById("gandalWhiteboardStatus");
+    if (!wbStatus) return;
+    wbStatus.innerText = text;
+    wbStatus.className = "gandal-whiteboard-status" + (className ? ` ${className}` : "");
+  }
+
+  setWhiteboardHtml(html, statusText, statusClass) {
+    const wbText = document.getElementById("gandalWhiteboardText");
+    if (!wbText) return;
+    if (this._wbTimeout) {
+      clearTimeout(this._wbTimeout);
+      this._wbTimeout = null;
+    }
+    this.freeWhiteboardGraph();
+    wbText.innerHTML = html;
+    wbText.scrollTop = 0;
+    if (statusText) this.setWhiteboardStatus(statusText, statusClass || "speaking");
+  }
+
+  openTableauNoir() {
     this.switchCompanionTab("whiteboard");
+    this.expandWhiteboard(true);
+  }
+
+  highlightA2UICard(el) {
+    if (!el) return;
+    el.classList.remove("a2ui-card-highlight");
+    void el.offsetWidth;
+    el.classList.add("a2ui-card-highlight");
+  }
+
+  socraticGraphPrompt(comp, topic) {
+    const model = (comp && comp.model_type) || "";
+    if (model === "geometry_circle") {
+      return "Voici le cercle $x^2 + y^2 = r^2$. (Il peut paraître elliptique si le cadre n'est pas carré.) Si tu déplaces $P$, comment $r$ change-t-il l'aire $A = \\pi r^2$ ?";
+    }
+    if (model === "geometry_pythagoras") {
+      return "Regarde $a^2 = 16$ et $b^2 = 9$. Que dois-tu lire pour $c^2$, et pourquoi $a^2 + b^2 = c^2$ ?";
+    }
+    if (model === "geometry_triangle") {
+      return "Déplace un sommet. Que se passe-t-il pour $\\alpha + \\beta + \\gamma$ ? Pourquoi la somme reste-t-elle $180^\\circ$ ?";
+    }
+    if (model.startsWith("physics_")) {
+      return `Observe ce modèle de **${topic}**. Que change un déplacement le long de la courbe — et que cela te dit-il physiquement ?`;
+    }
+    if (model.startsWith("chemistry_")) {
+      return `Lis ce graphe de **${topic}**. Quel point ou quelle région est le plus important, et pourquoi ?`;
+    }
+    return `Voici le graphe de **${topic}**. Choisis un point, dis ce qu'il représente, puis formule une question de suivi.`;
+  }
+
+  presentGraphOnTableau(comp, topic) {
+    this._wbQuizCardId = null;
+    const wbPane = document.getElementById("gandalWhiteboardPane");
+    const wrapper = document.querySelector(".gandal-space-wrapper");
+    const alreadyDocked = !!(wbPane && wbPane.classList.contains("expanded-explaining")
+      && wrapper && wrapper.classList.contains("tableau-explaining"));
+    this.openTableauNoir();
+    const prompt = this.socraticGraphPrompt(comp, topic);
+    const html = `
+      <div class="gandal-wb-socratic">
+        <div class="gandal-wb-kicker">📈 Question socratique — graphe</div>
+        <div class="gandal-wb-question">${this.formatMathWithKaTeX(prompt)}</div>
+        <div class="a2ui-graph-viewport-wrapper gandal-wb-graph-wrap">
+          <div class="a2ui-graph-viewport gandal-wb-graph-viewport" id="${GANDAL_WB_GRAPH_ID}_viewport">
+            <canvas id="${GANDAL_WB_GRAPH_ID}_canvas" class="a2ui-graph-canvas"></canvas>
+          </div>
+        </div>
+      </div>
+    `;
+    this.setWhiteboardHtml(html, "Graphe sur le tableau", "speaking");
+    const resizeBoard = () => {
+      const viewport = document.getElementById(`${GANDAL_WB_GRAPH_ID}_viewport`);
+      const board = viewport && viewport._jxgBoard;
+      if (board && typeof board.resizeContainer === "function") {
+        try { board.resizeContainer(); } catch (e) {}
+      }
+      keepDarkGraphAxisTicks(board);
+    };
+    const mount = () => {
+      this._wbGraphMountTimer = null;
+      this.initGraphPlot(GANDAL_WB_GRAPH_ID, comp);
+      resizeBoard();
+      this.setWhiteboardStatus("Graphe affiché", "completed");
+      if (!alreadyDocked) setTimeout(resizeBoard, 80);
+    };
+    if (this._wbGraphMountTimer) clearTimeout(this._wbGraphMountTimer);
+    this._wbGraphMountTimer = setTimeout(mount, alreadyDocked ? 80 : 480);
+  }
+
+  presentQuizOnTableau(cardId) {
+    const quiz = this.quizCards[cardId];
+    if (!quiz) return false;
+    this._wbQuizCardId = cardId;
+    this.openTableauNoir();
+    const letters = ["A", "B", "C", "D", "E", "F"];
+    const optionsHtml = (quiz.options || []).map((opt, idx) => {
+      const letter = letters[idx] || String(idx + 1);
+      return `
+        <button type="button" class="gandal-wb-quiz-option" id="wb_quiz_opt_${idx}"
+          onclick="window.gandalSpaceApp.selectQuizOption('${cardId}', ${idx})">
+          <span class="gandal-wb-quiz-letter">${letter}</span>
+          <span class="gandal-wb-quiz-text">${this.formatMathWithKaTeX(String(opt))}</span>
+          <span class="gandal-wb-quiz-mark" id="wb_quiz_mark_${idx}"></span>
+        </button>
+      `;
+    }).join("");
+    const html = `
+      <div class="gandal-wb-socratic">
+        <div class="gandal-wb-kicker">❓ Question socratique — quiz</div>
+        <div class="gandal-wb-question">${this.formatMathWithKaTeX(quiz.question || "")}</div>
+        <p class="gandal-wb-hint">Réfléchis d'abord, puis choisis une réponse — ou dis-la au micro.</p>
+        <div class="gandal-wb-quiz-options">${optionsHtml}</div>
+        <div class="gandal-wb-quiz-explanation" id="wb_quiz_explanation" hidden>
+          ${this.formatMathWithKaTeX(quiz.explanation || "")}
+        </div>
+      </div>
+    `;
+    this.setWhiteboardHtml(html, "Quiz sur le tableau", "completed");
+    if (quiz.answered) {
+      const guessed = typeof quiz.lastSelectedIndex === "number" ? quiz.lastSelectedIndex : quiz.answerIndex;
+      this.syncTableauQuizMarks(cardId, guessed);
+    }
+    return true;
+  }
+
+  syncTableauQuizMarks(cardId, selectedIndex) {
+    if (this._wbQuizCardId !== cardId) return;
+    const quiz = this.quizCards[cardId];
+    if (!quiz) return;
+    const isCorrect = selectedIndex === quiz.answerIndex;
+    (quiz.options || []).forEach((_, idx) => {
+      const optEl = document.getElementById(`wb_quiz_opt_${idx}`);
+      const markEl = document.getElementById(`wb_quiz_mark_${idx}`);
+      if (optEl) optEl.classList.add("disabled");
+      if (idx === selectedIndex && optEl) {
+        optEl.classList.add(isCorrect ? "correct" : "incorrect");
+      }
+      if (idx === quiz.answerIndex && optEl) {
+        optEl.classList.add("show-correct");
+      }
+      if (markEl) {
+        if (idx === selectedIndex) {
+          markEl.textContent = isCorrect ? "✅" : "❌";
+        } else if (idx === quiz.answerIndex && !isCorrect) {
+          markEl.textContent = "✓";
+        }
+      }
+    });
+    const expl = document.getElementById("wb_quiz_explanation");
+    if (expl) expl.hidden = false;
+  }
+
+  handleShowGraph() {
+    this.openTableauNoir();
     const surface = document.getElementById("gandalA2UISurface");
     const existingGraph = surface ? surface.querySelector(".a2ui-graph-card") : null;
     const topic = this.currentContext || "right triangle";
+    const show = (card) => {
+      if (card) this.highlightA2UICard(card);
+      const comp = (card && this.activeModels && this.activeModels[card.id])
+        || { model_type: "function_plot", formula: "sgn(x)", domain: [-5, 5], range: [-3, 3] };
+      this.presentGraphOnTableau(comp, topic);
+    };
 
     if (existingGraph) {
-      existingGraph.scrollIntoView({ behavior: "smooth", block: "center" });
-      existingGraph.classList.remove("a2ui-card-highlight");
-      void existingGraph.offsetWidth; // trigger reflow
-      existingGraph.classList.add("a2ui-card-highlight");
-
-      this.writeToWhiteboard(
-        `📈 **Modèle Graphique Interactif**\n\nLe modèle visuel interactif pour **${topic}** est affiché sur votre écran à gauche. Vous pouvez manipuler les sommets ou les curseurs et observer les relations géométriques et formules en temps réel !`,
-        "Gandho"
-      );
-    } else {
-      this.writeToWhiteboard(
-        `📈 **Modèle Graphique Interactif**\n\nChargement du modèle visuel interactif pour **${topic}** avec notre moteur graphique JSXGraph...`,
-        "Gandho"
-      );
-      this.submitQuery(`Graph and interactive visual model for ${topic}`, false).then(() => {
-        setTimeout(() => {
-          const newGraph = document.getElementById("gandalA2UISurface")?.querySelector(".a2ui-graph-card");
-          if (newGraph) {
-            newGraph.scrollIntoView({ behavior: "smooth", block: "center" });
-            newGraph.classList.add("a2ui-card-highlight");
-          }
-        }, 350);
-      });
+      show(existingGraph);
+      return;
     }
+
+    this.setWhiteboardHtml(
+      `<div class="gandal-wb-socratic"><div class="gandal-wb-kicker">📈 Question socratique — graphe</div><p class="gandal-wb-hint">Préparation du modèle visuel pour <strong>${escapeHtml(topic)}</strong>…</p></div>`,
+      "Chargement du graphe",
+      "speaking"
+    );
+    this.submitQuery(`Graph and interactive visual model for ${topic}`, false).then(() => {
+      setTimeout(() => {
+        const newGraph = document.getElementById("gandalA2UISurface")?.querySelector(".a2ui-graph-card");
+        if (newGraph) show(newGraph);
+        else this.writeToWhiteboard("Je n'ai pas pu charger le graphe. Reformule le sujet, puis réessaie.", "Gandho");
+      }, 350);
+    });
   }
 
   handleQuizMe() {
-    this.switchCompanionTab("whiteboard");
+    this.openTableauNoir();
     const surface = document.getElementById("gandalA2UISurface");
     const existingQuiz = surface ? surface.querySelector(".a2ui-quiz-card") : null;
     const topic = this.currentContext || "right triangle";
 
-    if (existingQuiz) {
-      existingQuiz.scrollIntoView({ behavior: "smooth", block: "center" });
-      existingQuiz.classList.remove("a2ui-card-highlight");
-      void existingQuiz.offsetWidth;
-      existingQuiz.classList.add("a2ui-card-highlight");
-
-      this.writeToWhiteboard(
-        `❓ **Quiz d'entraînement**\n\nVoici une question d'application sur **${topic}** affichée à gauche. Sélectionnez votre réponse pour tester votre compréhension !`,
-        "Gandho"
-      );
-    } else {
-      this.writeToWhiteboard(
-        `❓ **Quiz d'entraînement**\n\nGénération d'une question d'évaluation interactive pour **${topic}**...`,
-        "Gandho"
-      );
-      this.submitQuery(`Quiz question and practice test for ${topic}`, false).then(() => {
-        setTimeout(() => {
-          const newQuiz = document.getElementById("gandalA2UISurface")?.querySelector(".a2ui-quiz-card");
-          if (newQuiz) {
-            newQuiz.scrollIntoView({ behavior: "smooth", block: "center" });
-            newQuiz.classList.add("a2ui-card-highlight");
-          }
-        }, 350);
-      });
+    if (existingQuiz && this.presentQuizOnTableau(existingQuiz.id)) {
+      this.highlightA2UICard(existingQuiz);
+      return;
     }
+
+    this.setWhiteboardHtml(
+      `<div class="gandal-wb-socratic"><div class="gandal-wb-kicker">❓ Question socratique — quiz</div><p class="gandal-wb-hint">Je prépare une question de suivi sur <strong>${escapeHtml(topic)}</strong>…</p></div>`,
+      "Préparation du quiz",
+      "speaking"
+    );
+    this.submitQuery(`Quiz question and practice test for ${topic}`, false).then(() => {
+      setTimeout(() => {
+        const newQuiz = document.getElementById("gandalA2UISurface")?.querySelector(".a2ui-quiz-card");
+        if (newQuiz && this.presentQuizOnTableau(newQuiz.id)) {
+          this.highlightA2UICard(newQuiz);
+        } else {
+          this.writeToWhiteboard("Je n'ai pas pu générer le quiz. Reformule le sujet, puis réessaie.", "Gandho");
+        }
+      }, 350);
+    });
   }
 
   async handleExplainSimpler() {
@@ -1870,7 +2060,8 @@ class GandalSpaceClient {
           zoom: { enabled: true },
           defaultAxes: darkGraphDefaultAxes()
         });
-        applyDarkGraphAxisTicks(board);
+        keepDarkGraphAxisTicks(board);
+        viewport._jxgBoard = board;
 
         // ====================================================================
         // MODEL 1: GEOMETRY TRIANGLE ABC (Interactive Draggable Vertices)
@@ -2766,6 +2957,7 @@ class GandalSpaceClient {
     const quiz = this.quizCards[cardId];
     if (!quiz || quiz.answered) return;
     quiz.answered = true;
+    quiz.lastSelectedIndex = selectedIndex;
 
     const isCorrect = selectedIndex === quiz.answerIndex;
     const selectedOpt = document.getElementById(`${cardId}_opt_${selectedIndex}`);
@@ -2804,6 +2996,7 @@ class GandalSpaceClient {
     if (explanationEl) {
       explanationEl.classList.add("visible");
     }
+    this.syncTableauQuizMarks(cardId, selectedIndex);
   }
 
   async checkQuizWithAI(cardId) {
