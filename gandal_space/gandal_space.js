@@ -245,6 +245,78 @@ const GANDAL_ALPHABET_DICTIONARY = [
   }
 ];
 
+const DARK_GRAPH_AXIS_LABEL = "#f8fafc";
+const DARK_GRAPH_AXIS_TICK = "#94a3b8";
+const DARK_GRAPH_AXIS_LINE = "#e2e8f0";
+
+function darkGraphAxisTickLabelAttrs(extra) {
+  return Object.assign({
+    visible: true,
+    strokeColor: DARK_GRAPH_AXIS_LABEL,
+    highlightStrokeColor: DARK_GRAPH_AXIS_LABEL,
+    cssStyle: `color: ${DARK_GRAPH_AXIS_LABEL};`,
+    highlightCssStyle: `color: ${DARK_GRAPH_AXIS_LABEL};`
+  }, extra || {});
+}
+
+function darkGraphDefaultAxes() {
+  return {
+    x: {
+      strokeColor: DARK_GRAPH_AXIS_LINE,
+      highlight: false,
+      ticks: {
+        strokeColor: DARK_GRAPH_AXIS_TICK,
+        highlightStrokeColor: DARK_GRAPH_AXIS_TICK,
+        drawLabels: true,
+        drawZero: true,
+        label: darkGraphAxisTickLabelAttrs()
+      }
+    },
+    y: {
+      strokeColor: DARK_GRAPH_AXIS_LINE,
+      highlight: false,
+      ticks: {
+        strokeColor: DARK_GRAPH_AXIS_TICK,
+        highlightStrokeColor: DARK_GRAPH_AXIS_TICK,
+        drawLabels: true,
+        drawZero: true,
+        label: darkGraphAxisTickLabelAttrs({ anchorX: "right", anchorY: "middle" })
+      }
+    }
+  };
+}
+
+function applyDarkGraphAxisTicks(board) {
+  if (!board || !board.defaultAxes) return;
+  const labelAttrs = darkGraphAxisTickLabelAttrs();
+  const tickAttrs = {
+    strokeColor: DARK_GRAPH_AXIS_TICK,
+    highlightStrokeColor: DARK_GRAPH_AXIS_TICK,
+    drawLabels: true,
+    drawZero: true,
+    label: labelAttrs
+  };
+  ["x", "y"].forEach((key) => {
+    const axis = board.defaultAxes[key];
+    if (!axis) return;
+    axis.setAttribute({
+      strokeColor: DARK_GRAPH_AXIS_LINE,
+      highlightStrokeColor: DARK_GRAPH_AXIS_LINE
+    });
+    if (axis.defaultTicks) {
+      axis.defaultTicks.setAttribute(tickAttrs);
+      const labels = axis.defaultTicks.labels;
+      if (Array.isArray(labels)) {
+        labels.forEach((lab) => {
+          if (lab && typeof lab.setAttribute === "function") {
+            lab.setAttribute(labelAttrs);
+          }
+        });
+      }
+    }
+  });
+}
+
 class GandalSpaceClient {
   constructor(containerId = "gandalSpaceMountPoint") {
     this.containerId = containerId;
@@ -1780,10 +1852,12 @@ class GandalSpaceClient {
 
         const jxgDiv = document.createElement("div");
         jxgDiv.id = `${cardId}_jxg`;
+        jxgDiv.className = "jxgbox";
         jxgDiv.style.width = "100%";
         jxgDiv.style.height = "100%";
         jxgDiv.style.position = "absolute";
         jxgDiv.style.inset = "0";
+        jxgDiv.style.background = "#08090d";
         viewport.appendChild(jxgDiv);
 
         const board = window.JXG.JSXGraph.initBoard(jxgDiv.id, {
@@ -1793,8 +1867,10 @@ class GandalSpaceClient {
           showNavigation: false,
           showCopyright: false,
           pan: { enabled: true },
-          zoom: { enabled: true }
+          zoom: { enabled: true },
+          defaultAxes: darkGraphDefaultAxes()
         });
+        applyDarkGraphAxisTicks(board);
 
         // ====================================================================
         // MODEL 1: GEOMETRY TRIANGLE ABC (Interactive Draggable Vertices)
@@ -2218,15 +2294,32 @@ class GandalSpaceClient {
       ctx.stroke();
     }
 
-    // Ticks
-    ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
-    ctx.font = "10px monospace";
+    // Axis tick numbers — same high-contrast as formula labels (e.g. c² = 25)
+    ctx.fillStyle = DARK_GRAPH_AXIS_LABEL;
+    ctx.font = "12px ui-monospace, 'JetBrains Mono', monospace";
     ctx.textAlign = "center";
-    for (let x = Math.ceil(xMin); x <= Math.floor(xMax); x += 2) {
+    ctx.textBaseline = "top";
+    let xStep = 1;
+    if (xMax - xMin > 12) xStep = 2;
+    if (xMax - xMin > 24) xStep = 5;
+    const xAxisY = Math.min(Math.max(toCanvasY(0) + 6, 8), height - 16);
+    for (let x = Math.ceil(xMin); x <= Math.floor(xMax); x += xStep) {
       if (x === 0) continue;
-      const cx = toCanvasX(x);
-      const cy = Math.min(Math.max(toCanvasY(0) + 14, 14), height - 6);
-      ctx.fillText(String(x), cx, cy);
+      ctx.fillText(String(x), toCanvasX(x), xAxisY);
+    }
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    let yStep = 1;
+    if (yMax - yMin > 12) yStep = 2;
+    if (yMax - yMin > 24) yStep = 5;
+    let yAxisX = toCanvasX(0) - 8;
+    if (yAxisX < 22) {
+      yAxisX = toCanvasX(0) + 8;
+      ctx.textAlign = "left";
+    }
+    for (let y = Math.ceil(yMin); y <= Math.floor(yMax); y += yStep) {
+      if (y === 0) continue;
+      ctx.fillText(String(y), yAxisX, toCanvasY(y));
     }
 
     // ====================================================================
