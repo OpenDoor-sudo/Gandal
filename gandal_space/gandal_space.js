@@ -620,10 +620,10 @@ function inferQuizBankKey(topic, modelType) {
   if (/ellips/.test(t)) return "ellipse";
   if (/rectangl/.test(t)) return "rectangle";
   if (/\bsquare\b|carr[eé]/.test(t)) return "square";
-  if (/polygon|hexagon|pentagon|octagon|n-gon/.test(t)) return "polygon";
   if (/pythagor|hypotenuse|right[\s-]?triangle|triangle rectangle/.test(t)) return "pythagoras";
   if (/triangle/.test(t)) return "triangle";
   if (/circle|cercle|radius|circumfer/.test(t)) return "circle";
+  if (/hexagon|pentagon|octagon|regular polygon|n-gon/.test(t)) return "polygon";
   if (/alphabet|letter|phonic/.test(t)) return "alphabet";
   return "default";
 }
@@ -633,10 +633,10 @@ function inferGeometryModelType(comp, topic) {
   if (/ellips/.test(t)) return "geometry_ellipse";
   if (/rectangl/.test(t)) return "geometry_rectangle";
   if (/\bsquare\b|carr[eé]/.test(t)) return "geometry_square";
-  if (/polygon|hexagon|pentagon|octagon|n-gon/.test(t)) return "geometry_polygon";
   if (/pythagor|hypotenuse|right[\s-]?triangle|triangle rectangle/.test(t)) return "geometry_pythagoras";
   if (/triangle/.test(t)) return "geometry_triangle";
   if (/circle|cercle|radius|circumfer/.test(t)) return "geometry_circle";
+  if (/hexagon|pentagon|octagon|regular polygon|n-gon/.test(t)) return "geometry_polygon";
   if (comp && typeof comp.model_type === "string" && comp.model_type.indexOf("geometry_") === 0) {
     return comp.model_type;
   }
@@ -1855,12 +1855,12 @@ class GandalSpaceClient {
       <div class="gandal-wb-socratic">
         <div class="gandal-wb-kicker">📈 Question socratique — graphe</div>
         <div class="gandal-wb-question">${this.formatMathWithKaTeX(prompt)}</div>
+        <div class="gandal-wb-geom-vars" id="${GANDAL_WB_GRAPH_ID}_vars"></div>
         <div class="a2ui-graph-viewport-wrapper gandal-wb-graph-wrap">
           <div class="a2ui-graph-viewport gandal-wb-graph-viewport" id="${GANDAL_WB_GRAPH_ID}_viewport">
             <canvas id="${GANDAL_WB_GRAPH_ID}_canvas" class="a2ui-graph-canvas"></canvas>
           </div>
         </div>
-        <div class="gandal-wb-geom-vars" id="${GANDAL_WB_GRAPH_ID}_vars"></div>
       </div>
     `;
     this.setWhiteboardHtml(html, "Graphe sur le tableau", "speaking");
@@ -2041,7 +2041,9 @@ class GandalSpaceClient {
     const existingQuiz = existingQuizEl && this.quizCards[existingQuizEl.id]
       ? this.quizCards[existingQuizEl.id]
       : null;
-    const modelHint = (this.activeModels && Object.values(this.activeModels)[0] && Object.values(this.activeModels)[0].model_type) || "";
+    const modelHint = existingQuizEl && this.quizCards[existingQuizEl.id]
+      ? ""
+      : ((this.activeModels && Object.values(this.activeModels).slice(-1)[0] && Object.values(this.activeModels).slice(-1)[0].model_type) || "");
     this._wbQuizSet = this.buildPracticeQuizSet(topic, modelHint, existingQuiz);
     this._wbQuizIndex = 0;
     if (existingQuizEl) this.highlightA2UICard(existingQuizEl);
