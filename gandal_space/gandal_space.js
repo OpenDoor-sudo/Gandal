@@ -264,6 +264,7 @@ class GandalSpaceClient {
     this.chatHistory = [];
     this.searchHistory = [];
     this.quizCards = {};
+    this._wbFlipAnim = null;
   }
 
   init() {
@@ -598,6 +599,8 @@ class GandalSpaceClient {
       this.convoRecognition.onstart = () => {
         this.isConvoListening = true;
         this.setConvoStateUI("listening", "Listening... speak now");
+        this.switchCompanionTab("whiteboard");
+        this.expandWhiteboard(true);
       };
 
       this.convoRecognition.onresult = (event) => {
@@ -659,6 +662,12 @@ class GandalSpaceClient {
       window.toggleMicRaiseHand(event);
       const isLkActive = !!window.isConversationSessionActive;
       this.setConvoStateUI(isLkActive ? "listening" : "idle", isLkActive ? "Gandho listening..." : "Tap mic to speak or press Enter");
+      if (isLkActive) {
+        this.switchCompanionTab("whiteboard");
+        this.expandWhiteboard(true);
+      } else {
+        this.collapseWhiteboard();
+      }
       return;
     }
 
@@ -690,6 +699,7 @@ class GandalSpaceClient {
     }
     this.isConvoListening = false;
     this.setConvoStateUI("idle", "Tap mic to speak or press Enter");
+    this.collapseWhiteboard();
   }
 
   setConvoStateUI(state, text) {
@@ -931,6 +941,89 @@ class GandalSpaceClient {
     }
   }
 
+  _moveTableauNoirToLeftDock(wbPane) {
+    const wrapper = (wbPane && wbPane.closest(".gandal-space-wrapper")) || document.querySelector(".gandal-space-wrapper");
+    if (!wbPane || !wrapper) return null;
+    if (wbPane.parentElement !== wrapper) {
+      this._wbHomeParent = wbPane.parentElement;
+      this._wbHomeNext = wbPane.nextElementSibling;
+      const companion = wrapper.querySelector(".gandal-space-companion-pane");
+      wrapper.insertBefore(wbPane, companion || null);
+    }
+    wrapper.classList.add("tableau-explaining");
+    return wrapper;
+  }
+
+  _restoreTableauNoirHome(wbPane) {
+    const wrapper = (wbPane && wbPane.closest(".gandal-space-wrapper")) || document.querySelector(".gandal-space-wrapper");
+    if (wbPane && this._wbHomeParent && wbPane.parentElement !== this._wbHomeParent) {
+      if (this._wbHomeNext && this._wbHomeNext.parentNode === this._wbHomeParent) {
+        this._wbHomeParent.insertBefore(wbPane, this._wbHomeNext);
+      } else {
+        this._wbHomeParent.appendChild(wbPane);
+      }
+    }
+    if (wrapper) wrapper.classList.remove("tableau-explaining");
+  }
+
+  _playTableauFlip(wbPane, firstRect) {
+    if (!wbPane || !firstRect) return;
+
+    const run = () => {
+      const lastRect = wbPane.getBoundingClientRect();
+      const dx = firstRect.left - lastRect.left;
+      const dy = firstRect.top - lastRect.top;
+      const sx = firstRect.width / Math.max(1, lastRect.width);
+      const sy = firstRect.height / Math.max(1, lastRect.height);
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && Math.abs(sx - 1) < 0.05) {
+        return false;
+      }
+      if (this._wbFlipAnim) {
+        try { this._wbFlipAnim.cancel(); } catch (e) {}
+        this._wbFlipAnim = null;
+      }
+      const invert = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+      wbPane.style.transformOrigin = "top left";
+      wbPane.style.willChange = "transform";
+      // Invert immediately so the first paint stays at the origin slot
+      wbPane.style.transform = invert;
+      void wbPane.offsetWidth;
+      if (typeof wbPane.animate === "function") {
+        this._wbFlipAnim = wbPane.animate(
+          [
+            { transform: invert },
+            { transform: "translate(0px, 0px) scale(1, 1)" }
+          ],
+          { duration: 440, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }
+        );
+        const clear = () => {
+          wbPane.style.transform = "";
+          wbPane.style.transformOrigin = "";
+          wbPane.style.willChange = "";
+          this._wbFlipAnim = null;
+        };
+        this._wbFlipAnim.addEventListener("finish", clear);
+        this._wbFlipAnim.addEventListener("cancel", clear);
+      } else {
+        wbPane.style.transition = "transform 440ms cubic-bezier(0.16, 1, 0.3, 1)";
+        wbPane.style.transform = "translate(0px, 0px) scale(1, 1)";
+        setTimeout(() => {
+          wbPane.style.transition = "";
+          wbPane.style.transform = "";
+          wbPane.style.transformOrigin = "";
+          wbPane.style.willChange = "";
+        }, 460);
+      }
+      return true;
+    };
+
+    if (!run()) {
+      requestAnimationFrame(() => {
+        if (!run()) requestAnimationFrame(run);
+      });
+    }
+  }
+
   expandWhiteboard(isExplaining = true) {
     const wbPane = document.getElementById("gandalWhiteboardPane");
     const expandBtn = document.getElementById("gandalWhiteboardExpandBtn");
@@ -944,8 +1037,19 @@ class GandalSpaceClient {
       this._wbCollapseTimeout = null;
     }
 
+    const wrapper = wbPane.closest(".gandal-space-wrapper") || document.querySelector(".gandal-space-wrapper");
+    const alreadyDocked = wbPane.classList.contains("expanded-explaining") &&
+      wrapper && wrapper.classList.contains("tableau-explaining") &&
+      wbPane.parentElement === wrapper;
+    if (alreadyDocked) return;
+
+    const firstRect = wbPane.getBoundingClientRect();
     wbPane.classList.remove("sliding-down");
+    this._moveTableauNoirToLeftDock(wbPane);
     wbPane.classList.add("expanded-explaining");
+    const wrapperNow = document.querySelector(".gandal-space-wrapper");
+    if (wrapperNow) void wrapperNow.offsetWidth;
+    this._playTableauFlip(wbPane, firstRect);
 
     // Show dedicated manual "Réduire" button
     if (dismissBtn) {
@@ -971,9 +1075,18 @@ class GandalSpaceClient {
     const dismissBtn = document.getElementById("gandalWhiteboardDismissBtn");
     if (!wbPane || !wbPane.classList.contains("expanded-explaining")) return;
 
+    const firstRect = wbPane.getBoundingClientRect();
     wbPane.classList.add("sliding-down");
-    setTimeout(() => {
-      wbPane.classList.remove("expanded-explaining", "sliding-down");
+    wbPane.classList.remove("expanded-explaining");
+    this._restoreTableauNoirHome(wbPane);
+    void wbPane.offsetWidth;
+    this._playTableauFlip(wbPane, firstRect);
+
+    if (this._wbCollapseUiTimeout) {
+      clearTimeout(this._wbCollapseUiTimeout);
+    }
+    this._wbCollapseUiTimeout = setTimeout(() => {
+      wbPane.classList.remove("sliding-down");
       if (dismissBtn) {
         dismissBtn.style.display = "none";
       }
@@ -988,7 +1101,8 @@ class GandalSpaceClient {
         `;
         expandBtn.title = "Agrandir le tableau";
       }
-    }, 380);
+      this._wbCollapseUiTimeout = null;
+    }, 440);
   }
 
   toggleWhiteboardExpansion() {

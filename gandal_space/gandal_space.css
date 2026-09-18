@@ -62,6 +62,26 @@
   overflow-y: auto;
   padding-right: 12px;
   box-sizing: border-box;
+  transition: opacity 0.32s ease;
+}
+
+/* Mic / explain: hide the left exploration pane so Tableau Noir can sit beside the avatar */
+.gandal-space-wrapper.tableau-explaining .gandal-space-answers-pane {
+  display: none;
+}
+
+.gandal-space-wrapper.tableau-explaining .gandal-space-companion-pane {
+  flex: 0 0 32%;
+  width: 32%;
+  max-width: 32%;
+  z-index: 5;
+}
+
+.gandal-space-wrapper.tableau-explaining .gandal-avatar-wrapper,
+.gandal-space-wrapper.tableau-explaining #gandalSpaceAvatarContainer {
+  position: relative;
+  z-index: 6;
+  flex-shrink: 0;
 }
 
 /* Custom scrollbar for answers pane */
@@ -121,6 +141,11 @@
     width: 100%;
     max-width: 100%;
     height: auto;
+  }
+  .gandal-space-wrapper.tableau-explaining .gandal-space-companion-pane {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
   }
 }
 
@@ -2066,51 +2091,27 @@
   overflow: hidden;
   box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.95), 0 4px 18px rgba(0, 0, 0, 0.4);
   position: relative;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 10;
 }
 
-.gandal-whiteboard-card.expanded-explaining {
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 14px;
-  top: 72px;
-  z-index: 60;
+/* Direct child of the 70/30 wrapper after reparent — occupies the left column */
+.gandal-space-wrapper > .gandal-whiteboard-card.expanded-explaining {
+  position: relative;
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  align-self: stretch;
+  z-index: 20;
   border-color: rgba(168, 85, 247, 0.7);
-  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.95), 0 -12px 38px rgba(0, 0, 0, 0.85), 0 0 32px rgba(168, 85, 247, 0.35);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.95), 0 12px 38px rgba(0, 0, 0, 0.85), 0 0 32px rgba(168, 85, 247, 0.35);
   border-radius: 16px;
-  animation: slideUpTableauNoir 0.42s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes slideUpTableauNoir {
-  from {
-    top: calc(100% - 210px);
-    opacity: 0.88;
-    transform: translateY(12px);
-  }
-  to {
-    top: 72px;
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .gandal-whiteboard-card.sliding-down {
-  animation: slideDownTableauNoir 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes slideDownTableauNoir {
-  from {
-    top: 72px;
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    top: calc(100% - 210px);
-    opacity: 0.88;
-    transform: translateY(12px);
-  }
+  z-index: 20;
 }
 
 .gandal-whiteboard-header {
