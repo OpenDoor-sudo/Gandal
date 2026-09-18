@@ -10,7 +10,16 @@
 #   Cellular:     Waveshare 4G/5G M.2 Dongle (ModemManager / wwan0)
 #   eSIM Bridge:  eSIM.me Physical Adapter Card (managed via ModemManager)
 #   TTS:          NVIDIA Riva / Magpie-TTS (gRPC localhost:50051)
+# Linux desktops, Docker, and this repo checkout should use boot_linux.sh.
 # ==============================================================================
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+if [ ! -f /etc/nv_tegra_release ]; then
+  echo "[BOOT] This host is not a Jetson Orin appliance (no /etc/nv_tegra_release)."
+  echo "[BOOT] Refusing to fake CSI cameras, Riva TTS, NVMe /data, or a Wi-Fi 6 hotspot."
+  echo "[BOOT] Handing off to boot_linux.sh"
+  exec bash "$ROOT/boot_linux.sh" "$@"
+fi
 
 echo "======================================================================"
 echo "   NVIDIA JETSON ORIN NANO SUPER — HEADLESS APPLIANCE STARTUP         "

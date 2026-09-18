@@ -7,7 +7,7 @@ These rules configure and maintain the custom implementations for the Socratic T
 * **LiveKit Google Plugin Compatibility**: Because `gemini-3.1-flash-live-preview` disables mutable chat contexts by default, `tutor_agent.py` enables `mutable_chat_context` and `mutable_instructions` on the model instance. Do not require a machine-specific `site-packages` edit.
 
 ## 2. Session & State Synchronization
-* **Absolute Path Constraint**: Both the Python scripts (e.g., [display_client.py](file:///c:/Users/lalyb/Desktop/ventuno_ai_testbed/display_client.py)) and the tutor agent scripts must sync using the absolute path `SESSION_JSON_PATH = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"` to prevent mismatches in working directories when run from different startup environments.
+* **Canonical Session File**: Classroom server and LiveKit agents must share `PROJECT_ROOT/active_session.json` (the same path `display_client.py` writes). Override with `SESSION_JSON_PATH` or `GANDHO_PROJECT_ROOT`. Do not hard-code a Windows developer laptop path.
 
 ## 3. Tutor Avatar & WebGL Context Management
 * **WebGL Context Preservation**: Moving a `<canvas>` element containing a WebGL context in the DOM tree causes the browser to destroy the WebGL context, resulting in a black/missing 3D avatar.

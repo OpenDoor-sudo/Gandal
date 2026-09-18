@@ -87,14 +87,12 @@ except Exception:
         if LABS_SOLVERS_AVAILABLE and hasattr(science_solvers, "calculate_mixture"):
             return science_solvers.calculate_mixture(solutions, indicator, temp_c)
         return {
-            "success": True,
+            "success": False,
+            "error": "ChemPy/FastAPI chemistry backend is not installed. Use the client-side mixer or pip-install antigravity_labs/chemistry_backend.",
             "total_volume_ml": total_vol,
-            "ph": 7.0,
-            "poh": 7.0,
-            "color_hex": "#93c5fd",
             "indicator_state": indicator or "none",
-            "reaction_summary": "Local stoichiometric fallback (ChemPy/FastAPI not installed).",
-            "neutralization_status": "approximate",
+            "reaction_summary": "ChemPy unavailable — no server-side pH was computed.",
+            "neutralization_status": "unavailable",
             "species_concentrations": {},
             "chempy_active": False,
             "reagents": names,
@@ -257,7 +255,7 @@ def _ensure_student_badges(conn):
     conn.execute("""
         CREATE TABLE IF NOT EXISTS student_badges (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id TEXT NOT NULL DEFAULT 'alseny',
+            student_id TEXT NOT NULL DEFAULT 'Alseny',
             badge_id TEXT NOT NULL,
             title TEXT,
             xp INTEGER NOT NULL DEFAULT 0,
@@ -267,7 +265,7 @@ def _ensure_student_badges(conn):
     """)
 
 
-def _list_student_badges(student_id="alseny"):
+def _list_student_badges(student_id="Alseny"):
     db_path = _student_badges_db()
     if not os.path.exists(db_path):
         return []
@@ -283,7 +281,7 @@ def _list_student_badges(student_id="alseny"):
         conn.close()
 
 
-def _award_student_badge(badge_id, title="", xp=0, student_id="alseny"):
+def _award_student_badge(badge_id, title="", xp=0, student_id="Alseny"):
     db_path = _student_badges_db()
     if not badge_id or not os.path.exists(db_path):
         return False
@@ -2103,6 +2101,10 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "mode": DEPLOYMENT_MODE,
                 "ws_clients": len(connected_clients),
                 "pods": len(pod_sessions),
+                "session_json_path": SESSION_JSON_PATH,
+                "session_json_exists": os.path.exists(SESSION_JSON_PATH),
+                "platform": sys.platform,
+                "force_offline": os.environ.get("FORCE_OFFLINE", os.environ.get("OFFLINE_MODE", "0")),
             }).encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -3032,9 +3034,9 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         "[RIVA MAGPIE-TTS ERROR] Python client not installed. "
                         "Install with: pip install nvidia-riva-client"
                     )
-                    print("[RIVA MAGPIE-TTS] Falling back to mock WAV silence.")
+                    print("[RIVA MAGPIE-TTS] Will try Kokoro, then fail honestly if none is available.")
                 except Exception as e:
-                    print(f"[RIVA MAGPIE-TTS ERROR] gRPC synthesis failed: {e}. Falling back to mock WAV.")
+                    print(f"[RIVA MAGPIE-TTS ERROR] gRPC synthesis failed: {e}. Trying Kokoro next.")
 
             if wav_data is None:
                 # LOCAL-FIRST fallbacks: Kokoro on :8880, then Google only if explicitly online
@@ -3075,7 +3077,28 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         return
                     except Exception as fallback_err:
                         print(f"[TTS ONLINE FALLBACK ERROR] {fallback_err}")
-                wav_data = make_mock_wav()
+                if os.environ.get("TTS_BACKEND", "").strip().lower() == "silent":
+                    print("[TTS] TTS_BACKEND=silent: returning empty WAV (explicit test mode only).")
+                    wav_data = make_mock_wav()
+                else:
+                    err = {
+                        "success": False,
+                        "error": (
+                            "No TTS backend is available. Kokoro is not reachable, Riva is not configured, "
+                            "and silent mock WAV is disabled. Start Kokoro on :8880 or set TTS_BACKEND=silent "
+                            "only for tests."
+                        ),
+                        "tts_backend": tts_backend,
+                    }
+                    err_bytes = json.dumps(err).encode("utf-8")
+                    print(f"[TTS] {err['error']}")
+                    self.send_response(503)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Content-Length', str(len(err_bytes)))
+                    self.end_headers()
+                    self.wfile.write(err_bytes)
+                    return
 
             self.send_response(200)
             self.send_header('Content-Type', 'audio/wav')
@@ -4767,7 +4790,8 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 temp_c = data.get("temp_c", 25.0)
                 res = chem_calculate_mixture(solutions, indicator, temp_c)
                 res_bytes = json.dumps(res).encode('utf-8')
-                self.send_response(200)
+                status = 200 if res.get("success", True) else 503
+                self.send_response(status)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(res_bytes)))
                 self.send_header('Access-Control-Allow-Origin', '*')
@@ -5836,7 +5860,10 @@ def start_http_server():
         port = 8080
         httpd = ThreadingTCPServerQuietErrors(("", port), handler)
         
-    print(f"[HTTP] Classroom Fleet Cockpit live at http://ventuno.local:{port}/ (or http://<device-ip>:{port}/)", flush=True)
+    print(f"[HTTP] Classroom Fleet Cockpit live at http://127.0.0.1:{port}/ (or http://<device-ip>:{port}/)", flush=True)
+    print(f"[SESSION] Canonical session file: {SESSION_JSON_PATH} (exists={os.path.exists(SESSION_JSON_PATH)})", flush=True)
+    if not os.environ.get("GOOGLE_API_KEY", "").strip():
+        print("[BOOT] GOOGLE_API_KEY is unset — Gemini Live and cloud Gandal Space are unavailable.", flush=True)
     with httpd:
         httpd.serve_forever()
 
@@ -6092,19 +6119,36 @@ async def ws_handler(websocket):
                         cursor.execute("""
                             CREATE TABLE IF NOT EXISTS handwriting_archive (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                user_id TEXT,
-                                video_id TEXT,
-                                chapter_id TEXT,
-                                quiz_type TEXT,
+                                subject TEXT NOT NULL,
+                                video_id TEXT NOT NULL,
+                                chapter_id TEXT NOT NULL,
+                                image_path TEXT NOT NULL,
+                                extracted_text TEXT,
                                 score REAL,
-                                sentry_verified BOOLEAN,
-                                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                                passed BOOLEAN,
+                                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )
                         """)
+                        subject = get_subject_by_video_id(video_id) or "Unknown"
+                        quiz_label = "main" if not is_alt else "alt"
+                        extracted = json.dumps({
+                            "source": "SUBMIT_QUIZ",
+                            "quiz_type": quiz_label,
+                            "sentry_verified": bool(sentry_verified),
+                            "user_id": connected_students_map.get(websocket, "STU-001"),
+                        }, ensure_ascii=False)
                         cursor.execute("""
-                            INSERT INTO handwriting_archive (user_id, video_id, chapter_id, quiz_type, score, sentry_verified)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """, (connected_students_map.get(websocket, "STU-001"), video_id, chapter_id, "main" if not is_alt else "alt", score, sentry_verified))
+                            INSERT INTO handwriting_archive (subject, video_id, chapter_id, image_path, extracted_text, score, passed)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            subject,
+                            video_id,
+                            chapter_id,
+                            f"quiz_submit/{quiz_label}",
+                            extracted,
+                            score,
+                            1 if mastery_achieved else 0,
+                        ))
                         conn.commit()
                         conn.close()
                     except Exception as hw_err:
