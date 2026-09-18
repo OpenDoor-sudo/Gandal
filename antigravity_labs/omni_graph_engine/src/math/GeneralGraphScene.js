@@ -127,16 +127,38 @@ export class GeneralGraphScene extends BaseScene {
         window.JXG.Options.pan.enabled = true;
       }
       if (window.JXG.Options.axis) {
-        window.JXG.Options.axis.strokeColor = "#52525b";
+        window.JXG.Options.axis.strokeColor = "#e2e8f0";
         window.JXG.Options.axis.strokeWidth = 1.5;
         window.JXG.Options.axis.highlight = false;
         if (window.JXG.Options.axis.ticks) {
-          window.JXG.Options.axis.ticks.strokeColor = "#71717a";
+          window.JXG.Options.axis.ticks.strokeColor = "#94a3b8";
           window.JXG.Options.axis.ticks.drawZero = true;
-          if (window.JXG.Options.axis.ticks.label) {
-            window.JXG.Options.axis.ticks.label.strokeColor = "#e4e4e7";
-          }
+          window.JXG.Options.axis.ticks.drawLabels = true;
+          window.JXG.Options.axis.ticks.label = Object.assign({}, window.JXG.Options.axis.ticks.label || {}, {
+            strokeColor: "#f8fafc",
+            highlightStrokeColor: "#f8fafc",
+            cssStyle: "color: #f8fafc;",
+            highlightCssStyle: "color: #f8fafc;"
+          });
         }
+      }
+      if (window.JXG.Options.defaultAxes) {
+        ["x", "y"].forEach((key) => {
+          const axis = window.JXG.Options.defaultAxes[key];
+          if (!axis) return;
+          axis.strokeColor = "#e2e8f0";
+          if (axis.ticks) {
+            axis.ticks.strokeColor = "#94a3b8";
+            axis.ticks.drawZero = true;
+            axis.ticks.drawLabels = true;
+            axis.ticks.label = Object.assign({}, axis.ticks.label || {}, {
+              strokeColor: "#f8fafc",
+              highlightStrokeColor: "#f8fafc",
+              cssStyle: "color: #f8fafc;",
+              highlightCssStyle: "color: #f8fafc;"
+            });
+          }
+        });
       }
     }
 
@@ -144,6 +166,7 @@ export class GeneralGraphScene extends BaseScene {
       boundingbox: this.defaultBoundingBox,
       axis: true,
       grid: true,
+      defaultAxes: this.darkAxisDefaultAxes(),
       showCopyright: false,
       showNavigation: false,
       zoom: {
@@ -169,15 +192,7 @@ export class GeneralGraphScene extends BaseScene {
       this.board.attr.pan.needshift = false;
     }
 
-    // Enable zero mark on coordinate axes
-    if (this.board.defaultAxes) {
-      if (this.board.defaultAxes.x && this.board.defaultAxes.x.defaultTicks) {
-        this.board.defaultAxes.x.defaultTicks.setAttribute({ drawZero: true });
-      }
-      if (this.board.defaultAxes.y && this.board.defaultAxes.y.defaultTicks) {
-        this.board.defaultAxes.y.defaultTicks.setAttribute({ drawZero: true });
-      }
-    }
+    this.applyHighContrastAxisTicks(this.board);
 
     // High-visibility Permanent Origin Marker at (0, 0)
     this.originMarker = this.board.create("point", [0, 0], {
