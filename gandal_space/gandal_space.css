@@ -81,6 +81,7 @@
 .gandal-space-wrapper.tableau-explaining #gandalSpaceAvatarContainer {
   position: relative;
   z-index: 6;
+  flex-shrink: 0;
 }
 
 /* Custom scrollbar for answers pane */

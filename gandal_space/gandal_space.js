@@ -967,33 +967,61 @@ class GandalSpaceClient {
   }
 
   _playTableauFlip(wbPane, firstRect) {
-    if (!wbPane || !firstRect || typeof wbPane.animate !== "function") return;
-    const lastRect = wbPane.getBoundingClientRect();
-    const dx = firstRect.left - lastRect.left;
-    const dy = firstRect.top - lastRect.top;
-    const sx = firstRect.width / Math.max(1, lastRect.width);
-    const sy = firstRect.height / Math.max(1, lastRect.height);
-    if (this._wbFlipAnim) {
-      try { this._wbFlipAnim.cancel(); } catch (e) {}
-      this._wbFlipAnim = null;
-    }
-    if (Math.abs(dx) < 2 && Math.abs(dy) < 2 && Math.abs(sx - 1) < 0.03 && Math.abs(sy - 1) < 0.03) {
-      return;
-    }
-    wbPane.style.transformOrigin = "top left";
-    this._wbFlipAnim = wbPane.animate(
-      [
-        { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})` },
-        { transform: "translate(0px, 0px) scale(1, 1)" }
-      ],
-      { duration: 440, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }
-    );
-    const clear = () => {
-      wbPane.style.transformOrigin = "";
-      this._wbFlipAnim = null;
+    if (!wbPane || !firstRect) return;
+
+    const run = () => {
+      const lastRect = wbPane.getBoundingClientRect();
+      const dx = firstRect.left - lastRect.left;
+      const dy = firstRect.top - lastRect.top;
+      const sx = firstRect.width / Math.max(1, lastRect.width);
+      const sy = firstRect.height / Math.max(1, lastRect.height);
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8 && Math.abs(sx - 1) < 0.05) {
+        return false;
+      }
+      if (this._wbFlipAnim) {
+        try { this._wbFlipAnim.cancel(); } catch (e) {}
+        this._wbFlipAnim = null;
+      }
+      const invert = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+      wbPane.style.transformOrigin = "top left";
+      wbPane.style.willChange = "transform";
+      // Invert immediately so the first paint stays at the origin slot
+      wbPane.style.transform = invert;
+      void wbPane.offsetWidth;
+      if (typeof wbPane.animate === "function") {
+        this._wbFlipAnim = wbPane.animate(
+          [
+            { transform: invert },
+            { transform: "translate(0px, 0px) scale(1, 1)" }
+          ],
+          { duration: 440, easing: "cubic-bezier(0.16, 1, 0.3, 1)" }
+        );
+        const clear = () => {
+          wbPane.style.transform = "";
+          wbPane.style.transformOrigin = "";
+          wbPane.style.willChange = "";
+          this._wbFlipAnim = null;
+        };
+        this._wbFlipAnim.addEventListener("finish", clear);
+        this._wbFlipAnim.addEventListener("cancel", clear);
+      } else {
+        wbPane.style.transition = "transform 440ms cubic-bezier(0.16, 1, 0.3, 1)";
+        wbPane.style.transform = "translate(0px, 0px) scale(1, 1)";
+        setTimeout(() => {
+          wbPane.style.transition = "";
+          wbPane.style.transform = "";
+          wbPane.style.transformOrigin = "";
+          wbPane.style.willChange = "";
+        }, 460);
+      }
+      return true;
     };
-    this._wbFlipAnim.addEventListener("finish", clear);
-    this._wbFlipAnim.addEventListener("cancel", clear);
+
+    if (!run()) {
+      requestAnimationFrame(() => {
+        if (!run()) requestAnimationFrame(run);
+      });
+    }
   }
 
   expandWhiteboard(isExplaining = true) {
@@ -1019,7 +1047,8 @@ class GandalSpaceClient {
     wbPane.classList.remove("sliding-down");
     this._moveTableauNoirToLeftDock(wbPane);
     wbPane.classList.add("expanded-explaining");
-    void wbPane.offsetWidth;
+    const wrapperNow = document.querySelector(".gandal-space-wrapper");
+    if (wrapperNow) void wrapperNow.offsetWidth;
     this._playTableauFlip(wbPane, firstRect);
 
     // Show dedicated manual "Réduire" button
