@@ -1979,6 +1979,23 @@
   cursor: crosshair;
 }
 
+/* Dark A2UI graph cards: JSXGraph default board is white with black ticks. */
+.a2ui-graph-viewport .jxgbox {
+  background-color: #08090d !important;
+  border: none !important;
+  border-radius: 0;
+}
+
+.a2ui-graph-viewport .jxgbox svg text {
+  fill: #f8fafc !important;
+  color: #f8fafc !important;
+  stroke: none !important;
+}
+
+.a2ui-graph-viewport .jxgbox .JXGtext {
+  color: #f8fafc !important;
+}
+
 .a2ui-graph-actions {
   display: flex;
   align-items: center;
