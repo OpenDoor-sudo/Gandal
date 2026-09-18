@@ -87,14 +87,12 @@ except Exception:
         if LABS_SOLVERS_AVAILABLE and hasattr(science_solvers, "calculate_mixture"):
             return science_solvers.calculate_mixture(solutions, indicator, temp_c)
         return {
-            "success": True,
+            "success": False,
+            "error": "ChemPy/FastAPI chemistry backend is not installed. Use the client-side mixer or pip-install antigravity_labs/chemistry_backend.",
             "total_volume_ml": total_vol,
-            "ph": 7.0,
-            "poh": 7.0,
-            "color_hex": "#93c5fd",
             "indicator_state": indicator or "none",
-            "reaction_summary": "Local stoichiometric fallback (ChemPy/FastAPI not installed).",
-            "neutralization_status": "approximate",
+            "reaction_summary": "ChemPy unavailable — no server-side pH was computed.",
+            "neutralization_status": "unavailable",
             "species_concentrations": {},
             "chempy_active": False,
             "reagents": names,
@@ -207,6 +205,8 @@ import hashlib
 import urllib.parse
 import urllib.request
 import urllib.error
+import socket
+import shutil
 
 TRANSLATION_CACHE_FILE = os.path.join(PROJECT_ROOT, "translation_cache.json")
 SESSION_JSON_PATH = os.path.join(PROJECT_ROOT, "active_session.json")
@@ -257,7 +257,7 @@ def _ensure_student_badges(conn):
     conn.execute("""
         CREATE TABLE IF NOT EXISTS student_badges (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id TEXT NOT NULL DEFAULT 'alseny',
+            student_id TEXT NOT NULL DEFAULT 'Alseny',
             badge_id TEXT NOT NULL,
             title TEXT,
             xp INTEGER NOT NULL DEFAULT 0,
@@ -267,7 +267,7 @@ def _ensure_student_badges(conn):
     """)
 
 
-def _list_student_badges(student_id="alseny"):
+def _list_student_badges(student_id="Alseny"):
     db_path = _student_badges_db()
     if not os.path.exists(db_path):
         return []
@@ -283,7 +283,7 @@ def _list_student_badges(student_id="alseny"):
         conn.close()
 
 
-def _award_student_badge(badge_id, title="", xp=0, student_id="alseny"):
+def _award_student_badge(badge_id, title="", xp=0, student_id="Alseny"):
     db_path = _student_badges_db()
     if not badge_id or not os.path.exists(db_path):
         return False
@@ -426,7 +426,59 @@ def livekit_http_origin(ws_url):
         return "http://" + u[5:]
     if u.startswith("http://") or u.startswith("https://"):
         return u
-    return "http://" + u if u else "http://localhost:7880"
+    return "http://" + u if u else "http://127.0.0.1:7880"
+
+
+def prefer_ipv4_livekit_url(ws_url):
+    """Rewrite localhost → 127.0.0.1 so Linux does not hang on ::1 while LiveKit is IPv4-only."""
+    u = (ws_url or "").strip()
+    if not u:
+        return u
+    for scheme in ("ws://", "wss://", "http://", "https://"):
+        needle = scheme + "localhost"
+        if u.lower().startswith(needle):
+            return scheme + "127.0.0.1" + u[len(needle):]
+    return u
+
+
+def livekit_tcp_target(ws_url):
+    u = prefer_ipv4_livekit_url(ws_url or "ws://127.0.0.1:7880")
+    for prefix in ("wss://", "ws://", "https://", "http://"):
+        if u.lower().startswith(prefix):
+            u = u[len(prefix):]
+            break
+    u = u.split("/", 1)[0]
+    host, _, port_s = u.partition(":")
+    host = host.strip() or "127.0.0.1"
+    if host.lower() == "localhost":
+        host = "127.0.0.1"
+    try:
+        port = int(port_s) if port_s else (443 if str(ws_url).startswith(("wss://", "https://")) else 7880)
+    except ValueError:
+        port = 7880
+    return host, port
+
+
+def probe_livekit_tcp(ws_url, timeout=0.8):
+    host, port = livekit_tcp_target(ws_url)
+    sock = None
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((host, port))
+        return True, host, port, ""
+    except Exception as err:
+        return False, host, port, str(err)
+    finally:
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+
+
+def ffmpeg_on_path():
+    return bool(shutil.which("ffmpeg"))
 
 
 def mint_socratic_room(identity):
@@ -441,9 +493,19 @@ def mint_socratic_room(identity):
 
 def livekit_connect_urls(primary):
     urls = []
-    for candidate in (primary, os.environ.get("LIVEKIT_FALLBACK_URL", "").strip()):
+    rewritten = prefer_ipv4_livekit_url(primary)
+    for candidate in (
+        rewritten,
+        primary,
+        prefer_ipv4_livekit_url(os.environ.get("LIVEKIT_FALLBACK_URL", "").strip()),
+        os.environ.get("LIVEKIT_FALLBACK_URL", "").strip(),
+    ):
+        candidate = (candidate or "").strip()
         if candidate and candidate not in urls:
             urls.append(candidate)
+    if rewritten.startswith("ws://127.0.0.1:") or rewritten.startswith("ws://localhost:"):
+        if "ws://127.0.0.1:7880" not in urls:
+            urls.append("ws://127.0.0.1:7880")
     return urls
 
 
@@ -2103,6 +2165,10 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "mode": DEPLOYMENT_MODE,
                 "ws_clients": len(connected_clients),
                 "pods": len(pod_sessions),
+                "session_json_path": SESSION_JSON_PATH,
+                "session_json_exists": os.path.exists(SESSION_JSON_PATH),
+                "platform": sys.platform,
+                "force_offline": os.environ.get("FORCE_OFFLINE", os.environ.get("OFFLINE_MODE", "0")),
             }).encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -2113,7 +2179,9 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if clean_path == '/api/voice_status':
-            livekit_url = os.environ.get("LIVEKIT_URL", "ws://localhost:7880").strip()
+            livekit_url = prefer_ipv4_livekit_url(
+                os.environ.get("LIVEKIT_URL", "ws://127.0.0.1:7880").strip() or "ws://127.0.0.1:7880"
+            )
             session_data = load_session_info()
             engine = "gemini" if (
                 str(os.environ.get("VOICE_ENGINE", "auto")).lower() == "gemini"
@@ -2132,11 +2200,29 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 or str(os.environ.get("VOICE_ENGINE", "auto")).lower() == "gemini"
             ):
                 engine = "gemini"
+            reachable, lk_host, lk_port, lk_err = probe_livekit_tcp(livekit_url)
+            has_google = bool(os.environ.get("GOOGLE_API_KEY", "").strip())
+            hints = []
+            if not reachable:
+                hints.append(
+                    "No LiveKit server on %s:%s (%s). On Linux start one with "
+                    "bash livekit_stack/run_livekit_server.sh, or set LIVEKIT_URL to your LiveKit Cloud wss:// URL."
+                    % (lk_host, lk_port, lk_err or "connection refused")
+                )
+            if not has_google and engine != "gemma":
+                hints.append("GOOGLE_API_KEY is unset in .env — Gemini Live cannot speak.")
+            if not ffmpeg_on_path():
+                hints.append("ffmpeg is not on PATH. Install it (sudo apt install ffmpeg) so LiveKit can encode tutor audio.")
+            hints.append("Open http://127.0.0.1:8000/ (not a LAN hostname) so the browser allows the microphone.")
+            hints.append("Start the worker with python3 livekit_stack/agent/run_agent.py --online start  (never sudo).")
             body = json.dumps({
                 "success": True,
                 "livekit_url": livekit_url,
                 "livekit_host": livekit_http_origin(livekit_url),
-                "has_google_api_key": bool(os.environ.get("GOOGLE_API_KEY", "").strip()),
+                "livekit_reachable": reachable,
+                "livekit_tcp": {"host": lk_host, "port": lk_port, "error": lk_err},
+                "ffmpeg": ffmpeg_on_path(),
+                "has_google_api_key": has_google,
                 "has_livekit_api_key": bool(os.environ.get("LIVEKIT_API_KEY", "").strip()) and os.environ.get("LIVEKIT_API_KEY") != "devkey",
                 "gemini_live_model": gemini_live_model_for_client(),
                 "agent_name": livekit_agent_name(),
@@ -2144,6 +2230,10 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "active_livekit_room": session_data.get("active_livekit_room"),
                 "voice_engine": engine,
                 "force_offline": os.environ.get("FORCE_OFFLINE", os.environ.get("OFFLINE_MODE", "0")),
+                "platform": sys.platform,
+                "secure_origin_hint": "http://127.0.0.1:8000/",
+                "hint": " ".join(hints),
+                "hints": hints,
             }).encode("utf-8")
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -3032,9 +3122,9 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         "[RIVA MAGPIE-TTS ERROR] Python client not installed. "
                         "Install with: pip install nvidia-riva-client"
                     )
-                    print("[RIVA MAGPIE-TTS] Falling back to mock WAV silence.")
+                    print("[RIVA MAGPIE-TTS] Will try Kokoro, then fail honestly if none is available.")
                 except Exception as e:
-                    print(f"[RIVA MAGPIE-TTS ERROR] gRPC synthesis failed: {e}. Falling back to mock WAV.")
+                    print(f"[RIVA MAGPIE-TTS ERROR] gRPC synthesis failed: {e}. Trying Kokoro next.")
 
             if wav_data is None:
                 # LOCAL-FIRST fallbacks: Kokoro on :8880, then Google only if explicitly online
@@ -3075,7 +3165,28 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         return
                     except Exception as fallback_err:
                         print(f"[TTS ONLINE FALLBACK ERROR] {fallback_err}")
-                wav_data = make_mock_wav()
+                if os.environ.get("TTS_BACKEND", "").strip().lower() == "silent":
+                    print("[TTS] TTS_BACKEND=silent: returning empty WAV (explicit test mode only).")
+                    wav_data = make_mock_wav()
+                else:
+                    err = {
+                        "success": False,
+                        "error": (
+                            "No TTS backend is available. Kokoro is not reachable, Riva is not configured, "
+                            "and silent mock WAV is disabled. Start Kokoro on :8880 or set TTS_BACKEND=silent "
+                            "only for tests."
+                        ),
+                        "tts_backend": tts_backend,
+                    }
+                    err_bytes = json.dumps(err).encode("utf-8")
+                    print(f"[TTS] {err['error']}")
+                    self.send_response(503)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.send_header('Content-Length', str(len(err_bytes)))
+                    self.end_headers()
+                    self.wfile.write(err_bytes)
+                    return
 
             self.send_response(200)
             self.send_header('Content-Type', 'audio/wav')
@@ -3926,13 +4037,26 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
             api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
             api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretsecretsecretsecretsecretsecretsecret")
-            offline_default = os.environ.get("OFFLINE_MODE", "1") == "1"
-            online_testing = os.environ.get("ONLINE_MODE") == "1" or os.environ.get("OFFLINE_MODE") == "0"
-            livekit_url = os.environ.get("LIVEKIT_URL", "ws://localhost:7880").strip()
-            if not livekit_url:
-                livekit_url = "ws://127.0.0.1:7880"
+            force_offline = os.environ.get("FORCE_OFFLINE", "").strip().lower() in ("1", "true", "yes", "on")
+            offline_env = os.environ.get("OFFLINE_MODE")
+            online_testing = (
+                os.environ.get("ONLINE_MODE") == "1"
+                or offline_env == "0"
+                or (
+                    (not force_offline)
+                    and bool(os.environ.get("GOOGLE_API_KEY", "").strip())
+                    and (offline_env or "").strip().lower() not in ("1", "true", "yes", "on")
+                )
+            )
+            offline_default = (not online_testing) and (
+                force_offline or (os.environ.get("OFFLINE_MODE", "1") == "1")
+            )
+            livekit_url = prefer_ipv4_livekit_url(
+                os.environ.get("LIVEKIT_URL", "ws://127.0.0.1:7880").strip() or "ws://127.0.0.1:7880"
+            )
             if online_testing:
-                livekit_url = os.environ.get("LIVEKIT_CLOUD_URL", "").strip() or livekit_url
+                cloud = prefer_ipv4_livekit_url(os.environ.get("LIVEKIT_CLOUD_URL", "").strip())
+                livekit_url = cloud or livekit_url
             fallbacks = livekit_connect_urls(livekit_url)
             if livekit_url in fallbacks:
                 fallbacks = [u for u in fallbacks if u != livekit_url]
@@ -4767,7 +4891,8 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 temp_c = data.get("temp_c", 25.0)
                 res = chem_calculate_mixture(solutions, indicator, temp_c)
                 res_bytes = json.dumps(res).encode('utf-8')
-                self.send_response(200)
+                status = 200 if res.get("success", True) else 503
+                self.send_response(status)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(res_bytes)))
                 self.send_header('Access-Control-Allow-Origin', '*')
@@ -5638,6 +5763,10 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                         use_google_tts = False
                 
                 if not use_google_tts:
+                    if sys.platform != "win32":
+                        print("[TTS SERVER] SAPI5 is Windows-only. Start Kokoro on :8880 for /v1/audio/speech on Linux.", flush=True)
+                        self.send_error(503, "Speech synthesis unavailable on Linux without Kokoro")
+                        return
                     # Import native Windows COM library
                     import win32com.client
                     import pythoncom
@@ -5836,7 +5965,10 @@ def start_http_server():
         port = 8080
         httpd = ThreadingTCPServerQuietErrors(("", port), handler)
         
-    print(f"[HTTP] Classroom Fleet Cockpit live at http://ventuno.local:{port}/ (or http://<device-ip>:{port}/)", flush=True)
+    print(f"[HTTP] Classroom Fleet Cockpit live at http://127.0.0.1:{port}/ (or http://<device-ip>:{port}/)", flush=True)
+    print(f"[SESSION] Canonical session file: {SESSION_JSON_PATH} (exists={os.path.exists(SESSION_JSON_PATH)})", flush=True)
+    if not os.environ.get("GOOGLE_API_KEY", "").strip():
+        print("[BOOT] GOOGLE_API_KEY is unset — Gemini Live and cloud Gandal Space are unavailable.", flush=True)
     with httpd:
         httpd.serve_forever()
 
@@ -6092,19 +6224,36 @@ async def ws_handler(websocket):
                         cursor.execute("""
                             CREATE TABLE IF NOT EXISTS handwriting_archive (
                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                user_id TEXT,
-                                video_id TEXT,
-                                chapter_id TEXT,
-                                quiz_type TEXT,
+                                subject TEXT NOT NULL,
+                                video_id TEXT NOT NULL,
+                                chapter_id TEXT NOT NULL,
+                                image_path TEXT NOT NULL,
+                                extracted_text TEXT,
                                 score REAL,
-                                sentry_verified BOOLEAN,
-                                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                                passed BOOLEAN,
+                                submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                             )
                         """)
+                        subject = get_subject_by_video_id(video_id) or "Unknown"
+                        quiz_label = "main" if not is_alt else "alt"
+                        extracted = json.dumps({
+                            "source": "SUBMIT_QUIZ",
+                            "quiz_type": quiz_label,
+                            "sentry_verified": bool(sentry_verified),
+                            "user_id": connected_students_map.get(websocket, "STU-001"),
+                        }, ensure_ascii=False)
                         cursor.execute("""
-                            INSERT INTO handwriting_archive (user_id, video_id, chapter_id, quiz_type, score, sentry_verified)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                        """, (connected_students_map.get(websocket, "STU-001"), video_id, chapter_id, "main" if not is_alt else "alt", score, sentry_verified))
+                            INSERT INTO handwriting_archive (subject, video_id, chapter_id, image_path, extracted_text, score, passed)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            subject,
+                            video_id,
+                            chapter_id,
+                            f"quiz_submit/{quiz_label}",
+                            extracted,
+                            score,
+                            1 if mastery_achieved else 0,
+                        ))
                         conn.commit()
                         conn.close()
                     except Exception as hw_err:

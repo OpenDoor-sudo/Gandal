@@ -11,13 +11,20 @@ BASE_PROFILE_DIR = os.path.join(PROJECT_ROOT, "student_profiles")
 VAULT_DB_PATH = os.path.join(PROJECT_ROOT, "vault.db")
 
 def get_student_dir(student_id):
-    """Resolve absolute directory path for a student's profiles."""
-    clean_id = "".join([c for c in student_id if c.isalnum() or c in ("-", "_")]).strip()
+    """Resolve absolute directory path for a student's profiles.
+
+    Profile folders on disk are title-cased (Alseny, Abahny). Match them
+    case-insensitively so ids like "alseny" do not create an empty sibling dir.
+    """
+    clean_id = "".join([c for c in (student_id or "") if c.isalnum() or c in ("-", "_")]).strip()
     if not clean_id:
-        clean_id = "default_student"
+        clean_id = "Alseny"
+    if os.path.isdir(BASE_PROFILE_DIR):
+        for name in os.listdir(BASE_PROFILE_DIR):
+            if name.lower() == clean_id.lower():
+                return os.path.join(BASE_PROFILE_DIR, name)
     path = os.path.join(BASE_PROFILE_DIR, clean_id)
-    if not os.path.exists(path):
-        os.makedirs(path)
+    os.makedirs(path, exist_ok=True)
     return path
 
 def parse_okf(content):
@@ -93,6 +100,10 @@ def load_or_create_subject_profile(student_id, subject):
         "* Initial application of new formulas or multi-step logic.\n"
     )
     return metadata, body
+
+def get_subject_profile(student_id, subject):
+    """Alias used by the offline LiveKit agent."""
+    return load_or_create_subject_profile(student_id, subject)
 
 def load_or_create_session_state(student_id):
     """Load the current SessionState OKF file, or return a default one."""

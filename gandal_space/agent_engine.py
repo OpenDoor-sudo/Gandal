@@ -114,7 +114,7 @@ Available A2UI Components:
 6. GraphCard (MANDATORY for Math, Geometry, Physics, and Chemistry):
    {
      "type": "GraphCard",
-     "model_type": "geometry_triangle" | "geometry_circle" | "geometry_pythagoras" | "physics_projectile" | "physics_newton" | "chemistry_titration" | "chemistry_kinetics" | "function_plot",
+     "model_type": "geometry_triangle" | "geometry_circle" | "geometry_pythagoras" | "geometry_ellipse" | "geometry_rectangle" | "geometry_square" | "geometry_polygon" | "physics_projectile" | "physics_newton" | "chemistry_titration" | "chemistry_kinetics" | "function_plot",
      "title": "Interactive Model: Triangle ABC / Function / Simulation",
      "formula": "triangle" | "circle" | "sgn(x)" | "x^2" | "sin(x)" | "F = ma",
      "theorem": "\\angle A + \\angle B + \\angle C = 180^\\circ \\quad | \\quad \\text{Area} = \\frac{1}{2}bh",
@@ -556,6 +556,130 @@ class GandalSpaceEngine:
                 ]
             }
 
+        # Ellipse
+        if "ellips" in p_lower:
+            return {
+                "type": "Container",
+                "direction": "vertical",
+                "title": "Understanding Ellipses: Semi-axes and Foci",
+                "subject": "Math",
+                "summary": "An ellipse is the set of points whose sum of distances to two foci is constant, with semi-axes a and b.",
+                "suggested_followups": [
+                    "What happens when a = b?",
+                    "Where are the foci of an ellipse?",
+                    "What is the area of an ellipse?"
+                ],
+                "children": [
+                    {
+                        "type": "GraphCard",
+                        "model_type": "geometry_ellipse",
+                        "title": "Interactive Geometric Model: Ellipse",
+                        "formula": "x^2/a^2 + y^2/b^2 = 1",
+                        "theorem": "\\frac{x^2}{a^2} + \\frac{y^2}{b^2} = 1 \\quad | \\quad c = \\sqrt{|a^2-b^2|}",
+                        "domain": [-6, 6],
+                        "range": [-4, 4],
+                        "description": "Drag the a and b sliders to reshape the ellipse and watch the foci move."
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "If $a=b$ on an ellipse, the figure is…",
+                        "options": ["A circle", "A parabola", "A hyperbola", "A rectangle"],
+                        "answer_index": 0,
+                        "explanation": "Equal semi-axes recover a circle."
+                    }
+                ]
+            }
+
+        # Rectangle
+        if "rectangl" in p_lower:
+            return {
+                "type": "Container",
+                "direction": "vertical",
+                "title": "Understanding Rectangles: Length and Width",
+                "subject": "Math",
+                "summary": "A rectangle has four right angles, length ℓ and width w.",
+                "suggested_followups": ["When is a rectangle a square?", "What is the diagonal formula?"],
+                "children": [
+                    {
+                        "type": "GraphCard",
+                        "model_type": "geometry_rectangle",
+                        "title": "Interactive Geometric Model: Rectangle",
+                        "formula": "rectangle",
+                        "theorem": "A = \\ell w \\quad | \\quad P = 2(\\ell+w)",
+                        "domain": [-1, 7],
+                        "range": [-1, 5],
+                        "description": "Adjust length and width; the figure updates."
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "A rectangle has $\\ell=5$ and $w=3$. What is its area?",
+                        "options": ["15", "16", "8", "30"],
+                        "answer_index": 0,
+                        "explanation": "Area = ℓw = 15."
+                    }
+                ]
+            }
+
+        # Square
+        if re.search(r'\bsquare\b|carré', p_lower):
+            return {
+                "type": "Container",
+                "direction": "vertical",
+                "title": "Understanding Squares: Side s",
+                "subject": "Math",
+                "summary": "A square has four equal sides of length s and four right angles.",
+                "suggested_followups": ["What is the diagonal of a square?", "How does area scale with s?"],
+                "children": [
+                    {
+                        "type": "GraphCard",
+                        "model_type": "geometry_square",
+                        "title": "Interactive Geometric Model: Square",
+                        "formula": "square",
+                        "theorem": "A = s^2 \\quad | \\quad d = s\\sqrt{2}",
+                        "domain": [-1, 6],
+                        "range": [-1, 6],
+                        "description": "The side slider s resizes the square."
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "A square of side $s=4$ has area…",
+                        "options": ["16", "8", "12", "4"],
+                        "answer_index": 0,
+                        "explanation": "Area = s² = 16."
+                    }
+                ]
+            }
+
+        # Regular polygon
+        if any(k in p_lower for k in ["polygon", "hexagon", "pentagon", "octagon", "n-gon", "regular polygon"]):
+            return {
+                "type": "Container",
+                "direction": "vertical",
+                "title": "Understanding Regular Polygons",
+                "subject": "Math",
+                "summary": "A regular n-gon has n equal sides of length s and equal interior angles.",
+                "suggested_followups": ["What is the interior angle of a regular hexagon?"],
+                "children": [
+                    {
+                        "type": "GraphCard",
+                        "model_type": "geometry_polygon",
+                        "title": "Interactive Geometric Model: Regular Polygon",
+                        "formula": "polygon",
+                        "theorem": "R = s / (2\\sin(\\pi/n))",
+                        "domain": [-5, 5],
+                        "range": [-5, 5],
+                        "description": "Change n (number of sides) and s (side length)."
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "A regular hexagon has how many sides?",
+                        "options": ["6", "5", "8", "4"],
+                        "answer_index": 0,
+                        "explanation": "Hexa- means six."
+                    }
+                ]
+            }
+
         # Check if it's column addition / arithmetic (e.g., 12 + 10, adding 3 numbers like 125 + 48 + 37, etc.)
         if any(k in p_lower for k in ["addition", "additionner", "poser une addition", "column addition", "add 3 numbers", "ajouter"]) or re.search(r'\b\d+\s*\+\s*\d+', p_lower):
             add_match = re.search(r'\b(\d{1,6}(?:\s*\+\s*\d{1,6}){1,5})\b', p_lower)
@@ -885,6 +1009,14 @@ class GandalSpaceEngine:
                             c["model_type"] = "geometry_triangle"
                         elif re.search(r'\b(circles?|radius|circumference)\b', c_text):
                             c["model_type"] = "geometry_circle"
+                        elif re.search(r'\bellips', c_text):
+                            c["model_type"] = "geometry_ellipse"
+                        elif re.search(r'\brectangl', c_text):
+                            c["model_type"] = "geometry_rectangle"
+                        elif re.search(r'\bsquare\b|carré', c_text):
+                            c["model_type"] = "geometry_square"
+                        elif re.search(r'\b(polygon|hexagon|pentagon|octagon)\b', c_text):
+                            c["model_type"] = "geometry_polygon"
                         elif re.search(r'\b(titration|neutralization|burette|titrant|acid[\s-]base)\b', c_text):
                             c["model_type"] = "chemistry_titration"
                         elif re.search(r'\b(projectile|trajector(y|ies)|free[\s-]fall)\b', c_text):
@@ -931,6 +1063,54 @@ class GandalSpaceEngine:
                         "range": [-5, 5],
                         "description": "Visual geometric circle centered at $O(0,0)$ with radius $r=3$. Drag point P along the boundary to explore how radius directly determines circumference $C = 2\\pi r$ and interior area $A = \\pi r^2$!",
                         "radius": 3
+                    }
+                # 3b. Ellipse
+                elif re.search(r'\bellips', combined_text):
+                    graph_card = {
+                        "type": "GraphCard",
+                        "model_type": "geometry_ellipse",
+                        "title": "Interactive Geometric Model: Ellipse",
+                        "formula": "x^2/a^2 + y^2/b^2 = 1",
+                        "theorem": "\\frac{x^2}{a^2}+\\frac{y^2}{b^2}=1",
+                        "domain": [-6, 6],
+                        "range": [-4, 4],
+                        "description": "Semi-axes a, b and foci c = sqrt(|a^2-b^2|)."
+                    }
+                # 3c. Rectangle
+                elif re.search(r'\brectangl', combined_text):
+                    graph_card = {
+                        "type": "GraphCard",
+                        "model_type": "geometry_rectangle",
+                        "title": "Interactive Geometric Model: Rectangle",
+                        "formula": "rectangle",
+                        "theorem": "A=\\ell w",
+                        "domain": [-1, 7],
+                        "range": [-1, 5],
+                        "description": "Length and width sliders resize the rectangle."
+                    }
+                # 3d. Square
+                elif re.search(r'\bsquare\b|carré', combined_text):
+                    graph_card = {
+                        "type": "GraphCard",
+                        "model_type": "geometry_square",
+                        "title": "Interactive Geometric Model: Square",
+                        "formula": "square",
+                        "theorem": "A=s^2",
+                        "domain": [-1, 6],
+                        "range": [-1, 6],
+                        "description": "Side s resizes the square."
+                    }
+                # 3e. Regular polygon
+                elif re.search(r'\b(polygon|hexagon|pentagon|octagon)\b', combined_text):
+                    graph_card = {
+                        "type": "GraphCard",
+                        "model_type": "geometry_polygon",
+                        "title": "Interactive Geometric Model: Regular Polygon",
+                        "formula": "polygon",
+                        "theorem": "R=s/(2\\sin(\\pi/n))",
+                        "domain": [-5, 5],
+                        "range": [-5, 5],
+                        "description": "n sides of length s."
                     }
                 # 4. Physics: Projectile Motion / Free Fall / Gravity
                 elif re.search(r'\b(projectile|trajector(y|ies)|free[\s-]fall|gravity)\b', combined_text):
