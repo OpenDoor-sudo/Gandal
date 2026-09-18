@@ -265,7 +265,6 @@ class GandalSpaceClient {
     this.searchHistory = [];
     this.quizCards = {};
     this._wbFlipAnim = null;
-    this._tableauResizeBound = false;
   }
 
   init() {
@@ -942,29 +941,29 @@ class GandalSpaceClient {
     }
   }
 
-  _bindTableauResize() {
-    if (this._tableauResizeBound) return;
-    this._tableauResizeBound = true;
-    window.addEventListener("resize", () => {
-      const wbPane = document.getElementById("gandalWhiteboardPane");
-      const wrapper = wbPane && wbPane.closest(".gandal-space-wrapper");
-      if (wbPane && wrapper && wrapper.classList.contains("tableau-explaining")) {
-        this._dockTableauNoirToAnswersPane(wbPane, wrapper);
-      }
-    });
+  _moveTableauNoirToLeftDock(wbPane) {
+    const wrapper = (wbPane && wbPane.closest(".gandal-space-wrapper")) || document.querySelector(".gandal-space-wrapper");
+    if (!wbPane || !wrapper) return null;
+    if (wbPane.parentElement !== wrapper) {
+      this._wbHomeParent = wbPane.parentElement;
+      this._wbHomeNext = wbPane.nextElementSibling;
+      const companion = wrapper.querySelector(".gandal-space-companion-pane");
+      wrapper.insertBefore(wbPane, companion || null);
+    }
+    wrapper.classList.add("tableau-explaining");
+    return wrapper;
   }
 
-  _dockTableauNoirToAnswersPane(wbPane, wrapper) {
-    if (!wbPane || !wrapper) return;
-    const answers = wrapper.querySelector(".gandal-space-answers-pane");
-    const wr = wrapper.getBoundingClientRect();
-    const ar = answers ? answers.getBoundingClientRect() : null;
-    if (ar && ar.width > 40 && ar.height > 40) {
-      wrapper.style.setProperty("--tableau-dock-top", `${Math.max(0, ar.top - wr.top)}px`);
-      wrapper.style.setProperty("--tableau-dock-left", `${Math.max(0, ar.left - wr.left)}px`);
-      wrapper.style.setProperty("--tableau-dock-width", `${ar.width}px`);
-      wrapper.style.setProperty("--tableau-dock-height", `${ar.height}px`);
+  _restoreTableauNoirHome(wbPane) {
+    const wrapper = (wbPane && wbPane.closest(".gandal-space-wrapper")) || document.querySelector(".gandal-space-wrapper");
+    if (wbPane && this._wbHomeParent && wbPane.parentElement !== this._wbHomeParent) {
+      if (this._wbHomeNext && this._wbHomeNext.parentNode === this._wbHomeParent) {
+        this._wbHomeParent.insertBefore(wbPane, this._wbHomeNext);
+      } else {
+        this._wbHomeParent.appendChild(wbPane);
+      }
     }
+    if (wrapper) wrapper.classList.remove("tableau-explaining");
   }
 
   _playTableauFlip(wbPane, firstRect) {
@@ -1004,24 +1003,21 @@ class GandalSpaceClient {
     if (!wbPane) return;
 
     this.initWhiteboardHoverListeners();
-    this._bindTableauResize();
 
     if (this._wbCollapseTimeout) {
       clearTimeout(this._wbCollapseTimeout);
       this._wbCollapseTimeout = null;
     }
 
-    const wrapper = wbPane.closest(".gandal-space-wrapper");
+    const wrapper = wbPane.closest(".gandal-space-wrapper") || document.querySelector(".gandal-space-wrapper");
     const alreadyDocked = wbPane.classList.contains("expanded-explaining") &&
-      wrapper && wrapper.classList.contains("tableau-explaining");
+      wrapper && wrapper.classList.contains("tableau-explaining") &&
+      wbPane.parentElement === wrapper;
     if (alreadyDocked) return;
 
     const firstRect = wbPane.getBoundingClientRect();
     wbPane.classList.remove("sliding-down");
-    if (wrapper) {
-      this._dockTableauNoirToAnswersPane(wbPane, wrapper);
-      wrapper.classList.add("tableau-explaining");
-    }
+    this._moveTableauNoirToLeftDock(wbPane);
     wbPane.classList.add("expanded-explaining");
     void wbPane.offsetWidth;
     this._playTableauFlip(wbPane, firstRect);
@@ -1050,13 +1046,10 @@ class GandalSpaceClient {
     const dismissBtn = document.getElementById("gandalWhiteboardDismissBtn");
     if (!wbPane || !wbPane.classList.contains("expanded-explaining")) return;
 
-    const wrapper = wbPane.closest(".gandal-space-wrapper");
     const firstRect = wbPane.getBoundingClientRect();
     wbPane.classList.add("sliding-down");
     wbPane.classList.remove("expanded-explaining");
-    if (wrapper) {
-      wrapper.classList.remove("tableau-explaining");
-    }
+    this._restoreTableauNoirHome(wbPane);
     void wbPane.offsetWidth;
     this._playTableauFlip(wbPane, firstRect);
 

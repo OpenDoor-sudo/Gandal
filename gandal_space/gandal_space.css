@@ -65,23 +65,22 @@
   transition: opacity 0.32s ease;
 }
 
-/* Mic / explain: hide the left exploration pane so Tableau Noir can occupy it */
+/* Mic / explain: hide the left exploration pane so Tableau Noir can sit beside the avatar */
 .gandal-space-wrapper.tableau-explaining .gandal-space-answers-pane {
-  opacity: 0;
-  pointer-events: none;
-  user-select: none;
+  display: none;
 }
 
-/* Let the chalkboard position against the wrapper (not the companion column) */
 .gandal-space-wrapper.tableau-explaining .gandal-space-companion-pane {
-  position: static;
-  overflow: visible;
+  flex: 0 0 32%;
+  width: 32%;
+  max-width: 32%;
+  z-index: 5;
 }
 
 .gandal-space-wrapper.tableau-explaining .gandal-avatar-wrapper,
 .gandal-space-wrapper.tableau-explaining #gandalSpaceAvatarContainer {
   position: relative;
-  z-index: 90;
+  z-index: 6;
 }
 
 /* Custom scrollbar for answers pane */
@@ -141,6 +140,11 @@
     width: 100%;
     max-width: 100%;
     height: auto;
+  }
+  .gandal-space-wrapper.tableau-explaining .gandal-space-companion-pane {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
   }
 }
 
@@ -2086,27 +2090,27 @@
   overflow: hidden;
   box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.95), 0 4px 18px rgba(0, 0, 0, 0.4);
   position: relative;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 10;
 }
 
-.gandal-whiteboard-card.expanded-explaining {
-  position: absolute;
-  top: var(--tableau-dock-top, 16px);
-  left: var(--tableau-dock-left, 24px);
-  width: var(--tableau-dock-width, calc(70% - 12px));
-  height: var(--tableau-dock-height, calc(100% - 44px));
-  right: auto;
-  bottom: auto;
-  z-index: 80;
+/* Direct child of the 70/30 wrapper after reparent — occupies the left column */
+.gandal-space-wrapper > .gandal-whiteboard-card.expanded-explaining {
+  position: relative;
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  align-self: stretch;
+  z-index: 20;
   border-color: rgba(168, 85, 247, 0.7);
   box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.95), 0 12px 38px rgba(0, 0, 0, 0.85), 0 0 32px rgba(168, 85, 247, 0.35);
   border-radius: 16px;
-  /* Motion is a FLIP slide in gandal_space.js so the board travels left instead of jumping */
 }
 
 .gandal-whiteboard-card.sliding-down {
-  z-index: 80;
+  z-index: 20;
 }
 
 .gandal-whiteboard-header {
