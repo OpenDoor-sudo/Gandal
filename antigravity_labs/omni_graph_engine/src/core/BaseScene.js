@@ -57,4 +57,88 @@ export class BaseScene {
   getTelemetry() {
     return { name: this.name, active: this.active };
   }
+
+  /**
+   * High-contrast x/y tick numbers for dark STEM boards.
+   * JSXGraph defaults to black text; axis:true uses defaultAxes (not Options.axis).
+   */
+  darkAxisLabelColor() {
+    return "#f8fafc";
+  }
+
+  darkAxisDefaultAxes() {
+    const labelColor = this.darkAxisLabelColor();
+    const tickColor = "#94a3b8";
+    const axisColor = "#e2e8f0";
+    const label = {
+      visible: true,
+      strokeColor: labelColor,
+      highlightStrokeColor: labelColor,
+      cssStyle: `color: ${labelColor};`,
+      highlightCssStyle: `color: ${labelColor};`
+    };
+    return {
+      x: {
+        strokeColor: axisColor,
+        highlight: false,
+        ticks: {
+          strokeColor: tickColor,
+          highlightStrokeColor: tickColor,
+          drawLabels: true,
+          drawZero: true,
+          label
+        }
+      },
+      y: {
+        strokeColor: axisColor,
+        highlight: false,
+        ticks: {
+          strokeColor: tickColor,
+          highlightStrokeColor: tickColor,
+          drawLabels: true,
+          drawZero: true,
+          label: Object.assign({}, label, { anchorX: "right", anchorY: "middle" })
+        }
+      }
+    };
+  }
+
+  applyHighContrastAxisTicks(board) {
+    if (!board || !board.defaultAxes) return;
+    const labelColor = this.darkAxisLabelColor();
+    const tickColor = "#94a3b8";
+    const axisColor = "#e2e8f0";
+    const labelAttrs = {
+      strokeColor: labelColor,
+      highlightStrokeColor: labelColor,
+      cssStyle: `color: ${labelColor};`,
+      highlightCssStyle: `color: ${labelColor};`
+    };
+    const tickAttrs = {
+      strokeColor: tickColor,
+      highlightStrokeColor: tickColor,
+      drawLabels: true,
+      drawZero: true,
+      label: labelAttrs
+    };
+    ["x", "y"].forEach((key) => {
+      const axis = board.defaultAxes[key];
+      if (!axis) return;
+      axis.setAttribute({
+        strokeColor: axisColor,
+        highlightStrokeColor: axisColor
+      });
+      if (axis.defaultTicks) {
+        axis.defaultTicks.setAttribute(tickAttrs);
+        const labels = axis.defaultTicks.labels;
+        if (Array.isArray(labels)) {
+          labels.forEach((lab) => {
+            if (lab && typeof lab.setAttribute === "function") {
+              lab.setAttribute(labelAttrs);
+            }
+          });
+        }
+      }
+    });
+  }
 }

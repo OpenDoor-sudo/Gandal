@@ -9756,6 +9756,9 @@
 
         // If leaving Gandal Space, restore avatar back to Socratic Workspace panel
         if (window.isGandalSpaceActive && viewName !== "gandal_space") {
+          if (window.gandalSpaceApp && typeof window.gandalSpaceApp.collapseWhiteboard === "function") {
+            window.gandalSpaceApp.collapseWhiteboard();
+          }
           const wsPanel = document.getElementById("socraticWorkspaceAvatarPanel");
           const statusIndicator = document.getElementById("tutorStatusIndicator");
           const avatarBox = document.getElementById("avatarImgBox");
@@ -12706,6 +12709,15 @@
           if (typeof window.notifyTutorHandRaise === "function") {
             window.notifyTutorHandRaise("mic");
           }
+          // Gandal Space: open Tableau Noir and slide it left so the avatar stays visible
+          if (window.isGandalSpaceActive && window.gandalSpaceApp) {
+            if (typeof window.gandalSpaceApp.switchCompanionTab === "function") {
+              window.gandalSpaceApp.switchCompanionTab("whiteboard");
+            }
+            if (typeof window.gandalSpaceApp.expandWhiteboard === "function") {
+              window.gandalSpaceApp.expandWhiteboard(true);
+            }
+          }
           syncGandhoFabVisibility();
         } else {
           // Stop LiveKit WebSocket Audio Session
@@ -12719,6 +12731,9 @@
           // Sync Gandal Space companion state if active
           if (window.gandalSpaceApp && typeof window.gandalSpaceApp.setConvoStateUI === "function") {
             window.gandalSpaceApp.setConvoStateUI("idle", "Tap mic to speak or press Enter");
+          }
+          if (window.gandalSpaceApp && typeof window.gandalSpaceApp.collapseWhiteboard === "function") {
+            window.gandalSpaceApp.collapseWhiteboard();
           }
           const gWbStatus = document.getElementById("gandalWhiteboardStatus");
           if (gWbStatus && gWbStatus.classList.contains("speaking")) {
@@ -14620,8 +14635,8 @@ function getQuizTrackKey() {
         ctx.stroke();
 
         // Draw axes ticks and labels for all 4 quadrants
-        ctx.fillStyle = "#888888";
-        ctx.font = '8px "Geist", monospace';
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = '11px "Geist", monospace';
         const yAxisScreenX = toScreenX(0);
         const xAxisScreenY = toScreenY(0);
 
@@ -17270,8 +17285,8 @@ function getQuizTrackKey() {
           ctx.stroke();
 
           // Draw axes ticks and labels for all 4 quadrants
-          ctx.fillStyle = "#888888";
-          ctx.font = '9px "Geist", monospace';
+          ctx.fillStyle = "#f8fafc";
+          ctx.font = '12px "Geist", monospace';
           const yAxisScreenX = toScreenX(0);
           const xAxisScreenY = toScreenY(0);
 
