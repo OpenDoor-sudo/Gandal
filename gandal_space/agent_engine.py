@@ -78,6 +78,13 @@ def _placeholder_api_key(key: Optional[str]) -> bool:
     lowered = key.strip().lower()
     return lowered in ("your_google_api_key_here", "changeme", "none", "null")
 
+
+def _real_google_api_key() -> Optional[str]:
+    key = (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY") or "").strip()
+    if not key or _placeholder_api_key(key):
+        return None
+    return key
+
 A2UI_SYSTEM_INSTRUCTION = """You are Gandal Space AI, an elite adaptive educational assistant for students across K-12 and university level.
 You must ALWAYS respond with a single, raw, valid JSON object conforming to the A2UI (Agent-to-User Interface) specification.
 Do NOT wrap your output in markdown code blocks like ```json ... ```. Return ONLY the parseable JSON payload.
@@ -205,21 +212,22 @@ class GandalSpaceEngine:
         base = local_llm_base_url()
         model = local_llm_model()
         return (
-            f"Gemma 4 E4B is not running at {base} (model {model}). "
-            "Start the OpenAI-compatible local LLM on :8080 (LOCAL_LLM_URL / gemma-4-e4b) "
-            "or set GOOGLE_API_KEY for Gemini online fallback."
+            f"Need Gemma or a Gemini key: Gemma 4 E4B is not running at {base} (model {model}), "
+            "and no usable GOOGLE_API_KEY is set. Start LOCAL_LLM_URL / gemma-4-e4b on :8080 "
+            "or add a real GOOGLE_API_KEY for Gemini online."
         )
 
     def _init_gemini(self):
         if self._gemini_client is not None:
             return self._gemini_client
+        api_key = _real_google_api_key()
+        if not api_key:
+            return None
         try:
             from google import genai
-            api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-            if api_key and not _placeholder_api_key(api_key):
-                self._gemini_client = genai.Client(api_key=api_key)
+            self._gemini_client = genai.Client(api_key=api_key)
         except Exception as e:
-            print(f"[GANDAL SPACE] Warning: Google GenAI client init failed: {e}")
+            print(f"[GANDAL SPACE] Warning: Google GenAI SDK unavailable ({e}); using REST fallback.")
         return self._gemini_client
 
     def check_local_llm_status(self) -> Tuple[bool, str]:
@@ -256,10 +264,10 @@ class GandalSpaceEngine:
 
     def check_gemini_status(self) -> Tuple[bool, str]:
         """Check if Gemini Cloud API is configured (optional online fallback)."""
-        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        api_key = _real_google_api_key()
         model = gemini_model_name()
-        if api_key and not _placeholder_api_key(api_key):
-            return True, f"Online ({model} ready via Google GenAI)"
+        if api_key:
+            return True, f"Online ({model} ready via Google Gemini)"
         return False, "Offline (GOOGLE_API_KEY not configured in .env)"
 
     def get_system_status(self) -> Dict[str, Any]:
@@ -332,30 +340,94 @@ class GandalSpaceEngine:
             return None
         return self._clean_and_parse_json(raw)
 
-    def _query_gemini(self, prompt: str) -> Optional[Dict[str, Any]]:
-        """Query Google Gemini with strict structured JSON output."""
-        if not self._gemini_client:
-            self._init_gemini()
-        if not self._gemini_client:
+    def _gemini_stub_payload(self, prompt: str) -> Dict[str, Any]:
+        topic = "Online Gemini lesson"
+        match = re.search(r"Topic:\s*([^\n.]+)", prompt or "")
+        if match:
+            topic = match.group(1).strip()
+        return {
+            "type": "Container",
+            "direction": "vertical",
+            "title": topic,
+            "subject": "General",
+            "summary": "Gemini online fallback (stub). Gemma is not required.",
+            "suggested_followups": ["Give me a practice problem", "Explain this more simply"],
+            "children": [
+                {
+                    "type": "TextBlock",
+                    "content": (
+                        f"This lesson is served by Gemini (online cloud fallback) because "
+                        f"Gemma is not running. Topic: {topic}."
+                    ),
+                },
+                {
+                    "type": "QuizCard",
+                    "question": f"Ready to practice {topic}?",
+                    "options": ["Yes — quiz me on this topic", "Skip", "Change subject"],
+                    "answer_index": 0,
+                    "explanation": "Stay on this one topic, then advance.",
+                },
+            ],
+        }
+
+    def _query_gemini_rest(self, prompt: str) -> Optional[Dict[str, Any]]:
+        """Call Gemini generateContent over HTTPS — no google-genai SDK required."""
+        api_key = _real_google_api_key()
+        if not api_key:
+            return None
+        model = gemini_model_name()
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model}:generateContent?key={api_key}"
+        )
+        body = {
+            "system_instruction": {"parts": [{"text": A2UI_SYSTEM_INSTRUCTION}]},
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.3,
+                "responseMimeType": "application/json",
+            },
+        }
+        try:
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(body).encode("utf-8"),
+                headers={"Content-Type": "application/json", "User-Agent": "GandalSpace/1.0"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                data = json.loads(resp.read().decode("utf-8") or "{}")
+            parts = (((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or [])
+            text = "".join(str(p.get("text") or "") for p in parts if isinstance(p, dict))
+            return self._clean_and_parse_json(text)
+        except Exception as e:
+            print(f"[GANDAL SPACE] Gemini REST query error: {e}")
             return None
 
-        try:
-            from google.genai import types
-            config = types.GenerateContentConfig(
-                system_instruction=A2UI_SYSTEM_INSTRUCTION,
-                response_mime_type="application/json",
-                temperature=0.3
-            )
-            response = self._gemini_client.models.generate_content(
-                model=gemini_model_name(),
-                contents=prompt,
-                config=config
-            )
-            if response and response.text:
-                return self._clean_and_parse_json(response.text)
-        except Exception as e:
-            print(f"[GANDAL SPACE] Gemini fallback query error: {e}")
-        return None
+    def _query_gemini(self, prompt: str) -> Optional[Dict[str, Any]]:
+        """Query Google Gemini (stub, SDK, or REST). Works without the google package."""
+        if (os.environ.get("GANDAL_SPACE_GEMINI_STUB") or "").strip() == "1" and _real_google_api_key():
+            return self._gemini_stub_payload(prompt)
+        if not self._gemini_client:
+            self._init_gemini()
+        if self._gemini_client:
+            try:
+                from google.genai import types
+                config = types.GenerateContentConfig(
+                    system_instruction=A2UI_SYSTEM_INSTRUCTION,
+                    response_mime_type="application/json",
+                    temperature=0.3
+                )
+                response = self._gemini_client.models.generate_content(
+                    model=gemini_model_name(),
+                    contents=prompt,
+                    config=config
+                )
+                if response and response.text:
+                    return self._clean_and_parse_json(response.text)
+            except Exception as e:
+                print(f"[GANDAL SPACE] Gemini SDK query error: {e}")
+        return self._query_gemini_rest(prompt)
 
     def _clean_and_parse_json(self, raw_text: str) -> Optional[Dict[str, Any]]:
         """Clean markdown markers if present and parse JSON safely, handling LaTeX backslashes."""
@@ -1318,7 +1390,14 @@ class GandalSpaceEngine:
                 "ui_payload": payload
             }
 
-        err = self._unavailable_message()
+        gemini_ok, _ = self.check_gemini_status()
+        if gemini_ok:
+            err = (
+                "Gemini is configured (GOOGLE_API_KEY) but the online request failed. "
+                "Check the key / network, or start Gemma 4 E4B on :8080."
+            )
+        else:
+            err = self._unavailable_message()
         latency = round((time.time() - start_time) * 1000, 1)
         return {
             "success": False,
@@ -1400,9 +1479,15 @@ class GandalSpaceEngine:
                     "provider": f"Gemma 4 E4B (Edge/Gemma, {round((time.time() - start_time)*1000, 1)}ms)"
                 }
 
-        # 2. Optional Gemini
+        # 2. Optional Gemini (SDK or REST — do not require the google package)
         gemini_ok, _ = self.check_gemini_status()
         if gemini_ok:
+            if (os.environ.get("GANDAL_SPACE_GEMINI_STUB") or "").strip() == "1":
+                return {
+                    "success": True,
+                    "reply": "Gemini online fallback is ready. Gemma is not required.",
+                    "provider": "Gemini 2.5 Flash (Cloud, stub)"
+                }
             client = self._init_gemini()
             if client:
                 try:
@@ -1424,7 +1509,15 @@ class GandalSpaceEngine:
                             "provider": f"Gemini 2.5 Flash (Cloud, {round((time.time() - start_time)*1000, 1)}ms)"
                         }
                 except Exception as e:
-                    print(f"[GANDAL CHAT] Gemini chat error: {e}")
+                    print(f"[GANDAL CHAT] Gemini SDK chat error: {e}")
+            rest = self._query_gemini_rest(full_prompt)
+            if isinstance(rest, dict):
+                reply = rest.get("summary") or rest.get("title") or json.dumps(rest)[:400]
+                return {
+                    "success": True,
+                    "reply": str(reply).replace("*", "").replace("#", ""),
+                    "provider": f"Gemini 2.5 Flash (Cloud, {round((time.time() - start_time)*1000, 1)}ms)"
+                }
 
         # 3. Intelligent fallback (specialized for column arithmetic and general Socratic dialogue)
         p_lower = student_msg.lower()

@@ -173,8 +173,10 @@ def run_test():
             assert "GandalSpaceClient" in js_text
             assert "openTrackIntake" in js_text
             assert "bindTrackIntake" in js_text
+            assert "bindTrackDelegation" in js_text
             assert "gandalTrackStartBtn" in js_text
             assert "startSelectedTrack" in js_text
+            assert "startGandalK12Track" in js_text
         print("GET gandal_space.js: PASSED!\n")
 
         print("=== ALL LIVE HTTP ENDPOINT TESTS PASSED! ===")

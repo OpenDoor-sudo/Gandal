@@ -212,6 +212,26 @@ def run_tests():
         os.environ.pop("LOCAL_LLM_MODEL", None)
     print("Test 7 PASSED!\n")
 
+    print("=== TEST 8: Gemini online fallback when Gemma is down ===")
+    os.environ["GOOGLE_API_KEY"] = "AIzaSyMOCK_GANDAL_ONLINE_TEST_KEY"
+    os.environ["GANDAL_SPACE_GEMINI_STUB"] = "1"
+    os.environ.pop("LOCAL_LLM_URL", None)
+    cloud = ae.GandalSpaceEngine()
+    cloud_status = cloud.get_system_status()
+    print("Cloud status:", cloud_status["active_preference"], cloud_status["cloud_fallback"])
+    assert cloud_status["local_edge"]["available"] is False
+    assert cloud_status["cloud_fallback"]["available"] is True
+    assert cloud_status["active_preference"] == "Google Gemini (Cloud Fallback)"
+    asked = cloud.process_query("Teach this ONE K-12 topic. Topic: Counting to 20. Band: K–2.")
+    print("Cloud ask:", asked.get("provider"), asked.get("engine_type"), (asked.get("ui_payload") or {}).get("title"))
+    assert asked["success"] is True
+    assert asked["engine_type"] == "cloud_fallback"
+    assert "Gemini" in asked["provider"]
+    assert (asked.get("ui_payload") or {}).get("title") == "Counting to 20"
+    os.environ.pop("GOOGLE_API_KEY", None)
+    os.environ.pop("GANDAL_SPACE_GEMINI_STUB", None)
+    print("Test 8 PASSED!\n")
+
     print("=== ALL AUTOMATED TESTS PASSED! ===")
 
 

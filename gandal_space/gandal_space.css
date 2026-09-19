@@ -2582,9 +2582,23 @@
 }
 
 .gandal-track-btn.primary {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
   background: rgba(168, 85, 247, 0.28);
   border-color: rgba(168, 85, 247, 0.5);
   color: #f5d0fe;
+}
+
+.gandal-track-btn.primary:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.gandal-track-error {
+  color: #fca5a5;
+  font-size: 0.85rem;
+  margin: 10px 0 0;
 }
 
 .gandal-track-intake {

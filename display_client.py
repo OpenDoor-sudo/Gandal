@@ -2114,6 +2114,9 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if path.endswith(".wasm"):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Cross-Origin-Resource-Policy", "cross-origin")
+        if path.startswith("/gandal_space/") and (path.endswith(".js") or path.endswith(".css")):
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
         super().end_headers()
 
     def guess_type(self, path):

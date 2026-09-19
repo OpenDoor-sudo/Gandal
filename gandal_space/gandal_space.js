@@ -750,6 +750,8 @@ class GandalSpaceClient {
     this.trackMode = false;
     this.trackState = null;
     this._loadingTrackLesson = false;
+    this._startingTrack = false;
+    this._trackDelegateBound = false;
   }
 
   init() {
@@ -759,6 +761,9 @@ class GandalSpaceClient {
       return;
     }
     this.renderSkeleton();
+    this.bindTrackDelegation();
+    window.startGandalK12Track = () => this.submitTrackIntent();
+    window.gandalSpaceApp = this;
     this.checkEngineStatus();
     this.initSpeechRecognition();
     this.initConvoRecognition();
@@ -1088,7 +1093,7 @@ class GandalSpaceClient {
       return `<button type="button" class="gandal-track-subject ${ready}" data-subject="${escapeAttr(s.id)}">${escapeHtml(s.title)}${s.walkable ? "" : " · soon"}</button>`;
     }).join("");
     surface.innerHTML = `
-      <form class="gandal-track-intake" id="gandalTrackIntake" action="#" method="post">
+      <div class="gandal-track-intake" id="gandalTrackIntake">
         <h3>What do you want to learn?</h3>
         <p>Tell Gandho the subject (and if you are starting from scratch). The full catalog stays hidden — you will see <strong>one topic</strong> at a time, then a quiz, then the next topic.</p>
         <div class="gandal-track-subjects" id="gandalTrackSubjects">${subjectBtns}</div>
@@ -1098,40 +1103,45 @@ class GandalSpaceClient {
         </label>
         <input type="text" id="gandalTrackIntentInput" class="gandal-track-intent-input" placeholder="e.g. I want to learn physics from scratch, or teach me the English alphabet" />
         <div class="gandal-track-intake-actions">
-          <button type="submit" class="gandal-track-btn primary" id="gandalTrackStartBtn">Start this topic</button>
+          <button type="button" class="gandal-track-btn primary" id="gandalTrackStartBtn" data-track-start="1">Start this topic</button>
         </div>
+        <p class="gandal-track-error" id="gandalTrackIntakeError" hidden></p>
         <p class="gandal-track-footnote">Free ask, Quiz me, Show graph, and Tableau Noir stay available. All seven subjects walk K–12 one topic at a time.</p>
-      </form>
+      </div>
     `;
     this.bindTrackIntake();
     this.appendGandhoBubble("What do you want to learn, and are you starting from scratch? Mathematics, Physics, Chemistry, Biology, Philosophy, English, and French are ready.");
   }
 
-  bindTrackIntake() {
-    const form = document.getElementById("gandalTrackIntake");
-    const startBtn = document.getElementById("gandalTrackStartBtn");
-    const scratchEl = document.getElementById("gandalTrackFromScratch");
-    const start = () => this.submitTrackIntent();
-    if (form) {
-      form.addEventListener("submit", (event) => {
+  bindTrackDelegation() {
+    if (this._trackDelegateBound) return;
+    this._trackDelegateBound = true;
+    const onClick = (event) => {
+      const start = event.target && event.target.closest && event.target.closest("#gandalTrackStartBtn, [data-track-start]");
+      if (start) {
         event.preventDefault();
         event.stopPropagation();
-        start();
-      });
-    }
-    if (startBtn) {
-      startBtn.addEventListener("click", (event) => {
+        this.submitTrackIntent();
+        return;
+      }
+      const chip = event.target && event.target.closest && event.target.closest("#gandalTrackSubjects .gandal-track-subject");
+      if (chip) {
         event.preventDefault();
-        event.stopPropagation();
-        start();
-      });
-    }
-    document.querySelectorAll("#gandalTrackSubjects .gandal-track-subject").forEach((btn) => {
-      btn.addEventListener("click", (event) => {
+        this.pickTrackSubject(chip.getAttribute("data-subject"), chip.classList.contains("ready"));
+      }
+    };
+    document.addEventListener("click", onClick, true);
+    const inputRoot = this.container || document;
+    inputRoot.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && event.target && event.target.id === "gandalTrackIntentInput") {
         event.preventDefault();
-        this.pickTrackSubject(btn.getAttribute("data-subject"), btn.classList.contains("ready"));
-      });
+        this.submitTrackIntent();
+      }
     });
+  }
+
+  bindTrackIntake() {
+    const scratchEl = document.getElementById("gandalTrackFromScratch");
     if (scratchEl) {
       scratchEl.addEventListener("change", () => {
         if (this._pendingTrackSubject) {
@@ -1140,6 +1150,22 @@ class GandalSpaceClient {
       });
     }
     this.pickTrackSubject(this._pendingTrackSubject || "mathematics", true);
+  }
+
+  markTrackStartPending(pending) {
+    const btn = document.getElementById("gandalTrackStartBtn");
+    if (!btn) return;
+    btn.disabled = !!pending;
+    btn.textContent = pending ? "Starting…" : "Start this topic";
+  }
+
+  showTrackIntakeError(message) {
+    const err = document.getElementById("gandalTrackIntakeError");
+    if (err) {
+      err.hidden = !message;
+      err.textContent = message || "";
+    }
+    if (message) this.appendGandhoBubble(message);
   }
 
   pickTrackSubject(subjectId, walkable) {
@@ -1162,6 +1188,8 @@ class GandalSpaceClient {
   async submitTrackIntent(customMessage) {
     if (this._startingTrack) return false;
     this._startingTrack = true;
+    this.markTrackStartPending(true);
+    this.showTrackIntakeError("");
     try {
       const input = document.getElementById("gandalTrackIntentInput");
       const scratchEl = document.getElementById("gandalTrackFromScratch");
@@ -1180,31 +1208,36 @@ class GandalSpaceClient {
       return await this.startSelectedTrack("mathematics", fromScratch);
     } finally {
       this._startingTrack = false;
+      this.markTrackStartPending(false);
     }
   }
 
   async startSelectedTrack(subjectId, fromScratch) {
     try {
+      const ctrl = typeof AbortController === "function" ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 12000) : null;
       const resp = await fetch("/api/gandal_space/track/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subject: subjectId || "mathematics",
           from_scratch: !!fromScratch
-        })
+        }),
+        signal: ctrl ? ctrl.signal : undefined
       });
+      if (timer) clearTimeout(timer);
       const data = await resp.json();
       return this.activateTrackResult(data, !!fromScratch);
     } catch (e) {
       console.warn("[GANDAL TRACK] start", e);
-      this.appendGandhoBubble("Could not start that topic. Try again.");
+      this.showTrackIntakeError("Could not start that topic. Is the classroom server running? Try Start this topic again.");
       return false;
     }
   }
 
   activateTrackResult(data, fromScratch) {
     if (!data || !data.success || !data.topic) {
-      this.appendGandhoBubble((data && (data.reply || data.error)) || "Could not start that topic.");
+      this.showTrackIntakeError((data && (data.reply || data.error)) || "Could not start that topic.");
       return true;
     }
     this.trackMode = true;
