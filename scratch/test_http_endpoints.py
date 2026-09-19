@@ -197,6 +197,8 @@ def run_test():
             assert "resumeSavedTrack" in js_text
             assert "quizFocusTopic" in js_text
             assert "rememberSavedTrack" in js_text
+            assert "showHomeChrome" in js_text
+            assert "data-track-leave" in js_text
             assert "bindTrackIntake" in js_text
             assert "bindTrackDelegation" in js_text
             assert "gandalTrackStartBtn" in js_text

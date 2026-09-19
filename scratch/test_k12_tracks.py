@@ -166,6 +166,18 @@ def run_tests():
         assert ignored["matched"] is False
         print("Handler PASSED\n")
 
+        print("=== Leave track keeps bookmark; new subject is not stuck ===")
+        eng2 = tracks.start_track(STUDENT, "english", from_scratch=True)
+        assert eng2["topic"]["title"] == "The English alphabet"
+        exited = tracks.exit_track(STUDENT)
+        assert exited["exited"] is True
+        assert (exited.get("bookmark") or {}).get("topic", {}).get("title") == "The English alphabet"
+        phy2 = tracks.start_track(STUDENT, "physics", from_scratch=False)
+        assert phy2["success"] is True
+        assert phy2["topic"]["title"] == "Our five senses"
+        assert phy2["topic"]["title"] != "The English alphabet"
+        print("Leave/switch PASSED\n")
+
         print("=== ALL K-12 TRACK TESTS PASSED ===")
     finally:
         _cleanup()

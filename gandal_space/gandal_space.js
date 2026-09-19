@@ -949,7 +949,7 @@ class GandalSpaceClient {
                 <span id="gandalTrackMeta">Tell Gandho what you want to learn</span>
               </div>
               <div class="gandal-track-bar-actions">
-                <button type="button" class="gandal-track-btn" onclick="window.gandalSpaceApp.leaveTrack()">Leave track</button>
+                <button type="button" class="gandal-track-btn" id="gandalTrackLeaveBtn" data-track-leave="1">Leave track</button>
               </div>
             </div>
           </header>
@@ -1196,21 +1196,28 @@ class GandalSpaceClient {
   }
 
   applyTrackChrome() {
-    const chips = document.getElementById("gandalQuickTopics");
-    const bar = document.getElementById("gandalTrackBar");
-    const title = document.getElementById("gandalTrackTitle");
-    const meta = document.getElementById("gandalTrackMeta");
+    const root = this.container || document;
+    const chips = root.querySelector("#gandalQuickTopics");
+    const bar = root.querySelector("#gandalTrackBar");
+    const title = root.querySelector("#gandalTrackTitle");
+    const meta = root.querySelector("#gandalTrackMeta");
     const topic = this.trackState && this.trackState.topic;
     if (this.trackMode && topic) {
       if (chips) chips.style.display = "none";
-      if (bar) bar.hidden = false;
+      if (bar) {
+        bar.hidden = false;
+        bar.removeAttribute("hidden");
+      }
       if (title) title.innerText = `${topic.subject_title || "Mathematics"} · ${topic.title}`;
       if (meta) {
         meta.innerText = `${topic.band || ""} · ${topic.index + 1} of ${topic.total} · quiz then advance`;
       }
     } else {
       if (chips) chips.style.display = "";
-      if (bar) bar.hidden = true;
+      if (bar) {
+        bar.hidden = true;
+        bar.setAttribute("hidden", "");
+      }
     }
   }
 
@@ -1232,10 +1239,6 @@ class GandalSpaceClient {
   async enterK12Track() {
     const menu = document.getElementById("gandalAddMenu");
     if (menu) menu.classList.remove("active");
-    const saved = this._savedTrack;
-    if (saved && saved.topic && saved.subject) {
-      return this.resumeSavedTrack();
-    }
     this.openTrackIntake();
     return false;
   }
@@ -1292,6 +1295,13 @@ class GandalSpaceClient {
     if (this._trackDelegateBound) return;
     this._trackDelegateBound = true;
     const onClick = (event) => {
+      const leave = event.target && event.target.closest && event.target.closest("#gandalTrackLeaveBtn, [data-track-leave]");
+      if (leave) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.leaveTrack();
+        return;
+      }
       const start = event.target && event.target.closest && event.target.closest("#gandalTrackStartBtn, [data-track-start]");
       if (start) {
         event.preventDefault();
@@ -1455,7 +1465,20 @@ class GandalSpaceClient {
     }
   }
 
+  showHomeChrome() {
+    this.trackMode = false;
+    this.trackState = null;
+    this._pendingTrackSubject = null;
+    this.applyTrackChrome();
+    const root = this.container || document;
+    const surface = root.querySelector("#gandalA2UISurface");
+    if (surface) surface.innerHTML = "";
+  }
+
   async leaveTrack() {
+    if (this.trackState && this.trackState.topic) this.rememberSavedTrack(this.trackState);
+    this.showHomeChrome();
+    this.appendGandhoBubble("Left the K-12 track. Free explore, Quiz me, Show graph, and Tableau Noir are still here.");
     try {
       await fetch("/api/gandal_space/track/exit", {
         method: "POST",
@@ -1463,11 +1486,6 @@ class GandalSpaceClient {
         body: JSON.stringify({})
       });
     } catch (e) {}
-    if (this.trackState && this.trackState.topic) this.rememberSavedTrack(this.trackState);
-    this.trackMode = false;
-    this.trackState = null;
-    this.applyTrackChrome();
-    this.appendGandhoBubble("Left the K-12 track. Free explore, Quiz me, Show graph, and Tableau Noir are still here.");
   }
 
   async reportTrackQuiz(correct, question) {
