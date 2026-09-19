@@ -11720,6 +11720,22 @@
                 "LiveKit is not reachable. Start bash livekit_stack/run_livekit_server.sh or set LIVEKIT_URL to your Cloud wss:// URL.",
             );
           }
+          if (
+            (voiceStatus && voiceStatus.worker_running === false) ||
+            tokenData.worker_running === false
+          ) {
+            showToastNotification(
+              "Gandho worker is not running",
+              "In conda base, terminal 2: python3 livekit_stack/agent/run_agent.py --online start  (never sudo). Then click the mic once.",
+            );
+            syncMicUI("connecting", "Listening State: Start the worker, then click mic");
+          }
+          if (voiceStatus && voiceStatus.ffmpeg === false) {
+            showToastNotification(
+              "ffmpeg not visible",
+              "sudo apt install ffmpeg, then restart display_client.py AND the worker in the same conda env so PATH includes /usr/bin.",
+            );
+          }
           console.log("[LIVEKIT] Token", {
             url: wsUrl,
             room: roomName,
@@ -12077,10 +12093,10 @@
             }
             showToastNotification(
               "Waiting for Gandho",
-              "No tutor joined this LiveKit room. In a second terminal run: python3 livekit_stack/agent/run_agent.py --online start  (do not use sudo). Then click the mic once.",
+              "No tutor joined this LiveKit Cloud room. In conda base run: python3 livekit_stack/agent/run_agent.py --online start  (do not use sudo). Restart it after apt install ffmpeg, then click the mic once.",
             );
             syncMicUI("connecting", "Listening State: Waiting for agent");
-          }, 20000);
+          }, 8000);
 
           if (window.spatiusAvatarManager) {
             try {

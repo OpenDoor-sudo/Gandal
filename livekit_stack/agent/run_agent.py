@@ -5,6 +5,7 @@ import sys
 import os
 import signal
 import socket
+import threading
 import shutil
 
 print("=== RESILIENT LIVEKIT TUTOR AGENT WATCHER WITH AUTO-FAILOVER ===")
@@ -45,6 +46,27 @@ def load_project_env():
 
 load_project_env()
 
+try:
+    from ffmpeg_path import ensure_ffmpeg_on_path, find_ffmpeg
+    _FFMPEG = ensure_ffmpeg_on_path()
+except Exception:
+    sys.path.insert(0, cwd)
+    try:
+        from ffmpeg_path import ensure_ffmpeg_on_path, find_ffmpeg
+        _FFMPEG = ensure_ffmpeg_on_path()
+    except Exception:
+        _FFMPEG = shutil.which("ffmpeg") or ""
+        if os.path.isfile("/usr/bin/ffmpeg"):
+            _FFMPEG = _FFMPEG or "/usr/bin/ffmpeg"
+            os.environ["PATH"] = "/usr/bin" + os.pathsep + os.environ.get("PATH", "")
+        def find_ffmpeg():
+            return _FFMPEG
+
+try:
+    from worker_heartbeat import write_worker_heartbeat
+except Exception:
+    write_worker_heartbeat = None
+
 if "LIVEKIT_URL" in os.environ:
     url = os.environ["LIVEKIT_URL"]
     for scheme in ("ws://", "wss://", "http://", "https://"):
@@ -56,8 +78,11 @@ if "LIVEKIT_URL" in os.environ:
 elif "LIVEKIT_URL" not in os.environ:
     os.environ["LIVEKIT_URL"] = "ws://127.0.0.1:7880"
 
-if not shutil.which("ffmpeg"):
-    print("[WATCHER] ffmpeg is not on PATH. Tutor audio often fails on Linux. Install: sudo apt install ffmpeg")
+if not _FFMPEG:
+    print("[WATCHER] ffmpeg was not found in PATH or /usr/bin. Tutor audio often fails on Linux conda.")
+    print("[WATCHER] sudo apt install ffmpeg, then restart this worker in the same conda env (never sudo).")
+else:
+    print(f"[WATCHER] Using ffmpeg at {_FFMPEG}")
 
 def _probe_livekit(timeout=0.8):
     url = os.environ.get("LIVEKIT_URL", "ws://127.0.0.1:7880").strip()
@@ -151,6 +176,20 @@ def wait_for_healthy_start(log_path):
     return False
 
 def main():
+    def _heartbeat_loop():
+        while True:
+            if write_worker_heartbeat:
+                try:
+                    write_worker_heartbeat(project_root, {
+                        "ffmpeg": find_ffmpeg() if callable(find_ffmpeg) else (_FFMPEG or ""),
+                        "registered": wait_for_healthy_start(log_path),
+                        "role": "watcher",
+                    })
+                except Exception:
+                    pass
+            time.sleep(15)
+
+    threading.Thread(target=_heartbeat_loop, daemon=True).start()
     try:
         while True:
             script_name, mode_desc = resolve_agent_script()
@@ -159,7 +198,7 @@ def main():
             with open(log_path, "a", encoding="utf-8") as log_file:
                 log_file.write(f"\n--- WATCHER STARTING AGENT AT {time.ctime()} ---\n")
                 log_file.flush()
-                process = subprocess.Popen(args, cwd=cwd, stdout=log_file, stderr=log_file)
+                process = subprocess.Popen(args, cwd=cwd, stdout=log_file, stderr=log_file, env=os.environ.copy())
                 healthy = False
                 start_time = time.time()
                 while time.time() - start_time < 45:

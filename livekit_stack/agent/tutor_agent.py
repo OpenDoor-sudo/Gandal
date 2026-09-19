@@ -30,6 +30,25 @@ try:
 except ImportError:
     lancedb = None
 import asyncio
+import threading
+import time
+
+_AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _AGENT_DIR not in sys.path:
+    sys.path.insert(0, _AGENT_DIR)
+try:
+    from ffmpeg_path import ensure_ffmpeg_on_path, find_ffmpeg
+    _FFMPEG = ensure_ffmpeg_on_path()
+except Exception:
+    _FFMPEG = shutil.which("ffmpeg") or ""
+    if os.path.isfile("/usr/bin/ffmpeg"):
+        _FFMPEG = _FFMPEG or "/usr/bin/ffmpeg"
+        os.environ["PATH"] = "/usr/bin" + os.pathsep + os.environ.get("PATH", "")
+try:
+    from worker_heartbeat import write_worker_heartbeat
+except Exception:
+    write_worker_heartbeat = None
+
 from livekit import rtc
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm
 from livekit.agents.voice import AgentSession, Agent, ConversationItemAddedEvent, UserInputTranscribedEvent
@@ -116,11 +135,13 @@ if "LIVEKIT_API_KEY" not in os.environ:
 if "LIVEKIT_API_SECRET" not in os.environ:
     os.environ["LIVEKIT_API_SECRET"] = "secretsecretsecretsecretsecretsecretsecret"
 
-if not shutil.which("ffmpeg"):
+if not _FFMPEG:
     logger.warning(
-        "[AUDIO] ffmpeg is not on PATH. LiveKit WebRTC audio often fails on Linux without it. "
-        "Install with: sudo apt install ffmpeg"
+        "[AUDIO] ffmpeg was not found in PATH or /usr/bin. LiveKit WebRTC audio often fails on Linux conda. "
+        "sudo apt install ffmpeg, then restart this worker in the same conda env."
     )
+else:
+    logger.info(f"[AUDIO] Using ffmpeg at {_FFMPEG}")
 if not os.environ.get("GOOGLE_API_KEY", "").strip():
     logger.error(
         "[VOICE] GOOGLE_API_KEY is empty. Gemini Live cannot speak. "
@@ -161,6 +182,30 @@ SYSTEM_INSTRUCTIONS = (
 
 # LiveKit connection entrypoint
 async def entrypoint(ctx: JobContext):
+    student_audio_seen = False
+    send_greeting_holder = {"fn": None}
+
+    def _track_is_audio(track, publication=None):
+        for obj in (track, publication):
+            if obj is None:
+                continue
+            kind = getattr(obj, "kind", None)
+            if kind == rtc.TrackKind.KIND_AUDIO or str(kind).lower().endswith("audio") or str(kind).lower() == "audio":
+                return True
+        return False
+
+    @ctx.room.on("track_subscribed")
+    def on_early_audio_track(track, publication, participant):
+        nonlocal student_audio_seen
+        if not _track_is_audio(track, publication):
+            return
+        student_audio_seen = True
+        identity = getattr(participant, "identity", "?")
+        logger.info(f"[AUDIO TRACK SUBSCRIBED EARLY] Student '{identity}' audio track active.")
+        fn = send_greeting_holder.get("fn")
+        if fn:
+            asyncio.create_task(fn())
+
     logger.info(f"Connecting to room: {ctx.room.name}")
     await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
 
@@ -1315,24 +1360,25 @@ async def entrypoint(ctx: JobContext):
             logger.error(f"Failed sending initial greeting: {e}")
 
     async def greeting_watchdog():
-        for _ in range(40):
+        for _ in range(48):
             if greeting_sent:
                 return
-            if greet_existing_student_mics("watchdog"):
-                return
-            if ctx.room.remote_participants and getattr(session, "_activity", None):
-                logger.info("[GREETING] Remote participant present; greeting without a fresh track event.")
+            if getattr(session, "_activity", None):
+                logger.info("[GREETING] Gemini session is live on Cloud/local; speaking even if the mic track event was missed.")
                 await send_greeting()
                 return
             await asyncio.sleep(0.25)
 
     async def publish_ready_when_active():
-        for _ in range(40):
+        for _ in range(48):
             if getattr(session, "_activity", None):
                 await publish_agent_ready()
                 return
             await asyncio.sleep(0.25)
 
+    send_greeting_holder["fn"] = send_greeting
+    if student_audio_seen:
+        asyncio.create_task(send_greeting())
     greet_existing_student_mics("post-handler-scan")
     asyncio.create_task(greeting_watchdog())
     asyncio.create_task(publish_ready_when_active())
@@ -1348,6 +1394,20 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
+    def _heartbeat_loop():
+        while True:
+            if write_worker_heartbeat:
+                try:
+                    write_worker_heartbeat(PROJECT_ROOT, {
+                        "ffmpeg": _FFMPEG or "",
+                        "registered": True,
+                        "role": "tutor_agent",
+                    })
+                except Exception:
+                    pass
+            time.sleep(15)
+
+    threading.Thread(target=_heartbeat_loop, daemon=True).start()
     idle = int(os.environ.get("LIVEKIT_NUM_IDLE_PROCESSES", "0") or "0")
     timeout = float(os.environ.get("LIVEKIT_INITIALIZE_PROCESS_TIMEOUT", "60") or "60")
     worker_kwargs = {

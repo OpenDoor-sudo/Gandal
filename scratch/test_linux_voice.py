@@ -26,7 +26,11 @@ class LinuxVoiceSourceTests(unittest.TestCase):
         self.assertIn('topic="gandho-status"', src)
         self.assertIn("ws://127.0.0.1:7880", src)
         self.assertNotIn(WINDOWS_SESSION, src)
-        self.assertIn("initialize_process_timeout", src)
+        self.assertIn("on_early_audio_track", src)
+        self.assertIn("Gemini session is live", src)
+        self.assertIn("ensure_ffmpeg_on_path", src)
+        self.assertIn("/usr/bin/ffmpeg", _read("livekit_stack/agent/ffmpeg_path.py"))
+        self.assertIn("CONDA_PREFIX", _read("livekit_stack/agent/ffmpeg_path.py"))
 
     def test_index_rewrites_localhost_and_does_not_hide_audio(self):
         src = _read("index.html")
@@ -37,7 +41,8 @@ class LinuxVoiceSourceTests(unittest.TestCase):
         self.assertIn("ws://127.0.0.1:7880", src)
         self.assertNotIn('lkAudioTrack.style.display = "none"', src)
         self.assertNotIn("wss://gandaledu-uqy2on78.livekit.cloud", src)
-        self.assertIn("run_agent.py --online start", src)
+        self.assertIn("worker_running", src)
+        self.assertIn("ffmpeg not visible", src)
 
     def test_run_agent_loads_env_and_refuses_sudo(self):
         src = _read("livekit_stack/agent/run_agent.py")
@@ -109,6 +114,30 @@ class LinuxVoiceUnitTests(unittest.TestCase):
             self.assertEqual(err, "")
         finally:
             server.close()
+
+    def test_find_ffmpeg_sees_usr_bin_even_if_which_fails(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "ffmpeg_path_under_test", ROOT / "livekit_stack" / "agent" / "ffmpeg_path.py"
+        )
+        fp = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fp)
+        self.assertIn("/usr/bin/ffmpeg", fp.ffmpeg_candidates())
+        found = fp.find_ffmpeg()
+        if found:
+            self.assertTrue(os.path.isfile(found))
+
+    def test_display_client_finds_ffmpeg_outside_conda_path(self):
+        path = self.dc.find_ffmpeg()
+        self.assertTrue(path)
+        self.assertTrue(os.path.isfile(path))
+        status = self.dc.worker_heartbeat_status()
+        self.assertIn("running", status)
+
+    def test_token_jwt_requests_default_unnamed_agent(self):
+        src = _read("display_client.py")
+        self.assertIn('payload["roomConfig"] = {"agents": [{}]}', src)
+        self.assertIn("worker_heartbeat", src)
 
     def test_force_offline_from_run_agent_helper(self):
         src = _read("livekit_stack/agent/run_agent.py")

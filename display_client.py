@@ -390,6 +390,9 @@ def generate_livekit_token(api_key, api_secret, room_name, participant_identity,
     }
     if include_agent:
         payload["roomConfig"] = {"agents": [{"agentName": livekit_agent_name()}]}
+    else:
+        # Empty agentName = default unnamed worker (Windows + Linux Cloud).
+        payload["roomConfig"] = {"agents": [{}]}
     if metadata:
         payload["metadata"] = json.dumps(metadata) if isinstance(metadata, dict) else str(metadata)
 
@@ -477,8 +480,42 @@ def probe_livekit_tcp(ws_url, timeout=0.8):
                 pass
 
 
+def _agent_helper(name):
+    agent_dir = os.path.join(PROJECT_ROOT, "livekit_stack", "agent")
+    if agent_dir not in sys.path:
+        sys.path.insert(0, agent_dir)
+    return __import__(name)
+
+
+def find_ffmpeg():
+    try:
+        return _agent_helper("ffmpeg_path").find_ffmpeg() or ""
+    except Exception:
+        return shutil.which("ffmpeg") or ("/usr/bin/ffmpeg" if os.path.isfile("/usr/bin/ffmpeg") else "")
+
+
 def ffmpeg_on_path():
-    return bool(shutil.which("ffmpeg"))
+    return bool(find_ffmpeg())
+
+
+def ensure_ffmpeg_on_path():
+    try:
+        return _agent_helper("ffmpeg_path").ensure_ffmpeg_on_path() or ""
+    except Exception:
+        path = find_ffmpeg()
+        if path:
+            os.environ["PATH"] = os.path.dirname(path) + os.pathsep + os.environ.get("PATH", "")
+        return path
+
+
+def worker_heartbeat_status():
+    try:
+        return _agent_helper("worker_heartbeat").read_worker_heartbeat(PROJECT_ROOT)
+    except Exception as err:
+        return {"running": False, "age_s": None, "detail": str(err)}
+
+
+ensure_ffmpeg_on_path()
 
 
 def mint_socratic_room(identity):
@@ -509,15 +546,18 @@ def livekit_connect_urls(primary):
     return urls
 
 
-def dispatch_livekit_agent(room_name, metadata=None, livekit_url=None):
-    """Ask LiveKit to put Gandho in this room (needed when the room already exists)."""
+def dispatch_livekit_agent(room_name, metadata=None, livekit_url=None, agent_name=""):
+    """Ask LiveKit Cloud/local to put the default (unnamed) Gandho worker in this room."""
     api_key = os.environ.get("LIVEKIT_API_KEY", "devkey")
     api_secret = os.environ.get("LIVEKIT_API_SECRET", "secretsecretsecretsecretsecretsecretsecret")
-    livekit_url = (livekit_url or os.environ.get("LIVEKIT_URL", "ws://localhost:7880")).strip()
-    agent_name = livekit_agent_name()
+    livekit_url = prefer_ipv4_livekit_url(
+        (livekit_url or os.environ.get("LIVEKIT_URL", "ws://127.0.0.1:7880")).strip()
+    )
     origin = livekit_http_origin(livekit_url)
     admin_token = generate_livekit_token(api_key, api_secret, room_name, "ventuno-dispatch", name="dispatch", admin=True)
-    body = {"room": room_name, "metadata": json.dumps(metadata or {"tutor": "gandho"}), "agent_name": agent_name}
+    body = {"room": room_name, "metadata": json.dumps(metadata or {"tutor": "gandho"})}
+    if agent_name:
+        body["agent_name"] = agent_name
     url = origin + "/twirp/livekit.AgentDispatchService/CreateDispatch"
     try:
         req = urllib.request.Request(
@@ -531,7 +571,7 @@ def dispatch_livekit_agent(room_name, metadata=None, livekit_url=None):
         )
         with urllib.request.urlopen(req, timeout=4) as resp:
             raw = resp.read().decode("utf-8", "replace")
-            print(f"[LIVEKIT DISPATCH] {resp.status} room={room_name} agent={agent_name or '(default)'} {raw[:180]}", flush=True)
+            print(f"[LIVEKIT DISPATCH] {resp.status} room={room_name} agent={agent_name or '(default unnamed)'} {raw[:180]}", flush=True)
             return True, raw
     except Exception as err:
         print(f"[LIVEKIT DISPATCH] {url} failed: {err}", flush=True)
@@ -2261,6 +2301,8 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 engine = "gemini"
             reachable, lk_host, lk_port, lk_err = probe_livekit_tcp(livekit_url)
             has_google = bool(os.environ.get("GOOGLE_API_KEY", "").strip())
+            ffmpeg_path = find_ffmpeg()
+            worker = worker_heartbeat_status()
             hints = []
             if not reachable:
                 hints.append(
@@ -2270,17 +2312,29 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 )
             if not has_google and engine != "gemma":
                 hints.append("GOOGLE_API_KEY is unset in .env — Gemini Live cannot speak.")
-            if not ffmpeg_on_path():
-                hints.append("ffmpeg is not on PATH. Install it (sudo apt install ffmpeg) so LiveKit can encode tutor audio.")
+            if not ffmpeg_path:
+                hints.append(
+                    "ffmpeg was not found (conda PATH often hides /usr/bin). "
+                    "sudo apt install ffmpeg, then restart display_client.py AND the worker in the same conda env."
+                )
+            if not worker.get("running"):
+                hints.append(
+                    worker.get("detail")
+                    or "Gandho worker is not running. In conda base: python3 livekit_stack/agent/run_agent.py --online start  (never sudo)."
+                )
             hints.append("Open http://127.0.0.1:8000/ (not a LAN hostname) so the browser allows the microphone.")
-            hints.append("Start the worker with python3 livekit_stack/agent/run_agent.py --online start  (never sudo).")
+            hints.append("After apt install ffmpeg, restart both terminals or conda will still report ffmpeg: false.")
             body = json.dumps({
                 "success": True,
                 "livekit_url": livekit_url,
                 "livekit_host": livekit_http_origin(livekit_url),
                 "livekit_reachable": reachable,
                 "livekit_tcp": {"host": lk_host, "port": lk_port, "error": lk_err},
-                "ffmpeg": ffmpeg_on_path(),
+                "ffmpeg": bool(ffmpeg_path),
+                "ffmpeg_path": ffmpeg_path or "",
+                "worker_running": bool(worker.get("running")),
+                "worker_heartbeat_age_s": worker.get("age_s"),
+                "worker_detail": worker.get("detail"),
                 "has_google_api_key": has_google,
                 "has_livekit_api_key": bool(os.environ.get("LIVEKIT_API_KEY", "").strip()) and os.environ.get("LIVEKIT_API_KEY") != "devkey",
                 "gemini_live_model": gemini_live_model_for_client(),
@@ -4124,14 +4178,26 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             token = generate_livekit_token(
                 api_key, api_secret, room, identity, name=name, metadata=metadata_dict, include_agent=False
             )
-            # Match VentunoGandal: the unnamed LiveKit worker is dispatched
-            # automatically when the browser joins this room.
-            dispatched = True
-            dispatch_detail = "automatic unnamed-worker dispatch"
+            # JWT roomConfig.agents: [{}] asks LiveKit Cloud for the default unnamed worker.
+            # Also POST CreateDispatch so an already-open room still gets Gandho.
+            dispatched, dispatch_raw = dispatch_livekit_agent(
+                room, metadata=metadata_dict, livekit_url=livekit_url, agent_name=""
+            )
+            dispatch_detail = (
+                "default unnamed-worker dispatch"
+                if dispatched
+                else ("dispatch failed: " + str(dispatch_raw)[:180])
+            )
+            worker = worker_heartbeat_status()
+            if not worker.get("running"):
+                dispatch_detail += (
+                    " | worker heartbeat missing — run python3 livekit_stack/agent/run_agent.py --online start"
+                )
             gemini_model = gemini_live_model_for_client()
             print(
                 f"[TOKEN] room={room} url={livekit_url} online={session_data.get('student_online')} "
-                f"agent={agent_name} dispatch={dispatch_detail} model={gemini_model}",
+                f"agent={agent_name or '(unnamed)'} dispatch={dispatch_detail} model={gemini_model} "
+                f"worker_running={bool(worker.get('running'))} ffmpeg={find_ffmpeg() or 'missing'}",
                 flush=True,
             )
 
@@ -4152,6 +4218,8 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "dispatch_detail": dispatch_detail[:240] if isinstance(dispatch_detail, str) else "",
                 "offlineMode": (not online_testing) and offline_default,
                 "onlineMode": online_testing,
+                "worker_running": bool(worker.get("running")),
+                "ffmpeg": bool(find_ffmpeg()),
             }).encode('utf-8'))
             return
 
