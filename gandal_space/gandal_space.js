@@ -661,6 +661,19 @@ function inferQuizBankKey(topic, modelType) {
   return "default";
 }
 
+function quizMatchesTrackTopic(quiz, track) {
+  if (!quiz || !track) return false;
+  const title = String(track.title || "").toLowerCase();
+  const blob = `${quiz.question || ""} ${(quiz.options || []).join(" ")} ${quiz.explanation || ""}`.toLowerCase();
+  if (title && blob.indexOf(title) >= 0) return true;
+  if (track.id === "math.k2.counting" || /counting to \d+/i.test(track.title || "")) {
+    return /\b(count|dot|how many|number|object|quantity|numeral)\b/i.test(blob)
+      && !/geometric figure/i.test(blob);
+  }
+  const words = title.split(/\s+/).filter((w) => w.length > 2);
+  return words.some((w) => blob.indexOf(w) >= 0);
+}
+
 function buildTrackTopicQuizBank(topic) {
   const title = ((topic && topic.title) || topic || "this topic").toString().trim() || "this topic";
   const band = (topic && topic.band) ? ` (${topic.band})` : "";
@@ -2375,7 +2388,7 @@ class GandalSpaceClient {
       seen.add(q.question);
       set.push(cloneQuizItem(q));
     };
-    if (existingQuiz) push(existingQuiz);
+    if (existingQuiz && (!track || quizMatchesTrackTopic(existingQuiz, track))) push(existingQuiz);
     bank.forEach(push);
     if (track) {
       buildTrackTopicQuizBank(track).forEach(push);

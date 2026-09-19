@@ -202,6 +202,7 @@ def run_test():
             assert "buildCountingGraphCard" in js_text
             assert "a2ui-counting-row" in js_text
             assert "buildTrackTopicQuizBank" in js_text
+            assert "quizMatchesTrackTopic" in js_text
             assert "What comes right after 9 when you count to 20?" in js_text
             assert "buildTrackTopicQuizBank(track).forEach(push)" in js_text
         print("GET gandal_space.js: PASSED!\n")
