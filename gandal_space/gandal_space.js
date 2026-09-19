@@ -581,6 +581,38 @@ const PRACTICE_QUIZ_BANKS = {
       explanation: "Central angle $2\\pi/n$ bisects each side."
     }
   ],
+  counting: [
+    {
+      question: "The number 4 means how many things?",
+      options: ["4", "3", "5", "10"],
+      answerIndex: 0,
+      explanation: "The numeral 4 stands for four things — four dots in that row."
+    },
+    {
+      question: "How many dots should stand next to the number 1?",
+      options: ["1", "0", "2", "10"],
+      answerIndex: 0,
+      explanation: "One means a single thing — one dot."
+    },
+    {
+      question: "Which number has more dots: 7 or 5?",
+      options: ["7", "5", "They have the same", "Neither has dots"],
+      answerIndex: 0,
+      explanation: "7 is a bigger quantity than 5, so it has more dots."
+    },
+    {
+      question: "What comes right after 9 when you count to 20?",
+      options: ["10", "8", "19", "11"],
+      answerIndex: 0,
+      explanation: "After 9 you say 10."
+    },
+    {
+      question: "If you add one more object to a group of 6, how many do you have?",
+      options: ["7", "6", "5", "16"],
+      answerIndex: 0,
+      explanation: "Counting on by one: 6 and one more is 7."
+    }
+  ],
   default: [
     {
       question: "What is a good next step when you see a geometric figure?",
@@ -617,6 +649,7 @@ const PRACTICE_QUIZ_BANKS = {
 
 function inferQuizBankKey(topic, modelType) {
   const t = `${topic || ""} ${modelType || ""}`.toLowerCase();
+  if (/\bcount(?:ing)?\b/.test(t) && !/skip[\s-]?count/.test(t)) return "counting";
   if (/ellips/.test(t)) return "ellipse";
   if (/rectangl/.test(t)) return "rectangle";
   if (/\bsquare\b|carr[eé]/.test(t)) return "square";
@@ -626,6 +659,53 @@ function inferQuizBankKey(topic, modelType) {
   if (/hexagon|pentagon|octagon|regular polygon|n-gon/.test(t)) return "polygon";
   if (/alphabet|letter|phonic/.test(t)) return "alphabet";
   return "default";
+}
+
+function buildTrackTopicQuizBank(topic) {
+  const title = ((topic && topic.title) || topic || "this topic").toString().trim() || "this topic";
+  const band = (topic && topic.band) ? ` (${topic.band})` : "";
+  return [
+    {
+      question: `What should you practice right now?`,
+      options: [title, "A random geometric figure", "A different track topic", "Skipping this lesson"],
+      answerIndex: 0,
+      explanation: `This track is on one topic: ${title}.`
+    },
+    {
+      question: `Which statement is true about "${title}"?`,
+      options: [
+        `It is the current lesson${band}.`,
+        "It is about naming triangle sides.",
+        "It is only about π and circles.",
+        "It is finished and we should change subjects."
+      ],
+      answerIndex: 0,
+      explanation: `Stay with ${title} until you quiz and advance.`
+    },
+    {
+      question: `A good next step on "${title}" is to…`,
+      options: [
+        "Check you understand this topic, then take the quiz",
+        "Name the given lengths on a geometric figure",
+        "Assume every angle is 90°",
+        "Switch to a new subject"
+      ],
+      answerIndex: 0,
+      explanation: "One topic at a time."
+    },
+    {
+      question: `If you get a question wrong on "${title}", you should…`,
+      options: ["Retry this topic", "Jump to geometry", "Ignore the mistake", "Leave the track"],
+      answerIndex: 0,
+      explanation: "Misses stay on this topic and write a struggle."
+    },
+    {
+      question: `The rest of the track stays hidden so you can focus on…`,
+      options: [title, "Every geometry theorem at once", "The whole catalog", "A different subject"],
+      answerIndex: 0,
+      explanation: "One topic at a time."
+    }
+  ];
 }
 
 function looksLikeInlineCountingChart(text) {
@@ -2268,7 +2348,12 @@ class GandalSpaceClient {
   }
 
   buildPracticeQuizSet(topic, modelType, existingQuiz) {
-    const key = inferQuizBankKey(topic, modelType);
+    const track = (this.trackMode && this.trackState && this.trackState.topic) || null;
+    const quizTopic = (track && track.title) || topic;
+    let key = inferQuizBankKey(quizTopic, modelType);
+    if (track && (track.id === "math.k2.counting" || /counting to \d+/i.test(track.title || ""))) {
+      key = "counting";
+    }
     let bank = PRACTICE_QUIZ_BANKS[key];
     if (key === "alphabet") {
       const start = this.activeAlphabetIndex || 0;
@@ -2278,6 +2363,9 @@ class GandalSpaceClient {
         answerIndex: (item.quiz && item.quiz.answerIndex) || 0,
         explanation: (item.quiz && item.quiz.explanation) || ""
       }));
+    }
+    if (track && (key === "default" || !bank || !bank.length)) {
+      bank = buildTrackTopicQuizBank(track);
     }
     if (!bank || !bank.length) bank = PRACTICE_QUIZ_BANKS.default;
     const set = [];
@@ -2289,7 +2377,11 @@ class GandalSpaceClient {
     };
     if (existingQuiz) push(existingQuiz);
     bank.forEach(push);
-    PRACTICE_QUIZ_BANKS.default.forEach(push);
+    if (track) {
+      buildTrackTopicQuizBank(track).forEach(push);
+    } else {
+      PRACTICE_QUIZ_BANKS.default.forEach(push);
+    }
     return set.slice(0, 5);
   }
 
@@ -2413,13 +2505,16 @@ class GandalSpaceClient {
     this.openTableauNoir();
     const surface = document.getElementById("gandalA2UISurface");
     const existingQuizEl = surface ? surface.querySelector(".a2ui-quiz-card") : null;
-    const topic = this.currentContext || "right triangle";
+    const track = this.trackMode && this.trackState && this.trackState.topic;
+    const topic = (track && track.title) || this.currentContext || "right triangle";
     const existingQuiz = existingQuizEl && this.quizCards[existingQuizEl.id]
       ? this.quizCards[existingQuizEl.id]
       : null;
-    const modelHint = existingQuizEl && this.quizCards[existingQuizEl.id]
-      ? ""
-      : ((this.activeModels && Object.values(this.activeModels).slice(-1)[0] && Object.values(this.activeModels).slice(-1)[0].model_type) || "");
+    const modelHint = (track && (track.id === "math.k2.counting" || /counting to \d+/i.test(track.title || "")))
+      ? "counting"
+      : (existingQuizEl && this.quizCards[existingQuizEl.id]
+        ? ""
+        : ((this.activeModels && Object.values(this.activeModels).slice(-1)[0] && Object.values(this.activeModels).slice(-1)[0].model_type) || ""));
     this._wbQuizSet = this.buildPracticeQuizSet(topic, modelHint, existingQuiz);
     this._wbQuizIndex = 0;
     if (existingQuizEl) this.highlightA2UICard(existingQuizEl);
