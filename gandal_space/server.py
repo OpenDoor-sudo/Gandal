@@ -49,7 +49,7 @@ class AudioEvalRequest(BaseModel):
 
 @app.get("/api/gandal_space/status")
 async def get_status():
-    """Return status of local Ollama Gemma 4 edge and cloud Gemini fallback."""
+    """Return status of local Gemma 4 E4B (LOCAL_LLM_URL) and optional Gemini fallback."""
     return default_engine.get_system_status()
 
 @app.post("/api/gandal_space/ask")

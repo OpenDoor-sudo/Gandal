@@ -31,7 +31,7 @@
     <script src="/antigravity_labs/circuits_lab/lib/OrbitControls.js"></script>
     <link rel="stylesheet" href="/antigravity_labs/circuits_lab/circuits.css" />
     <!-- Gandal Space — Universal K-12+ AI Explorer & A2UI Stylesheet -->
-    <link rel="stylesheet" href="/gandal_space/gandal_space.css" />
+    <link rel="stylesheet" href="/gandal_space/gandal_space.css?v=20260919j" />
     <!-- Omni Graph Engine — local JSXGraph library for math plotting -->
     <link rel="stylesheet" href="/antigravity_labs/omni_graph_engine/lib/jsxgraph.css" />
     <script src="/antigravity_labs/omni_graph_engine/lib/jsxgraphcore.js"></script>
@@ -3220,6 +3220,23 @@
       .toast-body {
         font-size: 0.78rem;
         color: var(--on-surface);
+      }
+
+      /* Firefox autoplay fallback: click-to-hear after the mic gesture is spent. */
+      .gandho-hear-btn {
+        position: fixed;
+        bottom: 88px;
+        right: 24px;
+        z-index: 10001;
+        background: var(--primary, #a855f7);
+        color: #fff;
+        border: none;
+        border-radius: 999px;
+        padding: 12px 18px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
       }
 
       /* Core keyframes animations */
@@ -9756,6 +9773,9 @@
 
         // If leaving Gandal Space, restore avatar back to Socratic Workspace panel
         if (window.isGandalSpaceActive && viewName !== "gandal_space") {
+          if (window.gandalSpaceApp && typeof window.gandalSpaceApp.collapseWhiteboard === "function") {
+            window.gandalSpaceApp.collapseWhiteboard();
+          }
           const wsPanel = document.getElementById("socraticWorkspaceAvatarPanel");
           const statusIndicator = document.getElementById("tutorStatusIndicator");
           const avatarBox = document.getElementById("avatarImgBox");
@@ -11608,6 +11628,8 @@
 
       let lkRoom = null;
       let lkAudioTrack = null;
+      const GANDHO_SILENT_WAV =
+        "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
 
       
       // Desktop online testing helper: localStorage.ONLINE_MODE = "1" enables cloud voice path
@@ -11617,12 +11639,143 @@
         if (localStorage.getItem("LIVEKIT_CLOUD_URL")) window.LIVEKIT_CLOUD_URL = localStorage.getItem("LIVEKIT_CLOUD_URL");
       } catch (e) {}
 
+      function ensureGandhoAudioElement() {
+        let el = document.getElementById("gandhoLivekitAudio");
+        if (!el) {
+          el = document.createElement("audio");
+          el.id = "gandhoLivekitAudio";
+          el.className = "gandho-livekit-audio";
+          el.autoplay = true;
+          el.playsInline = true;
+          el.preload = "auto";
+          el.muted = false;
+          el.volume = 1;
+          el.controls = false;
+          el.setAttribute("playsinline", "true");
+          el.setAttribute("webkit-playsinline", "true");
+          // Hidden but not display:none — PulseAudio can mute display:none media on Linux.
+          el.style.cssText =
+            "position:fixed;left:0;bottom:0;width:8px;height:8px;opacity:0.01;pointer-events:none;z-index:1;";
+          document.body.appendChild(el);
+        }
+        window._gandhoPlaybackEl = el;
+        return el;
+      }
+
+      function resumeGandhoAudioContext() {
+        try {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return null;
+          window._gandhoAudioCtx = window._gandhoAudioCtx || new AC();
+          if (window._gandhoAudioCtx.resume) {
+            window._gandhoAudioCtx.resume().catch(() => {});
+          }
+          return window._gandhoAudioCtx;
+        } catch (audioUnlockErr) {
+          console.warn("[LIVEKIT] AudioContext resume failed", audioUnlockErr);
+          return null;
+        }
+      }
+
+      function unlockGandhoPlayback() {
+        // Firefox: play() must run in the mic-click stack before any await.
+        // Chrome often autoplays after getUserMedia even once that gesture is spent.
+        const el = ensureGandhoAudioElement();
+        const ctx = resumeGandhoAudioContext();
+        try {
+          if (!el.srcObject && ctx && ctx.createOscillator && ctx.createMediaStreamDestination) {
+            const dest = ctx.createMediaStreamDestination();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            gain.gain.value = 0.00001;
+            osc.connect(gain);
+            gain.connect(dest);
+            osc.start();
+            window._gandhoSilentOsc = osc;
+            el.srcObject = dest.stream;
+          } else if (!el.srcObject && !el.currentSrc) {
+            el.src = GANDHO_SILENT_WAV;
+          }
+          const playPromise = el.play();
+          if (playPromise && typeof playPromise.then === "function") {
+            playPromise
+              .then(function () {
+                window._gandhoAudioUnlocked = true;
+              })
+              .catch(function (err) {
+                console.warn("[LIVEKIT] Firefox autoplay unlock play() failed", err);
+              });
+          } else {
+            window._gandhoAudioUnlocked = true;
+          }
+        } catch (err) {
+          console.warn("[LIVEKIT] unlockGandhoPlayback failed", err);
+        }
+        if (lkRoom && typeof lkRoom.startAudio === "function") {
+          lkRoom.startAudio().catch(function () {});
+        }
+        return el;
+      }
+
+      function hideHearGandhoButton() {
+        const btn = document.getElementById("gandhoHearBtn");
+        if (btn) btn.remove();
+      }
+
+      function showHearGandhoButton() {
+        if (document.getElementById("gandhoHearBtn")) return;
+        const btn = document.createElement("button");
+        btn.id = "gandhoHearBtn";
+        btn.type = "button";
+        btn.className = "gandho-hear-btn";
+        btn.textContent = "Hear Gandho";
+        btn.title = "Firefox blocked autoplay. Click to play tutor audio.";
+        btn.onclick = function (ev) {
+          if (ev) ev.stopPropagation();
+          unlockGandhoPlayback();
+          playTutorAudio(true);
+        };
+        document.body.appendChild(btn);
+        showToastNotification(
+          "Click Hear Gandho",
+          "Firefox is supported. Click Hear Gandho if tutor audio is silent — Firefox will not autoplay after the mic request the way Chrome does. Use http://127.0.0.1:8000/.",
+        );
+      }
+
+      function playTutorAudio(fromUserGesture) {
+        const el = lkAudioTrack || window._gandhoPlaybackEl;
+        if (el) {
+          el.muted = false;
+          el.volume = 1;
+          try {
+            const p = el.play();
+            if (p && typeof p.then === "function") {
+              p.then(function () {
+                window._gandhoAudioUnlocked = true;
+                hideHearGandhoButton();
+              }).catch(function (err) {
+                console.warn("[LIVEKIT] tutor audio play() blocked", err);
+                if (!fromUserGesture && lkAudioTrack) showHearGandhoButton();
+              });
+            }
+          } catch (err) {
+            console.warn("[LIVEKIT] tutor audio play() threw", err);
+            if (!fromUserGesture && lkAudioTrack) showHearGandhoButton();
+          }
+        }
+        if (lkRoom && typeof lkRoom.startAudio === "function") {
+          lkRoom.startAudio().catch(function () {});
+        }
+      }
+
       async function startLiveKitVoiceSession(sourceId = null) {
         try {
+          unlockGandhoPlayback();
           if (lkRoom && window._lkVoiceConnected) {
             console.log("[LIVEKIT] Voice session already live; keeping the call open.");
             if (typeof updateActiveViewState === "function") updateActiveViewState();
             syncMicUI("active", "Listening State: Gemini Flash Live", sourceId);
+            playTutorAudio(false);
             return;
           }
           window._gandhoReadyGreetingSpoken = false;
@@ -11639,7 +11792,7 @@
             typeof navigator.mediaDevices.getUserMedia !== "function"
           ) {
             throw new Error(
-              "Firefox requires a secure microphone origin. Open http://localhost:8000 (not ventuno.local or a LAN IP), or serve the app over HTTPS.",
+              "Firefox is supported. Microphone needs a secure origin — open http://127.0.0.1:8000/ (not the machine hostname or a LAN IP). HTTPS is only required off localhost.",
             );
           }
 
@@ -11676,21 +11829,53 @@
           const localHost = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
             ? "127.0.0.1"
             : location.hostname;
+          let voiceStatus = null;
+          try {
+            voiceStatus = await fetch("/api/voice_status").then((r) => r.json());
+          } catch (vsErr) {
+            console.warn("[LIVEKIT] /api/voice_status failed", vsErr);
+          }
+          const rewriteLocalhost = (url) =>
+            String(url || "").replace(/^(wss?:\/\/)localhost(?=[:/]|$)/i, "$1127.0.0.1");
           const onlineTesting =
             window.ONLINE_MODE === true ||
             window.ONLINE_MODE === "1" ||
             tokenData.offlineMode === false ||
             tokenData.onlineMode === true;
+          const cloudFromToken = tokenData.url || tokenData.livekitUrl || "";
           const urls = [
-            tokenData.url || tokenData.livekitUrl,
-            ...(tokenData.fallbacks || []),
-            window.LIVEKIT_URL,
+            rewriteLocalhost(cloudFromToken),
+            ...(tokenData.fallbacks || []).map(rewriteLocalhost),
+            rewriteLocalhost(window.LIVEKIT_URL),
             (onlineTesting && window.LIVEKIT_CLOUD_URL) || null,
-            "wss://gandaledu-uqy2on78.livekit.cloud",
+            (String(cloudFromToken).includes("livekit.cloud") ? cloudFromToken : null),
             `ws://${localHost}:7880`,
-          ].filter(Boolean);
-          const wsUrl = urls[0] || "ws://localhost:7880";
+            "ws://127.0.0.1:7880",
+          ].filter((u, i, arr) => u && arr.indexOf(u) === i);
+          const wsUrl = urls[0] || "ws://127.0.0.1:7880";
           window._lkConnectUrls = urls;
+          if (voiceStatus && voiceStatus.livekit_reachable === false && String(wsUrl).startsWith("ws://")) {
+            throw new Error(
+              voiceStatus.hint ||
+                "LiveKit is not reachable. Start bash livekit_stack/run_livekit_server.sh or set LIVEKIT_URL to your Cloud wss:// URL.",
+            );
+          }
+          if (
+            (voiceStatus && voiceStatus.worker_running === false) ||
+            tokenData.worker_running === false
+          ) {
+            showToastNotification(
+              "Gandho worker is not running",
+              "In conda base, terminal 2: python3 livekit_stack/agent/run_agent.py --online start  (never sudo). Then click the mic once.",
+            );
+            syncMicUI("connecting", "Listening State: Start the worker, then click mic");
+          }
+          if (voiceStatus && voiceStatus.ffmpeg === false) {
+            showToastNotification(
+              "ffmpeg not visible",
+              "sudo apt install ffmpeg, then restart display_client.py AND the worker in the same conda env so PATH includes /usr/bin.",
+            );
+          }
           console.log("[LIVEKIT] Token", {
             url: wsUrl,
             room: roomName,
@@ -11744,34 +11929,35 @@
             if (participant && participant.isLocal) return;
             const sid = track.sid || (participant && participant.identity) || "remote-audio";
             if (window._lkTutorTrackSid === sid && lkAudioTrack) {
-              lkAudioTrack.muted = false;
-              lkAudioTrack.volume = 1;
-              lkRoom && lkRoom.startAudio().catch(() => {});
-              lkAudioTrack.play().catch(() => {});
+              playTutorAudio(false);
               return;
             }
             console.log("[LIVEKIT] Tutor audio track from", participant && participant.identity, sid);
             window._lkTutorTrackSid = sid;
+            const el = window._gandhoPlaybackEl || ensureGandhoAudioElement();
             try {
-              if (lkAudioTrack && lkAudioTrack.srcObject !== track.mediaStream) {
-                lkAudioTrack.remove();
+              // Reuse the element unlocked on mic click. A fresh track.attach()
+              // element is a new media that Firefox will not autoplay after await.
+              if (el.src && el.src.indexOf("data:") === 0 && !el.srcObject) {
+                el.removeAttribute("src");
               }
             } catch (e) {}
-            lkAudioTrack = track.attach();
+            lkAudioTrack = track.attach(el);
             lkAudioTrack.autoplay = true;
             lkAudioTrack.playsInline = true;
             lkAudioTrack.muted = false;
             lkAudioTrack.volume = 1;
             lkAudioTrack.setAttribute("playsinline", "true");
-            lkAudioTrack.style.display = "none";
-            document.body.appendChild(lkAudioTrack);
-            lkAudioTrack.play().catch(() => {});
-            if (lkRoom) lkRoom.startAudio().catch(() => {});
+            lkAudioTrack.className = "gandho-livekit-audio";
+            if (!lkAudioTrack.parentNode) {
+              document.body.appendChild(lkAudioTrack);
+            }
+            playTutorAudio(false);
             syncMicUI("active", "Listening State: Gemini Flash Live");
           };
 
           lkRoom.on(LivekitClient.RoomEvent.AudioPlaybackStatusChanged, () => {
-            if (lkRoom) lkRoom.startAudio().catch(() => {});
+            playTutorAudio(false);
           });
           lkRoom.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
             attachTutorAudio(track, participant);
@@ -11899,15 +12085,9 @@
             syncMicUI("active", "Listening State: Active");
             startMicWaveAnimation();
 
-            // Unblock browser autoplay for LiveKit audio
-            lkRoom
-              .startAudio()
-              .then(() => {
-                console.log("[LIVEKIT] Audio playback unblocked successfully.");
-              })
-              .catch((err) => {
-                console.warn("[LIVEKIT] startAudio failed:", err);
-              });
+            // Firefox: startAudio after connect is not a user gesture. Prefer the
+            // element unlocked on mic click; show Hear Gandho if play() is blocked.
+            playTutorAudio(false);
 
             const screenBtn = document.getElementById("screenShareBtn");
             if (screenBtn) {
@@ -11927,10 +12107,29 @@
           let connected = false;
           let lastErr = null;
           const tryUrls = window._lkConnectUrls && window._lkConnectUrls.length ? window._lkConnectUrls : [wsUrl];
+          const connectWithTimeout = async (room, url, tok, ms) => {
+            let timer = null;
+            try {
+              await Promise.race([
+                room.connect(url, tok),
+                new Promise((_, reject) => {
+                  timer = setTimeout(() => reject(new Error("LiveKit connect timed out: " + url)), ms);
+                }),
+              ]);
+            } catch (err) {
+              try {
+                await room.disconnect();
+              } catch (discErr) {}
+              throw err;
+            } finally {
+              if (timer) clearTimeout(timer);
+            }
+          };
           for (const candidate of tryUrls) {
             try {
               console.log("[LIVEKIT] Connecting to", candidate, "room", roomName);
-              await lkRoom.connect(candidate, token);
+              const timeoutMs = String(candidate).startsWith("wss://") ? 8000 : 4000;
+              await connectWithTimeout(lkRoom, candidate, token, timeoutMs);
               connected = true;
               break;
             } catch (connectErr) {
@@ -12006,11 +12205,7 @@
               window._lkKeepAlive = null;
               return;
             }
-            lkRoom.startAudio().catch(() => {});
-            if (lkAudioTrack) {
-              lkAudioTrack.muted = false;
-              lkAudioTrack.play().catch(() => {});
-            }
+            playTutorAudio(false);
           }, 4000);
           if (typeof window.notifyTutorHandRaise === "function") {
             window.notifyTutorHandRaise("voice");
@@ -12026,10 +12221,10 @@
             }
             showToastNotification(
               "Waiting for Gandho",
-              "No tutor joined this LiveKit room. Restart python3 livekit_stack/agent/run_agent.py start, then click the mic once.",
+              "No tutor joined this LiveKit Cloud room. In conda base run: python3 livekit_stack/agent/run_agent.py --online start  (do not use sudo). Restart it after apt install ffmpeg, then click the mic once.",
             );
             syncMicUI("connecting", "Listening State: Waiting for agent");
-          }, 20000);
+          }, 8000);
 
           if (window.spatiusAvatarManager) {
             try {
@@ -12628,10 +12823,13 @@
 
         if (lkAudioTrack) {
           try {
-            lkAudioTrack.remove();
+            if (lkAudioTrack.srcObject) lkAudioTrack.srcObject = null;
           } catch (e) {}
+          // Keep #gandhoLivekitAudio in the DOM so Firefox stays unlocked.
           lkAudioTrack = null;
         }
+        window._lkTutorTrackSid = null;
+        hideHearGandhoButton();
       }
 
       function toggleMicRaiseHand(event, forceState) {
@@ -12698,13 +12896,25 @@
           }
 
           if (!prevSessionActive) {
+            unlockGandhoPlayback();
             if (typeof updateActiveViewState === "function") updateActiveViewState();
             startLiveKitVoiceSession(sourceId);
-          } else if (typeof updateActiveViewState === "function") {
-            updateActiveViewState();
+          } else {
+            unlockGandhoPlayback();
+            playTutorAudio(true);
+            if (typeof updateActiveViewState === "function") updateActiveViewState();
           }
           if (typeof window.notifyTutorHandRaise === "function") {
             window.notifyTutorHandRaise("mic");
+          }
+          // Gandal Space: open Tableau Noir and slide it left so the avatar stays visible
+          if (window.isGandalSpaceActive && window.gandalSpaceApp) {
+            if (typeof window.gandalSpaceApp.switchCompanionTab === "function") {
+              window.gandalSpaceApp.switchCompanionTab("whiteboard");
+            }
+            if (typeof window.gandalSpaceApp.expandWhiteboard === "function") {
+              window.gandalSpaceApp.expandWhiteboard(true);
+            }
           }
           syncGandhoFabVisibility();
         } else {
@@ -12719,6 +12929,9 @@
           // Sync Gandal Space companion state if active
           if (window.gandalSpaceApp && typeof window.gandalSpaceApp.setConvoStateUI === "function") {
             window.gandalSpaceApp.setConvoStateUI("idle", "Tap mic to speak or press Enter");
+          }
+          if (window.gandalSpaceApp && typeof window.gandalSpaceApp.collapseWhiteboard === "function") {
+            window.gandalSpaceApp.collapseWhiteboard();
           }
           const gWbStatus = document.getElementById("gandalWhiteboardStatus");
           if (gWbStatus && gWbStatus.classList.contains("speaking")) {
@@ -14620,8 +14833,8 @@ function getQuizTrackKey() {
         ctx.stroke();
 
         // Draw axes ticks and labels for all 4 quadrants
-        ctx.fillStyle = "#888888";
-        ctx.font = '8px "Geist", monospace';
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = '11px "Geist", monospace';
         const yAxisScreenX = toScreenX(0);
         const xAxisScreenY = toScreenY(0);
 
@@ -17270,8 +17483,8 @@ function getQuizTrackKey() {
           ctx.stroke();
 
           // Draw axes ticks and labels for all 4 quadrants
-          ctx.fillStyle = "#888888";
-          ctx.font = '9px "Geist", monospace';
+          ctx.fillStyle = "#f8fafc";
+          ctx.font = '12px "Geist", monospace';
           const yAxisScreenX = toScreenX(0);
           const xAxisScreenY = toScreenY(0);
 
@@ -23132,6 +23345,6 @@ function getQuizTrackKey() {
       </svg>
     </button>
     <!-- Gandal Space — Universal K-12+ AI Explorer & A2UI Module -->
-    <script src="/gandal_space/gandal_space.js"></script>
+    <script src="/gandal_space/gandal_space.js?v=20260919j"></script>
   </body>
 </html>

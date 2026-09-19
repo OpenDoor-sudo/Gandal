@@ -62,6 +62,26 @@
   overflow-y: auto;
   padding-right: 12px;
   box-sizing: border-box;
+  transition: opacity 0.32s ease;
+}
+
+/* Mic / explain: hide the left exploration pane so Tableau Noir can sit beside the avatar */
+.gandal-space-wrapper.tableau-explaining .gandal-space-answers-pane {
+  display: none;
+}
+
+.gandal-space-wrapper.tableau-explaining .gandal-space-companion-pane {
+  flex: 0 0 32%;
+  width: 32%;
+  max-width: 32%;
+  z-index: 5;
+}
+
+.gandal-space-wrapper.tableau-explaining .gandal-avatar-wrapper,
+.gandal-space-wrapper.tableau-explaining #gandalSpaceAvatarContainer {
+  position: relative;
+  z-index: 6;
+  flex-shrink: 0;
 }
 
 /* Custom scrollbar for answers pane */
@@ -121,6 +141,11 @@
     width: 100%;
     max-width: 100%;
     height: auto;
+  }
+  .gandal-space-wrapper.tableau-explaining .gandal-space-companion-pane {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
   }
 }
 
@@ -1979,6 +2004,71 @@
   cursor: crosshair;
 }
 
+/* Dark A2UI + Tableau Noir graphs: JSXGraph default board is white with black ticks. */
+.a2ui-graph-viewport .jxgbox,
+.gandal-wb-graph-viewport .jxgbox,
+.gandal-whiteboard-content .jxgbox {
+  background-color: #08090d !important;
+  border: none !important;
+  border-radius: 0;
+}
+
+.a2ui-graph-viewport .jxgbox svg text,
+.gandal-wb-graph-viewport .jxgbox svg text,
+.gandal-whiteboard-content .jxgbox svg text {
+  fill: #f8fafc !important;
+  color: #f8fafc !important;
+  stroke: none !important;
+}
+
+.a2ui-graph-viewport .jxgbox .JXGtext,
+.gandal-wb-graph-viewport .jxgbox .JXGtext,
+.gandal-whiteboard-content .jxgbox .JXGtext {
+  color: #f8fafc !important;
+  fill: #f8fafc !important;
+}
+
+.a2ui-counting-card {
+  overflow: visible;
+}
+
+.a2ui-counting-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #08090d;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+  overflow-x: auto;
+}
+
+.a2ui-counting-row {
+  display: grid;
+  grid-template-columns: 2.4rem 1fr;
+  align-items: center;
+  column-gap: 0.85rem;
+  min-height: 1.45rem;
+}
+
+.a2ui-counting-numeral {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #e2e8f0;
+  text-align: right;
+  line-height: 1.3;
+}
+
+.a2ui-counting-dots {
+  color: #7dd3fc;
+  letter-spacing: 0.12em;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
 .a2ui-graph-actions {
   display: flex;
   align-items: center;
@@ -2066,51 +2156,27 @@
   overflow: hidden;
   box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.95), 0 4px 18px rgba(0, 0, 0, 0.4);
   position: relative;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: 10;
 }
 
-.gandal-whiteboard-card.expanded-explaining {
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 14px;
-  top: 72px;
-  z-index: 60;
+/* Direct child of the 70/30 wrapper after reparent — occupies the left column */
+.gandal-space-wrapper > .gandal-whiteboard-card.expanded-explaining {
+  position: relative;
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  align-self: stretch;
+  z-index: 20;
   border-color: rgba(168, 85, 247, 0.7);
-  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.95), 0 -12px 38px rgba(0, 0, 0, 0.85), 0 0 32px rgba(168, 85, 247, 0.35);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.95), 0 12px 38px rgba(0, 0, 0, 0.85), 0 0 32px rgba(168, 85, 247, 0.35);
   border-radius: 16px;
-  animation: slideUpTableauNoir 0.42s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes slideUpTableauNoir {
-  from {
-    top: calc(100% - 210px);
-    opacity: 0.88;
-    transform: translateY(12px);
-  }
-  to {
-    top: 72px;
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .gandal-whiteboard-card.sliding-down {
-  animation: slideDownTableauNoir 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes slideDownTableauNoir {
-  from {
-    top: 72px;
-    opacity: 1;
-    transform: translateY(0);
-  }
-  to {
-    top: calc(100% - 210px);
-    opacity: 0.88;
-    transform: translateY(12px);
-  }
+  z-index: 20;
 }
 
 .gandal-whiteboard-header {
@@ -2238,6 +2304,196 @@
   overflow-y: auto;
   text-shadow: 0 0 2px rgba(255, 255, 255, 0.15);
   padding-right: 4px;
+  min-height: 0;
+}
+
+.gandal-wb-socratic {
+  white-space: normal;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.gandal-wb-kicker {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c084fc;
+}
+
+.gandal-wb-question {
+  font-size: 0.95rem;
+  color: #f8fafc;
+  line-height: 1.5;
+}
+
+.gandal-wb-hint {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.gandal-wb-graph-wrap {
+  flex: 1 1 auto;
+  min-height: 180px;
+  height: min(36vh, 300px);
+}
+
+.gandal-wb-geom-vars {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 14px;
+  flex: 0 0 auto;
+  padding: 4px 2px 8px;
+}
+
+@media (max-width: 1100px) {
+  .gandal-wb-geom-vars {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.gandal-wb-geom-var {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.gandal-wb-geom-var-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.78rem;
+  color: #e9d5ff;
+  font-weight: 600;
+}
+
+.gandal-wb-geom-var-top span:last-child {
+  color: #7dd3fc;
+  font-variant-numeric: tabular-nums;
+}
+
+.gandal-wb-geom-var input[type="range"] {
+  width: 100%;
+  accent-color: #a855f7;
+  cursor: pointer;
+}
+
+.gandal-wb-socratic-quiz {
+  position: relative;
+  padding-bottom: 52px;
+}
+
+.gandal-wb-quiz-footer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.gandal-wb-quiz-count {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.gandal-wb-show-more {
+  margin-left: auto;
+  background: rgba(168, 85, 247, 0.28);
+  border: 1px solid rgba(192, 132, 252, 0.55);
+  color: #f8fafc;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gandal-wb-show-more:hover:not(:disabled) {
+  background: rgba(168, 85, 247, 0.45);
+}
+
+.gandal-wb-show-more:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.gandal-wb-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gandal-wb-quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  color: #f1f5f9;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.gandal-wb-quiz-option:hover:not(.disabled) {
+  border-color: #c084fc;
+  background: rgba(168, 85, 247, 0.16);
+}
+
+.gandal-wb-quiz-letter {
+  flex: 0 0 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(168, 85, 247, 0.28);
+  color: #e9d5ff;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+.gandal-wb-quiz-text {
+  flex: 1;
+}
+
+.gandal-wb-quiz-mark {
+  min-width: 1.2em;
+}
+
+.gandal-wb-quiz-option.correct,
+.gandal-wb-quiz-option.show-correct {
+  border-color: #34d399;
+  background: rgba(16, 185, 129, 0.16);
+}
+
+.gandal-wb-quiz-option.incorrect {
+  border-color: #f87171;
+  background: rgba(239, 68, 68, 0.16);
+}
+
+.gandal-wb-quiz-option.disabled {
+  cursor: default;
+}
+
+.gandal-wb-quiz-explanation {
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px dashed rgba(56, 189, 248, 0.3);
+  border-radius: 10px;
+  padding: 10px 12px;
 }
 
 /* Blackboard KaTeX Chalkboard Polish for Stacked Column Arithmetic */
@@ -2309,6 +2565,161 @@
 .a2ui-card-highlight {
   animation: a2uiCardHighlightPulse 1.8s ease-out;
   border-color: #38bdf8 !important;
+}
+
+/* Additive K-12 track chrome */
+.quick-topic-chip.gandal-track-chip {
+  border-color: rgba(168, 85, 247, 0.45);
+  color: #e9d5ff;
+}
+
+.gandal-track-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 860px;
+  margin: 8px auto 0;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+}
+
+.gandal-track-bar[hidden] {
+  display: none !important;
+}
+
+.gandal-track-kicker {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+}
+
+.gandal-track-bar-main strong {
+  display: block;
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+#gandalTrackMeta {
+  display: block;
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.gandal-track-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.6);
+  color: #e2e8f0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.gandal-track-btn.primary {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+  background: rgba(168, 85, 247, 0.28);
+  border-color: rgba(168, 85, 247, 0.5);
+  color: #f5d0fe;
+}
+
+.gandal-track-btn.primary:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.gandal-track-error {
+  color: #fca5a5;
+  font-size: 0.85rem;
+  margin: 10px 0 0;
+}
+
+.gandal-track-intake {
+  max-width: 720px;
+  margin: 12px auto 0;
+  padding: 22px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gandal-track-intake h3 {
+  margin: 0 0 8px;
+  color: #f8fafc;
+}
+
+.gandal-track-intake p {
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+.gandal-track-subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.gandal-track-subject {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.gandal-track-subject.ready {
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+.gandal-track-subject.selected {
+  background: rgba(168, 85, 247, 0.28);
+  border-color: rgba(168, 85, 247, 0.6);
+  color: #f5d0fe;
+}
+
+.gandal-track-subject.soon {
+  opacity: 0.65;
+}
+
+.gandal-track-scratch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e2e8f0;
+  margin: 10px 0;
+}
+
+.gandal-track-intent-input {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #12141a;
+  color: #f8fafc;
+  padding: 10px 12px;
+}
+
+.gandal-track-intake-actions {
+  margin-top: 12px;
+}
+
+.gandal-track-footnote {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.gandal-track-advance {
+  margin-top: 16px;
 }
 
 

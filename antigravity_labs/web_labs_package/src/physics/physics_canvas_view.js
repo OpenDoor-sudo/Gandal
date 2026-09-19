@@ -706,4 +706,58 @@ export class PhysicsCanvasView {
     if (hudKE) hudKE.innerText = `${(totalKE / 1000).toFixed(2)} J`;
     if (hudMaxV) hudMaxV.innerText = `${(maxSpeed / 100).toFixed(1)} m/s`;
   }
+
+  executeVoiceCommand(cmd) {
+    if (!cmd) return;
+    const action = (cmd.action || "").toLowerCase();
+    const val = typeof cmd.value === "number" ? cmd.value : parseFloat(cmd.value || 0);
+    console.log("[PHYSICS CANVAS VOICE CMD]", cmd);
+    if (action.includes("drop") || action.includes("lâche") || action.includes("lache") || action.includes("release")) {
+      this.releaseSuspendedBalls();
+      this.showVoiceToast("Gandho : les deux sphères sont lâchées.");
+    } else if (action.includes("gravity") || action.includes("gravité") || action.includes("gravite")) {
+      let g = 980;
+      if (val > 0) g = val * (val < 80 ? 100 : 1);
+      else if (cmd.preset === "moon" || action.includes("moon") || action.includes("lune")) g = 160;
+      else if (cmd.preset === "jupiter" || action.includes("jupiter")) g = 2480;
+      else if (cmd.preset === "earth" || action.includes("earth") || action.includes("terre")) g = 980;
+      this.world.gravityY = g;
+      const ms2 = (g / 100).toFixed(1);
+      const gravSlider = this.container.querySelector("#gravitySlider");
+      if (gravSlider) gravSlider.value = g;
+      const gravLabel = this.container.querySelector("#gravityLabel");
+      if (gravLabel) {
+        if (g === 0) gravLabel.innerText = "Zero-G (0.0 m/s²)";
+        else if (g < 400) gravLabel.innerText = `Moon (~${ms2} m/s²)`;
+        else if (g < 1300) gravLabel.innerText = `Earth (~${ms2} m/s²)`;
+        else gravLabel.innerText = `Jupiter (~${ms2} m/s²)`;
+      }
+      const hudG = this.container.querySelector("#hudGravityVal");
+      if (hudG) hudG.innerText = `${ms2} m/s²`;
+      const currentVal = this.container.querySelector("#physCurrentVal");
+      if (currentVal) currentVal.innerText = `${ms2} m/s²`;
+      this.updateTelemetry();
+      this.broadcastTelemetry();
+      this.showVoiceToast(`Gandho : gravité réglée à ${ms2} m/s².`);
+    } else if (action.includes("reset") || action.includes("réinitialiser") || action.includes("reinit")) {
+      this.loadMission(this.currentMissionKey);
+      this.showVoiceToast("Gandho : simulation réinitialisée.");
+    } else if (action.includes("pause") || action.includes("stop")) {
+      const btn = this.container.querySelector("#btnPause");
+      if (btn) btn.click();
+      this.showVoiceToast("Gandho : simulation en pause ou reprise.");
+    }
+  }
+
+  showVoiceToast(msg) {
+    this.container.querySelectorAll(".lab-gandho-toast").forEach((el) => el.remove());
+    const toast = document.createElement("div");
+    toast.className = "lab-gandho-toast";
+    toast.innerText = msg;
+    this.container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add("is-leaving");
+      setTimeout(() => toast.remove(), 350);
+    }, 3200);
+  }
 }

@@ -32,6 +32,7 @@ ENV/
 # Runtime Session & Temporary Logs
 active_session.json
 *.log
+*.heartbeat
 
 # IDE & OS Cache
 .vscode/

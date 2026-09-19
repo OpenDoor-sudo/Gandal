@@ -108,6 +108,7 @@ export class LinearAlgebraScene extends BaseScene {
       boundingbox: this.defaultBoundingBox,
       axis: true,
       grid: false, // We render our own transformed matrix grid
+      defaultAxes: this.darkAxisDefaultAxes(),
       showCopyright: false,
       showNavigation: false,
       zoom: {
@@ -133,14 +134,7 @@ export class LinearAlgebraScene extends BaseScene {
       this.board.attr.pan.needshift = false;
     }
 
-    if (this.board.defaultAxes) {
-      if (this.board.defaultAxes.x && this.board.defaultAxes.x.defaultTicks) {
-        this.board.defaultAxes.x.defaultTicks.setAttribute({ drawZero: true });
-      }
-      if (this.board.defaultAxes.y && this.board.defaultAxes.y.defaultTicks) {
-        this.board.defaultAxes.y.defaultTicks.setAttribute({ drawZero: true });
-      }
-    }
+    this.applyHighContrastAxisTicks(this.board);
   }
 
   buildLinearAlgebraScene() {

@@ -379,17 +379,17 @@ body, html {
 
 /* High-Contrast Numbers and Text on Dark Cartesian Graph */
 .jxgbox svg text {
-  fill: #e4e4e7 !important;
-  color: #e4e4e7 !important;
+  fill: #f8fafc !important;
+  color: #f8fafc !important;
   stroke: none !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace !important;
-  font-size: 11px !important;
-  font-weight: 500 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
 }
 
 .jxgbox .JXGtext {
-  color: #e4e4e7 !important;
-  fill: #e4e4e7 !important;
+  color: #f8fafc !important;
+  fill: #f8fafc !important;
 }
 
 .jxgbox svg line {
