@@ -198,7 +198,7 @@ ventuno_ai_testbed/
 
 ### 1. Prerequisites
 - Python 3.14+ (or Python 3.10+)
-- Google Chrome or Microsoft Edge (with WebGL and Web Audio API enabled)
+- Firefox, Google Chrome, or Microsoft Edge. **Gandho voice works in Firefox on Linux.** Open `http://127.0.0.1:8000/` so the microphone and autoplay are allowed. Chrome/Edge are only required for screen share and some WebGL labs.
 - *(Optional for offline mode)*: Local Ollama instance with `qwen2.5` installed and Piper TTS.
 
 ### 2. Launch the Edge Server (Windows or Linux)

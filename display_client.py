@@ -2322,7 +2322,9 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                     worker.get("detail")
                     or "Gandho worker is not running. In conda base: python3 livekit_stack/agent/run_agent.py --online start  (never sudo)."
                 )
-            hints.append("Open http://127.0.0.1:8000/ (not a LAN hostname) so the browser allows the microphone.")
+            hints.append(
+                "Firefox is supported. Open http://127.0.0.1:8000/ (not a LAN hostname) so the mic and autoplay work. Click the mic once — Firefox will not play tutor audio without that gesture (Chrome often autoplays after getUserMedia)."
+            )
             hints.append("After apt install ffmpeg, restart both terminals or conda will still report ffmpeg: false.")
             body = json.dumps({
                 "success": True,

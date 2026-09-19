@@ -43,6 +43,18 @@ class LinuxVoiceSourceTests(unittest.TestCase):
         self.assertNotIn("wss://gandaledu-uqy2on78.livekit.cloud", src)
         self.assertIn("worker_running", src)
         self.assertIn("ffmpeg not visible", src)
+        self.assertIn("unlockGandhoPlayback", src)
+        self.assertIn("track.attach(el)", src)
+        self.assertIn("gandhoHearBtn", src)
+        self.assertIn("Hear Gandho", src)
+        self.assertIn("window.AudioContext || window.webkitAudioContext", src)
+        self.assertIn("Firefox is supported", src)
+        self.assertNotIn("lkAudioTrack = track.attach();", src)
+
+    def test_voice_status_hints_firefox(self):
+        src = _read("display_client.py")
+        self.assertIn("Firefox is supported", src)
+        self.assertIn("http://127.0.0.1:8000/", src)
 
     def test_run_agent_loads_env_and_refuses_sudo(self):
         src = _read("livekit_stack/agent/run_agent.py")
