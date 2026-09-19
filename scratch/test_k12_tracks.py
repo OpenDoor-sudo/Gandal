@@ -117,6 +117,23 @@ def run_tests():
         assert passed["topic"]["title"] != first["title"]
         print("Advance PASSED\n")
 
+        print("=== Resume keeps the same topic; from-scratch restarts ===")
+        nxt = tracks.next_topic("mathematics", first["id"])
+        stayed = tracks.start_track(STUDENT, "mathematics", from_scratch=False)
+        assert stayed["topic"]["id"] == nxt["id"]
+        cont_intent = tracks.parse_intent("continue")
+        assert cont_intent["wants_track"] is True
+        assert cont_intent["resume"] is True
+        assert cont_intent["from_scratch"] is False
+        continued = tracks.handle_intent(STUDENT, "continue")
+        assert continued["matched"] is True
+        assert continued["topic"]["id"] == nxt["id"]
+        assert continued["topic"]["title"] != first["title"]
+        restart = tracks.start_track(STUDENT, "mathematics", from_scratch=True)
+        assert restart["topic"]["id"] == first["id"]
+        assert restart["topic"]["title"] == "Counting to 20"
+        print("Resume PASSED\n")
+
         print("=== Physics / English walk + OKF ===")
         phy = tracks.start_track(STUDENT, "physics", from_scratch=True)
         assert phy["success"] is True

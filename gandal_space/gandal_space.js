@@ -891,6 +891,7 @@ class GandalSpaceClient {
     this._wbQuizIndex = 0;
     this.trackMode = false;
     this.trackState = null;
+    this._savedTrack = null;
     this._loadingTrackLesson = false;
     this._startingTrack = false;
     this._trackDelegateBound = false;
@@ -939,7 +940,7 @@ class GandalSpaceClient {
               <span class="quick-topic-chip" onclick="window.gandalSpaceApp.selectPrompt('Explain Newton\\'s 2nd Law of Motion')">⚛️ Newton's 2nd Law</span>
               <span class="quick-topic-chip" onclick="window.gandalSpaceApp.selectPrompt('How does Photosynthesis work?')">🌿 Photosynthesis</span>
               <span class="quick-topic-chip" onclick="window.gandalSpaceApp.selectPrompt('Summary of the French Revolution')">🏛️ French Revolution</span>
-              <span class="quick-topic-chip gandal-track-chip" onclick="window.gandalSpaceApp.openTrackIntake()">🎓 K-12 Track</span>
+              <span class="quick-topic-chip gandal-track-chip" onclick="window.gandalSpaceApp.enterK12Track()">🎓 K-12 Track</span>
             </div>
             <div class="gandal-track-bar" id="gandalTrackBar" hidden>
               <div class="gandal-track-bar-main">
@@ -1181,6 +1182,19 @@ class GandalSpaceClient {
   /* ------------------------------------------------------------------------
      ADDITIVE K-12 TRACK (one topic at a time; free ask still works)
      ------------------------------------------------------------------------ */
+  rememberSavedTrack(data) {
+    if (data && data.topic) this._savedTrack = data;
+  }
+
+  quizFocusTopic() {
+    const live = this.trackState && this.trackState.topic;
+    if (this.trackMode && live) return live;
+    if (live) return live;
+    const saved = this._savedTrack && this._savedTrack.topic;
+    if (saved) return saved;
+    return null;
+  }
+
   applyTrackChrome() {
     const chips = document.getElementById("gandalQuickTopics");
     const bar = document.getElementById("gandalTrackBar");
@@ -1207,13 +1221,32 @@ class GandalSpaceClient {
       const data = await resp.json();
       this._trackCatalog = data.subjects || [];
       if (data.current && data.current.topic) {
-        this.trackMode = true;
-        this.trackState = data.current;
+        this.rememberSavedTrack(data.current);
       }
       this.applyTrackChrome();
     } catch (e) {
       console.warn("[GANDAL TRACK] status", e);
     }
+  }
+
+  async enterK12Track() {
+    const menu = document.getElementById("gandalAddMenu");
+    if (menu) menu.classList.remove("active");
+    const saved = this._savedTrack;
+    if (saved && saved.topic && saved.subject) {
+      return this.resumeSavedTrack();
+    }
+    this.openTrackIntake();
+    return false;
+  }
+
+  async resumeSavedTrack() {
+    const saved = this._savedTrack;
+    if (!saved || !saved.subject) {
+      this.openTrackIntake();
+      return false;
+    }
+    return this.startSelectedTrack(saved.subject, false);
   }
 
   openTrackIntake() {
@@ -1240,7 +1273,7 @@ class GandalSpaceClient {
         <p>Tell Gandho the subject (and if you are starting from scratch). The full catalog stays hidden — you will see <strong>one topic</strong> at a time, then a quiz, then the next topic.</p>
         <div class="gandal-track-subjects" id="gandalTrackSubjects">${subjectBtns}</div>
         <label class="gandal-track-scratch">
-          <input type="checkbox" id="gandalTrackFromScratch" checked />
+          <input type="checkbox" id="gandalTrackFromScratch" />
           I am starting from scratch
         </label>
         <input type="text" id="gandalTrackIntentInput" class="gandal-track-intent-input" placeholder="e.g. I want to learn physics from scratch, or teach me the English alphabet" />
@@ -1384,6 +1417,7 @@ class GandalSpaceClient {
     }
     this.trackMode = true;
     this.trackState = data;
+    this.rememberSavedTrack(data);
     this.applyTrackChrome();
     const topic = data.topic;
     const title = topic.subject_title || "this subject";
@@ -1429,6 +1463,7 @@ class GandalSpaceClient {
         body: JSON.stringify({})
       });
     } catch (e) {}
+    if (this.trackState && this.trackState.topic) this.rememberSavedTrack(this.trackState);
     this.trackMode = false;
     this.trackState = null;
     this.applyTrackChrome();
@@ -1451,6 +1486,7 @@ class GandalSpaceClient {
       if (!data.success) return;
       if (data.correct && data.advanced && data.topic) {
         this.trackState = data;
+        this.rememberSavedTrack(data);
         this.applyTrackChrome();
         this.appendGandhoBubble(`Nice. Next topic only: ${data.topic.title}.`);
         const surface = document.getElementById("gandalA2UISurface");
@@ -2361,10 +2397,10 @@ class GandalSpaceClient {
   }
 
   buildPracticeQuizSet(topic, modelType, existingQuiz) {
-    const track = (this.trackMode && this.trackState && this.trackState.topic) || null;
-    const quizTopic = (track && track.title) || topic;
+    const trackTopic = this.quizFocusTopic && this.quizFocusTopic();
+    const quizTopic = (trackTopic && trackTopic.title) || topic;
     let key = inferQuizBankKey(quizTopic, modelType);
-    if (track && (track.id === "math.k2.counting" || /counting to \d+/i.test(track.title || ""))) {
+    if (trackTopic && (trackTopic.id === "math.k2.counting" || /counting to \d+/i.test(trackTopic.title || ""))) {
       key = "counting";
     }
     let bank = PRACTICE_QUIZ_BANKS[key];
@@ -2377,8 +2413,8 @@ class GandalSpaceClient {
         explanation: (item.quiz && item.quiz.explanation) || ""
       }));
     }
-    if (track && (key === "default" || !bank || !bank.length)) {
-      bank = buildTrackTopicQuizBank(track);
+    if (trackTopic && (key === "default" || !bank || !bank.length)) {
+      bank = buildTrackTopicQuizBank(trackTopic);
     }
     if (!bank || !bank.length) bank = PRACTICE_QUIZ_BANKS.default;
     const set = [];
@@ -2388,11 +2424,15 @@ class GandalSpaceClient {
       seen.add(q.question);
       set.push(cloneQuizItem(q));
     };
-    if (existingQuiz && (!track || quizMatchesTrackTopic(existingQuiz, track))) push(existingQuiz);
+    if (existingQuiz && (!trackTopic || quizMatchesTrackTopic(existingQuiz, trackTopic))) push(existingQuiz);
     bank.forEach(push);
-    if (track) {
-      buildTrackTopicQuizBank(track).forEach(push);
-    } else {
+    const geometryKeys = {
+      circle: 1, triangle: 1, pythagoras: 1, ellipse: 1,
+      rectangle: 1, square: 1, polygon: 1, default: 1
+    };
+    if (trackTopic) {
+      buildTrackTopicQuizBank(trackTopic).forEach(push);
+    } else if (geometryKeys[key]) {
       PRACTICE_QUIZ_BANKS.default.forEach(push);
     }
     return set.slice(0, 5);
@@ -2518,16 +2558,14 @@ class GandalSpaceClient {
     this.openTableauNoir();
     const surface = document.getElementById("gandalA2UISurface");
     const existingQuizEl = surface ? surface.querySelector(".a2ui-quiz-card") : null;
-    const track = this.trackMode && this.trackState && this.trackState.topic;
+    const track = this.quizFocusTopic();
     const topic = (track && track.title) || this.currentContext || "right triangle";
     const existingQuiz = existingQuizEl && this.quizCards[existingQuizEl.id]
       ? this.quizCards[existingQuizEl.id]
       : null;
     const modelHint = (track && (track.id === "math.k2.counting" || /counting to \d+/i.test(track.title || "")))
       ? "counting"
-      : (existingQuizEl && this.quizCards[existingQuizEl.id]
-        ? ""
-        : ((this.activeModels && Object.values(this.activeModels).slice(-1)[0] && Object.values(this.activeModels).slice(-1)[0].model_type) || ""));
+      : ((this.activeModels && Object.values(this.activeModels).slice(-1)[0] && Object.values(this.activeModels).slice(-1)[0].model_type) || "");
     this._wbQuizSet = this.buildPracticeQuizSet(topic, modelHint, existingQuiz);
     this._wbQuizIndex = 0;
     if (existingQuizEl) this.highlightA2UICard(existingQuizEl);

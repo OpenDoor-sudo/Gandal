@@ -193,6 +193,10 @@ def run_test():
             js_text = resp.read().decode("utf-8")
             assert "GandalSpaceClient" in js_text
             assert "openTrackIntake" in js_text
+            assert "enterK12Track" in js_text
+            assert "resumeSavedTrack" in js_text
+            assert "quizFocusTopic" in js_text
+            assert "rememberSavedTrack" in js_text
             assert "bindTrackIntake" in js_text
             assert "bindTrackDelegation" in js_text
             assert "gandalTrackStartBtn" in js_text
@@ -204,7 +208,8 @@ def run_test():
             assert "buildTrackTopicQuizBank" in js_text
             assert "quizMatchesTrackTopic" in js_text
             assert "What comes right after 9 when you count to 20?" in js_text
-            assert "buildTrackTopicQuizBank(track).forEach(push)" in js_text
+            assert "buildTrackTopicQuizBank(trackTopic).forEach(push)" in js_text
+            assert "rememberSavedTrack(data.current)" in js_text
         print("GET gandal_space.js: PASSED!\n")
 
         print("=== ALL LIVE HTTP ENDPOINT TESTS PASSED! ===")

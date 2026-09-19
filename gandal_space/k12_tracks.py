@@ -61,6 +61,11 @@ FROM_SCRATCH_PHRASES = (
     "from the beginning", "starting from scratch", "i am new", "i'm new",
 )
 
+RESUME_PHRASES = (
+    "continue", "resume", "pick up where", "where i left", "where we left",
+    "keep going", "continue the track", "continue learning", "continue this topic",
+)
+
 TRACK_INTENT_PHRASES = (
     "k-12", "k12", "track", "curriculum", "i want to learn", "teach me",
     "start with", "learn math", "learn maths", "learn physics",
@@ -1040,6 +1045,7 @@ def parse_intent(message: str) -> Dict[str, Any]:
     text = (message or "").strip()
     lower = text.lower()
     from_scratch = any(p in lower for p in FROM_SCRATCH_PHRASES)
+    wants_resume = (not from_scratch) and any(p in lower for p in RESUME_PHRASES)
     explicit_subject = None
     for sid, aliases in SUBJECT_ALIASES.items():
         if any(re.search(rf"\b{re.escape(a)}\b", lower) for a in aliases):
@@ -1060,14 +1066,16 @@ def parse_intent(message: str) -> Dict[str, Any]:
                         break
                 break
     # Bare topic-title hits stay free-ask (e.g. "How does Photosynthesis work?").
-    # A named subject, from-scratch, or track phrase starts a track.
-    wants = from_scratch or any(p in lower for p in TRACK_INTENT_PHRASES)
+    # A named subject, from-scratch, resume/continue, or track phrase starts a track.
+    wants = from_scratch or wants_resume or any(p in lower for p in TRACK_INTENT_PHRASES)
     if explicit_subject:
         wants = True
     return {
         "wants_track": bool(wants),
         "subject": subject,
+        "explicit_subject": explicit_subject,
         "from_scratch": from_scratch,
+        "resume": bool(wants_resume),
         "topic": hit,
         "message": text,
     }
@@ -1318,12 +1326,21 @@ def handle_intent(student_id: str, message: str) -> Dict[str, Any]:
     parsed = parse_intent(message)
     if not parsed["wants_track"]:
         return {"success": True, "matched": False, "intent": parsed}
+    progress = current_progress(student_id)
+    if parsed.get("resume") and not parsed["from_scratch"]:
+        subject = parsed.get("explicit_subject") or (progress["subject"] if progress else None) or "mathematics"
+        started = start_track(student_id, subject, from_scratch=False)
+        return _intent_started(parsed, started, from_scratch=False)
     subject = parsed["subject"] or "mathematics"
     topic = parsed.get("topic")
     topic_id = topic["id"] if topic and topic.get("subject", subject) == subject else None
     if parsed["from_scratch"]:
         topic_id = None
     started = start_track(student_id, subject, from_scratch=parsed["from_scratch"], topic_id=topic_id)
+    return _intent_started(parsed, started, from_scratch=parsed["from_scratch"])
+
+
+def _intent_started(parsed: Dict[str, Any], started: Dict[str, Any], from_scratch: bool) -> Dict[str, Any]:
     if not started.get("success"):
         return {
             "success": False,
@@ -1332,8 +1349,9 @@ def handle_intent(student_id: str, message: str) -> Dict[str, Any]:
             "reply": started.get("error"),
             **started,
         }
+    subject = started.get("subject") or parsed.get("subject") or "mathematics"
     topic_pub = started["topic"]
-    if parsed["from_scratch"]:
+    if from_scratch:
         reply = (
             f"We will start {SUBJECT_TITLES.get(subject, subject)} from the beginning. "
             f"First topic only: {topic_pub['title']} ({topic_pub['band']}). "
