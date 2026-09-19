@@ -42,15 +42,25 @@ def run_tests():
         assert math["topic_count"] >= 150
         for sid in ("physics", "chemistry", "biology", "philosophy", "english", "french"):
             row = next(s for s in subjects if s["id"] == sid)
-            assert row["walkable"] is False
-            assert row["status"] == "skeleton"
+            assert row["walkable"] is True
+            assert row["status"] == "ready"
+            assert row["topic_count"] >= 70
         titles = " ".join(
             (t["title"] + " " + " ".join(t.get("aliases") or [])).lower()
             for t in tracks.MATH_TOPICS
         )
         missing = [k for k in REQUIRED if k not in titles]
         assert not missing, missing
+        assert tracks.first_topic("english")["title"] == "The English alphabet"
+        assert tracks.first_topic("french")["title"] == "L'alphabet français"
+        assert tracks.first_topic("physics")["title"] == "Our five senses"
+        assert tracks.first_topic("chemistry")["title"] == "Materials around us"
+        assert tracks.first_topic("biology")["title"] == "Living and nonliving"
+        assert tracks.first_topic("philosophy")["title"] == "Asking why"
         print(f"Math topics: {len(tracks.MATH_TOPICS)}")
+        print(f"Physics: {len(tracks.PHYSICS_TOPICS)} Chemistry: {len(tracks.CHEMISTRY_TOPICS)}")
+        print(f"Biology: {len(tracks.BIOLOGY_TOPICS)} Philosophy: {len(tracks.PHILOSOPHY_TOPICS)}")
+        print(f"English: {len(tracks.ENGLISH_TOPICS)} French: {len(tracks.FRENCH_TOPICS)}")
         print("Catalog PASSED\n")
 
         print("=== Intent ===")
@@ -63,6 +73,12 @@ def run_tests():
         assert alg["topic"] and alg["topic"]["band"] == "Algebra I"
         photo = tracks.parse_intent("How does Photosynthesis work?")
         assert photo["wants_track"] is False
+        teach_photo = tracks.parse_intent("teach me photosynthesis")
+        assert teach_photo["wants_track"] is True
+        assert teach_photo["subject"] == "biology"
+        assert teach_photo["topic"] and "photosynthesis" in teach_photo["topic"]["title"].lower()
+        letter_a = tracks.parse_intent("Practice reading the alphabet: Letter A")
+        assert letter_a["wants_track"] is False
         print("Intent PASSED\n")
 
         print("=== Start from scratch + one topic ===")
@@ -98,12 +114,29 @@ def run_tests():
         assert passed["topic"]["title"] != first["title"]
         print("Advance PASSED\n")
 
-        print("=== Skeleton subjects ===")
-        physics = tracks.start_track(STUDENT, "physics", from_scratch=True)
-        assert physics["success"] is False
-        assert physics["walkable"] is False
-        assert "Mathematics" in physics["error"]
-        print("Skeleton PASSED\n")
+        print("=== Physics / English walk + OKF ===")
+        phy = tracks.start_track(STUDENT, "physics", from_scratch=True)
+        assert phy["success"] is True
+        assert phy["topic"]["title"] == "Our five senses"
+        assert "ONE K-12 topic" in phy["topic"]["lesson_prompt"]
+        assert "GraphCard" in phy["topic"]["lesson_prompt"]
+        phy_next = tracks.next_topic("physics", phy["topic"]["id"])
+        phy_miss = tracks.apply_quiz(STUDENT, phy["topic"]["id"], False, question="What is a push?")
+        assert phy_miss["advanced"] is False
+        phy_txt = open(os.path.join(PROFILE_DIR, "subject_Physics.md"), encoding="utf-8").read()
+        assert "Our five senses" in phy_txt
+        phy_pass = tracks.apply_quiz(STUDENT, phy["topic"]["id"], True)
+        assert phy_pass["advanced"] is True
+        assert phy_pass["topic"]["id"] == phy_next["id"]
+
+        eng = tracks.handle_intent(STUDENT, "I want to learn english from scratch")
+        assert eng["matched"] is True
+        assert eng["topic"]["title"] == "The English alphabet"
+        assert "We will start English from the beginning" in eng["reply"]
+        assert "PronunciationCard" in eng["topic"]["lesson_prompt"]
+        state_txt = open(os.path.join(PROFILE_DIR, "session_state.md"), encoding="utf-8").read()
+        assert "The English alphabet" in state_txt
+        print("Other subjects PASSED\n")
 
         print("=== Intent handler ===")
         handled = tracks.handle_intent(STUDENT, "I want to learn math from scratch")

@@ -120,7 +120,8 @@ def run_test():
             data = json.loads(resp.read().decode("utf-8"))
             assert data.get("success") is True
             assert any(s.get("id") == "mathematics" and s.get("walkable") for s in data.get("subjects") or [])
-            assert any(s.get("id") == "physics" and not s.get("walkable") for s in data.get("subjects") or [])
+            assert any(s.get("id") == "physics" and s.get("walkable") for s in data.get("subjects") or [])
+            assert any(s.get("id") == "english" and s.get("walkable") for s in data.get("subjects") or [])
         print("GET tracks: PASSED!\n")
 
         print("Testing POST /api/gandal_space/track/intent...")

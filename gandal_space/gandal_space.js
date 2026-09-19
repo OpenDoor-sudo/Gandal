@@ -1077,12 +1077,12 @@ class GandalSpaceClient {
     const subjects = this._trackCatalog || [];
     const subjectBtns = (subjects.length ? subjects : [
       { id: "mathematics", title: "Mathematics", walkable: true },
-      { id: "physics", title: "Physics", walkable: false },
-      { id: "chemistry", title: "Chemistry", walkable: false },
-      { id: "biology", title: "Biology", walkable: false },
-      { id: "philosophy", title: "Philosophy", walkable: false },
-      { id: "english", title: "English", walkable: false },
-      { id: "french", title: "French", walkable: false }
+      { id: "physics", title: "Physics", walkable: true },
+      { id: "chemistry", title: "Chemistry", walkable: true },
+      { id: "biology", title: "Biology", walkable: true },
+      { id: "philosophy", title: "Philosophy", walkable: true },
+      { id: "english", title: "English", walkable: true },
+      { id: "french", title: "French", walkable: true }
     ]).map((s) => {
       const ready = s.walkable ? "ready" : "soon";
       return `<button type="button" class="gandal-track-subject ${ready}" data-subject="${escapeAttr(s.id)}" onclick="window.gandalSpaceApp.pickTrackSubject('${escapeAttr(s.id)}', ${s.walkable ? "true" : "false"})">${escapeHtml(s.title)}${s.walkable ? "" : " · soon"}</button>`;
@@ -1096,14 +1096,14 @@ class GandalSpaceClient {
           <input type="checkbox" id="gandalTrackFromScratch" checked />
           I am starting from scratch
         </label>
-        <input type="text" id="gandalTrackIntentInput" class="gandal-track-intent-input" placeholder="e.g. I want to learn math from scratch, or teach me fractions" />
+        <input type="text" id="gandalTrackIntentInput" class="gandal-track-intent-input" placeholder="e.g. I want to learn physics from scratch, or teach me the English alphabet" />
         <div class="gandal-track-intake-actions">
           <button type="button" class="gandal-track-btn primary" onclick="window.gandalSpaceApp.submitTrackIntent()">Start this topic</button>
         </div>
-        <p class="gandal-track-footnote">Free ask, Quiz me, Show graph, and Tableau Noir stay available. Only Mathematics is walkable end-to-end right now.</p>
+        <p class="gandal-track-footnote">Free ask, Quiz me, Show graph, and Tableau Noir stay available. All seven subjects walk K–12 one topic at a time.</p>
       </div>
     `;
-    this.appendGandhoBubble("What do you want to learn, and are you starting from scratch? Mathematics is ready; the other subjects are in the picker only.");
+    this.appendGandhoBubble("What do you want to learn, and are you starting from scratch? Mathematics, Physics, Chemistry, Biology, Philosophy, English, and French are ready.");
   }
 
   pickTrackSubject(subjectId, walkable) {
@@ -1113,7 +1113,7 @@ class GandalSpaceClient {
       input.value = subjectId === "mathematics" ? "I want to learn math from scratch" : `I want to learn ${subjectId}`;
     }
     if (!walkable) {
-      this.appendGandhoBubble(`${subjectId} is in the picker but not walkable yet. Mathematics is the full K–12 track in this build.`);
+      this.appendGandhoBubble(`${subjectId} is in the picker but not walkable yet.`);
     }
   }
 
@@ -1213,7 +1213,8 @@ class GandalSpaceClient {
           surface.appendChild(wrap);
         }
       } else if (data.correct && data.finished) {
-        this.appendGandhoBubble("You reached the end of the Mathematics track. Free-explore or pick another subject.");
+        const doneTitle = (this.trackState && this.trackState.topic && this.trackState.topic.subject_title) || "this";
+        this.appendGandhoBubble(`You reached the end of the ${doneTitle} track. Free-explore or pick another subject.`);
       } else if (!data.correct) {
         this.appendGandhoBubble("Recorded as a struggle in your OKF profile. Retry this quiz, then we advance.");
       }
