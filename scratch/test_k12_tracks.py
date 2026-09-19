@@ -89,6 +89,9 @@ def run_tests():
         assert started["topic"]["title"] == "Counting to 20"
         assert started["topic"]["index"] == 0
         assert "ONE K-12 topic" in started["topic"]["lesson_prompt"]
+        assert 'model_type "counting"' in started["topic"]["lesson_prompt"]
+        assert "TWO COLUMNS" in started["topic"]["lesson_prompt"]
+        assert "1:●" in started["topic"]["lesson_prompt"]
         progress = tracks.current_progress(STUDENT)
         assert progress["topic"]["id"] == first["id"]
         state_path = os.path.join(PROFILE_DIR, "session_state.md")

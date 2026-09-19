@@ -72,6 +72,119 @@ def gemini_model_name() -> str:
     return os.environ.get("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL
 
 
+_COUNTING_DOT_RE = re.compile(r"\d+\s*:\s*[●•○◉⚫⬤]+")
+_COUNTING_TO_RE = re.compile(r"\bcount(?:ing)?\s+to\s+(\d+)\b", re.I)
+_SKIP_COUNT_RE = re.compile(r"\bskip[\s-]?count", re.I)
+_PROTECTED_GRAPH_PREFIXES = ("geometry_", "physics_", "chemistry_")
+
+
+def looks_like_inline_counting_chart(text: str) -> bool:
+    """True when the model dumped a wrapping '1:● 2:●● …' chart."""
+    return len(_COUNTING_DOT_RE.findall(text or "")) >= 2
+
+
+def is_counting_lesson(text: str) -> bool:
+    """Counting-to-N / one-to-one dots — not skip-counting or other graphs."""
+    t = text or ""
+    if looks_like_inline_counting_chart(t):
+        return True
+    if _SKIP_COUNT_RE.search(t):
+        return False
+    if _COUNTING_TO_RE.search(t):
+        return True
+    if re.search(r"\beach number represents a quantity\b", t, re.I):
+        return True
+    return False
+
+
+def parse_counting_max(text: str, default: int = 20) -> int:
+    m = _COUNTING_TO_RE.search(text or "")
+    if m:
+        return max(1, min(20, int(m.group(1))))
+    nums = [int(n) for n in re.findall(r"(\d+)\s*:\s*[●•○◉⚫⬤]", text or "")]
+    if nums:
+        return max(1, min(20, max(nums)))
+    return default
+
+
+def strip_inline_counting_chart(text: str) -> str:
+    if not text:
+        return ""
+    cleaned = re.sub(r"(?:\d+\s*:\s*[●•○◉⚫⬤]+\s*)+", " ", text)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def counting_graph_card(query: str = "", count: Optional[int] = None) -> Dict[str, Any]:
+    n = count if isinstance(count, int) and count >= 1 else parse_counting_max(query, 20)
+    n = max(1, min(20, n))
+    return {
+        "type": "GraphCard",
+        "model_type": "counting",
+        "count": n,
+        "title": f"Counting to {n}",
+        "formula": "",
+        "description": (
+            "Each number is a row. The left column is the numeral. "
+            "The right column shows that many dots."
+        ),
+    }
+
+
+def apply_counting_card(card: Dict[str, Any], blob: str) -> None:
+    n = 0
+    try:
+        n = int(card.get("count") or 0)
+    except (TypeError, ValueError):
+        n = 0
+    if n < 1:
+        n = parse_counting_max(blob, 20)
+    card["model_type"] = "counting"
+    card["count"] = n
+    formula = card.get("formula") or ""
+    if looks_like_inline_counting_chart(formula) or re.search(r"\d+\s*:\s*[●•○◉⚫⬤]", formula):
+        card["formula"] = ""
+    desc = card.get("description") or ""
+    if desc:
+        card["description"] = strip_inline_counting_chart(desc)
+
+
+def normalize_counting_graph_cards(payload: Dict[str, Any], query: str) -> Dict[str, Any]:
+    """Force counting lessons onto a two-column GraphCard; strip wrapping 1:● 2:●● text."""
+    if not isinstance(payload, dict):
+        return payload
+    children = payload.get("children")
+    if not isinstance(children, list):
+        return payload
+    blob_all = f"{query} {payload.get('title') or ''}"
+    for child in children:
+        if not isinstance(child, dict):
+            continue
+        if child.get("type") == "TextBlock" and looks_like_inline_counting_chart(child.get("content") or ""):
+            child["content"] = strip_inline_counting_chart(child.get("content") or "")
+        if child.get("type") != "GraphCard":
+            continue
+        existing = (child.get("model_type") or "")
+        card_blob = f"{child.get('formula') or ''} {child.get('description') or ''} {child.get('title') or ''} {blob_all}"
+        is_count_type = existing in ("counting", "count_dots", "count")
+        steal_ok = not existing.startswith(_PROTECTED_GRAPH_PREFIXES)
+        if is_count_type or (steal_ok and is_counting_lesson(card_blob)):
+            apply_counting_card(child, card_blob)
+    has_counting = any(
+        isinstance(c, dict)
+        and c.get("type") == "GraphCard"
+        and (c.get("model_type") or "") in ("counting", "count_dots", "count")
+        for c in children
+    )
+    if not has_counting and is_counting_lesson(blob_all):
+        quiz_idx = next(
+            (i for i, c in enumerate(children) if isinstance(c, dict) and c.get("type") == "QuizCard"),
+            len(children),
+        )
+        children.insert(quiz_idx, counting_graph_card(blob_all))
+    payload["children"] = children
+    return payload
+
+
 def _placeholder_api_key(key: Optional[str]) -> bool:
     if not key or len(key.strip()) < 8:
         return True
@@ -158,9 +271,10 @@ Available A2UI Components:
 6. GraphCard (MANDATORY for Math, Geometry, Physics, and Chemistry):
    {
      "type": "GraphCard",
-     "model_type": "geometry_triangle" | "geometry_circle" | "geometry_pythagoras" | "geometry_ellipse" | "geometry_rectangle" | "geometry_square" | "geometry_polygon" | "physics_projectile" | "physics_newton" | "chemistry_titration" | "chemistry_kinetics" | "function_plot",
-     "title": "Interactive Model: Triangle ABC / Function / Simulation",
+     "model_type": "geometry_triangle" | "geometry_circle" | "geometry_pythagoras" | "geometry_ellipse" | "geometry_rectangle" | "geometry_square" | "geometry_polygon" | "physics_projectile" | "physics_newton" | "chemistry_titration" | "chemistry_kinetics" | "function_plot" | "counting",
+     "title": "Interactive Model: Triangle ABC / Function / Simulation / Counting to 20",
      "formula": "triangle" | "circle" | "sgn(x)" | "x^2" | "sin(x)" | "F = ma",
+     "count": 20,
      "theorem": "\\angle A + \\angle B + \\angle C = 180^\\circ \\quad | \\quad \\text{Area} = \\frac{1}{2}bh",
      "domain": [-1, 6],
      "range": [-1, 5],
@@ -197,6 +311,7 @@ CRITICAL RULES:
 - LATEX MATH: For all mathematical variables, equations, integrals, and formulas, ALWAYS format with LaTeX math delimiters: inline with $...$ and block with $$...$$ (e.g. $f'(x) = nx^{n-1}$, $\\frac{d}{dx}(x^3) = 3x^2$, $\\angle A + \\angle B + \\angle C = 180^\\circ$). Never output raw unescaped math without delimiters.
 - SUGGESTED FOLLOW-UPS: Always provide 2 to 3 enticing 'suggested_followups' that allow the student to explore deeper or test variations of the concept.
 - For math queries (e.g. 'area(x^2, 0, 2)'): ALWAYS provide FormulaCard with step-by-step calculus integration and exact fraction + decimal answer.
+- COUNTING / ONE-TO-ONE (Counting to 10 or 20): Use GraphCard with model_type "counting" and count: N. The UI draws a TWO-COLUMN list — numeral on the left, that many dots on the right, one row per number. NEVER write wrapping inline charts like "1:● 2:●● 3:●●●" in formula, description, or TextBlock.
 - For reading/phonics practice: Use PronunciationCard with warm, encouraging prompts and phoneme details.
 - Always be pedagogical, accurate, structured, and inspiring.
 """
@@ -345,6 +460,24 @@ class GandalSpaceEngine:
         match = re.search(r"Topic:\s*([^\n.]+)", prompt or "")
         if match:
             topic = match.group(1).strip()
+        children: list = [
+            {
+                "type": "TextBlock",
+                "content": (
+                    f"This lesson is served by Gemini (online cloud fallback) because "
+                    f"Gemma is not running. Topic: {topic}."
+                ),
+            },
+        ]
+        if is_counting_lesson(f"{prompt} {topic}"):
+            children.append(counting_graph_card(f"{prompt} {topic}"))
+        children.append({
+            "type": "QuizCard",
+            "question": f"Ready to practice {topic}?",
+            "options": ["Yes — quiz me on this topic", "Skip", "Change subject"],
+            "answer_index": 0,
+            "explanation": "Stay on this one topic, then advance.",
+        })
         return {
             "type": "Container",
             "direction": "vertical",
@@ -352,22 +485,7 @@ class GandalSpaceEngine:
             "subject": "General",
             "summary": "Gemini online fallback (stub). Gemma is not required.",
             "suggested_followups": ["Give me a practice problem", "Explain this more simply"],
-            "children": [
-                {
-                    "type": "TextBlock",
-                    "content": (
-                        f"This lesson is served by Gemini (online cloud fallback) because "
-                        f"Gemma is not running. Topic: {topic}."
-                    ),
-                },
-                {
-                    "type": "QuizCard",
-                    "question": f"Ready to practice {topic}?",
-                    "options": ["Yes — quiz me on this topic", "Skip", "Change subject"],
-                    "answer_index": 0,
-                    "explanation": "Stay on this one topic, then advance.",
-                },
-            ],
+            "children": children,
         }
 
     def _query_gemini_rest(self, prompt: str) -> Optional[Dict[str, Any]]:
@@ -468,6 +586,43 @@ class GandalSpaceEngine:
     def _generate_fallback_blueprint(self, prompt: str, reason: str = "") -> Optional[Dict[str, Any]]:
         """Known-topic curriculum cards only. Returns None instead of fake biology text."""
         p_lower = prompt.lower()
+
+        if is_counting_lesson(prompt):
+            n = parse_counting_max(prompt, 20)
+            return {
+                "type": "Container",
+                "direction": "vertical",
+                "title": f"Counting to {n}",
+                "subject": "Math",
+                "summary": (
+                    f"Each number from 1 to {n} stands for that many things. "
+                    "Read the numeral on the left and count the dots on the right."
+                ),
+                "suggested_followups": [
+                    f"Can you count from 1 to {n} out loud?",
+                    "What number comes right after 9?",
+                    "How many dots are in the row for 5?",
+                ],
+                "children": [
+                    {
+                        "type": "TextBlock",
+                        "content": (
+                            f"### Counting to {n}\n\n"
+                            "A number tells **how many**. The chart has two columns: "
+                            "the **numeral** on the left, and **that many dots** on the right. "
+                            "Point to each row and count the dots."
+                        ),
+                    },
+                    counting_graph_card(prompt, n),
+                    {
+                        "type": "QuizCard",
+                        "question": "How many dots should stand next to the number 4?",
+                        "options": ["3", "4", "5", "10"],
+                        "answer_index": 1,
+                        "explanation": "The number 4 means four things — four dots in that row.",
+                    },
+                ],
+            }
         
         # Check if it's sign function / sgn
         if "sign" in p_lower or "sgn" in p_lower or "signum" in p_lower:
@@ -1114,6 +1269,11 @@ class GandalSpaceEngine:
                 children = [c for c in children if not (isinstance(c, dict) and c.get("type") == "GraphCard")]
                 payload["children"] = children
                 has_graph = False
+
+            # Counting-to-N: two-column numeral | dots (never wrapping 1:● 2:●●)
+            payload = normalize_counting_graph_cards(payload, query)
+            children = payload.get("children") if isinstance(payload.get("children"), list) else children
+            has_graph = any(isinstance(c, dict) and c.get("type") == "GraphCard" for c in children)
 
             # If Gemini returned a GraphCard without model_type, tag it properly
             if has_graph and not is_non_stem_topic:

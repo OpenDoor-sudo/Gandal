@@ -99,6 +99,23 @@ def run_test():
             assert "Comprehensive educational overview" not in json.dumps(data)
         print("POST ask photosynthesis: PASSED!\n")
 
+        print("Testing POST /api/gandal_space/ask Counting to 20...")
+        count_data = json.dumps({"prompt": "Counting to 20"}).encode("utf-8")
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/gandal_space/ask",
+            data=count_data,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            kids = (data.get("ui_payload") or {}).get("children") or []
+            graphs = [c for c in kids if c.get("type") == "GraphCard"]
+            assert data.get("success") is True
+            assert graphs and graphs[0].get("model_type") == "counting"
+            assert graphs[0].get("count") == 20
+            assert "1:" not in (graphs[0].get("formula") or "")
+        print("POST ask Counting to 20: PASSED!\n")
+
         print("Testing POST /api/gandal_space/chat (honest failure)...")
         chat_data = json.dumps({"message": "Why is the sky blue?"}).encode("utf-8")
         req = urllib.request.Request(
@@ -138,6 +155,8 @@ def run_test():
             assert data.get("success") is True
             assert data.get("topic", {}).get("title") == "Counting to 20"
             assert "ONE K-12 topic" in (data.get("topic") or {}).get("lesson_prompt", "")
+            assert 'model_type "counting"' in (data.get("topic") or {}).get("lesson_prompt", "")
+            assert "TWO COLUMNS" in (data.get("topic") or {}).get("lesson_prompt", "")
         print("POST track intent: PASSED!\n")
 
         print("Testing POST /api/gandal_space/track/start...")
@@ -164,6 +183,8 @@ def run_test():
             css_text = resp.read().decode("utf-8")
             assert "gandal-search-bar-pill" in css_text
             assert "gandal-track-bar" in css_text
+            assert "a2ui-counting-chart" in css_text
+            assert "a2ui-counting-row" in css_text
         print("GET gandal_space.css: PASSED!\n")
 
         print("Testing GET /gandal_space/gandal_space.js...")
@@ -177,6 +198,9 @@ def run_test():
             assert "gandalTrackStartBtn" in js_text
             assert "startSelectedTrack" in js_text
             assert "startGandalK12Track" in js_text
+            assert "isCountingGraph" in js_text
+            assert "buildCountingGraphCard" in js_text
+            assert "a2ui-counting-row" in js_text
         print("GET gandal_space.js: PASSED!\n")
 
         print("=== ALL LIVE HTTP ENDPOINT TESTS PASSED! ===")

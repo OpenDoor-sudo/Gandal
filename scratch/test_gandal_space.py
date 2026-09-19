@@ -232,6 +232,56 @@ def run_tests():
     os.environ.pop("GANDAL_SPACE_GEMINI_STUB", None)
     print("Test 8 PASSED!\n")
 
+    print("=== TEST 9: Counting GraphCard is two-column; other graphs unchanged ===")
+    res_count = engine.process_query("Counting to 20")
+    assert res_count["success"] is True
+    kids = (res_count.get("ui_payload") or {}).get("children") or []
+    count_graphs = [c for c in kids if c.get("type") == "GraphCard"]
+    assert len(count_graphs) == 1
+    assert count_graphs[0].get("model_type") == "counting"
+    assert count_graphs[0].get("count") == 20
+    assert "1:" not in (count_graphs[0].get("formula") or "")
+    assert "●" not in (count_graphs[0].get("formula") or "")
+
+    wrapped = {
+        "type": "Container",
+        "title": "Each number represents a quantity.",
+        "children": [{
+            "type": "GraphCard",
+            "model_type": "function_plot",
+            "title": "Each number represents a quantity.",
+            "formula": "1:● 2:●● 3:●●● 4:●●●● 5:●●●●●",
+            "description": "This interactive visual shows a group of objects. 1:● 2:●● 3:●●●",
+        }],
+    }
+    out = ae.normalize_counting_graph_cards(wrapped, "Counting to 20")
+    g = out["children"][0]
+    assert g["model_type"] == "counting"
+    assert g["count"] == 20
+    assert "1:" not in (g.get("formula") or "")
+    assert "1:" not in (g.get("description") or "")
+    assert "This interactive visual shows a group of objects." in (g.get("description") or "")
+
+    geo = {
+        "type": "Container",
+        "title": "Triangle",
+        "children": [{
+            "type": "GraphCard",
+            "model_type": "geometry_triangle",
+            "title": "Triangle ABC",
+            "formula": "triangle",
+        }],
+    }
+    geo_out = ae.normalize_counting_graph_cards(geo, "triangle")
+    assert geo_out["children"][0]["model_type"] == "geometry_triangle"
+
+    res_area = engine.process_query("area(x^2, 0, 2)")
+    area_graphs = [c for c in (res_area.get("ui_payload") or {}).get("children") or [] if c.get("type") == "GraphCard"]
+    assert area_graphs
+    assert area_graphs[0].get("model_type") != "counting"
+    assert area_graphs[0].get("formula") == "x^2"
+    print("Test 9 PASSED!\n")
+
     print("=== ALL AUTOMATED TESTS PASSED! ===")
 
 

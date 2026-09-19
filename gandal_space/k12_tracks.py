@@ -1091,6 +1091,15 @@ def lesson_prompt(
         "french": "Use PronunciationCard for alphabet, accents, and speaking. Include French examples. Do not invent graphs.",
     }
     extra = extras.get(sid, "Use GraphCard or FormulaCard only when they truly help.")
+    tid = (topic.get("id") or "")
+    title = (topic.get("title") or "").lower()
+    if tid == "math.k2.counting" or "counting to 20" in title:
+        extra = (
+            'Use a GraphCard with model_type "counting" and count: 20. '
+            "The UI draws TWO COLUMNS: numeral on the left, that many dots on the right, "
+            "one row per number from 1 to 20. "
+            "Do NOT write wrapping inline text like 1:● 2:●● 3:●●● in formula, description, or body."
+        )
     return (
         f"Teach this ONE K-12 topic as a Gandal Space A2UI lesson. "
         f"Topic: {topic['title']}. Band: {topic.get('band')}. "

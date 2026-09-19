@@ -628,6 +628,55 @@ function inferQuizBankKey(topic, modelType) {
   return "default";
 }
 
+function looksLikeInlineCountingChart(text) {
+  if (!text) return false;
+  const matches = String(text).match(/\d+\s*:\s*[●•○◉⚫⬤]+/g);
+  return !!(matches && matches.length >= 2);
+}
+
+function stripInlineCountingChart(text) {
+  if (!text) return "";
+  return String(text)
+    .replace(/(?:\d+\s*:\s*[●•○◉⚫⬤]+\s*)+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseCountingMax(comp) {
+  const n = Number(comp && comp.count);
+  if (Number.isFinite(n) && n >= 1 && n <= 20) return Math.floor(n);
+  const blob = `${(comp && comp.formula) || ""} ${(comp && comp.description) || ""} ${(comp && comp.title) || ""}`;
+  const toMatch = blob.match(/count(?:ing)?\s+to\s+(\d+)/i);
+  if (toMatch) {
+    const v = parseInt(toMatch[1], 10);
+    if (v >= 1 && v <= 20) return v;
+  }
+  let maxN = 0;
+  const re = /(\d+)\s*:\s*[●•○◉⚫⬤]/g;
+  let m;
+  while ((m = re.exec(blob))) {
+    const v = parseInt(m[1], 10);
+    if (v > maxN) maxN = v;
+  }
+  if (maxN >= 1) return Math.min(20, maxN);
+  return 20;
+}
+
+function isCountingGraph(comp) {
+  if (!comp || typeof comp !== "object") return false;
+  const mt = String(comp.model_type || "").toLowerCase();
+  if (mt === "counting" || mt === "count_dots" || mt === "count") return true;
+  if (mt.indexOf("geometry_") === 0 || mt.indexOf("physics_") === 0 || mt.indexOf("chemistry_") === 0) {
+    return false;
+  }
+  const blob = `${comp.formula || ""} ${comp.description || ""} ${comp.title || ""}`;
+  if (/skip[\s-]?count/i.test(blob) && !looksLikeInlineCountingChart(blob)) return false;
+  if (looksLikeInlineCountingChart(blob)) return true;
+  if (/count(?:ing)?\s+to\s+\d+/i.test(blob)) return true;
+  if (/each number represents a quantity/i.test(blob)) return true;
+  return false;
+}
+
 function inferGeometryModelType(comp, topic) {
   const t = `${topic || ""} ${(comp && comp.model_type) || ""} ${(comp && comp.formula) || ""} ${(comp && comp.title) || ""}`.toLowerCase();
   if (/ellips/.test(t)) return "geometry_ellipse";
@@ -2736,7 +2785,45 @@ class GandalSpaceClient {
     return card;
   }
 
+  buildCountingGraphCard(comp) {
+    const card = document.createElement("div");
+    card.className = "a2ui-card a2ui-graph-card a2ui-counting-card";
+    const n = parseCountingMax(comp);
+    const titleHtml = this.formatMarkdown(comp.title || `Counting to ${n}`);
+    const rawDesc = looksLikeInlineCountingChart(comp.description || "")
+      ? stripInlineCountingChart(comp.description || "")
+      : (comp.description || "");
+    const descHtml = rawDesc ? this.formatMarkdown(rawDesc) : "";
+    const rows = [];
+    for (let i = 1; i <= n; i++) {
+      rows.push(
+        `<div class="a2ui-counting-row" role="listitem">` +
+          `<span class="a2ui-counting-numeral">${i}</span>` +
+          `<span class="a2ui-counting-dots" aria-label="${i} dots">${"●".repeat(i)}</span>` +
+        `</div>`
+      );
+    }
+    const graphDiscussPrompt = comp.title || `counting to ${n}`;
+    card.innerHTML = `
+      <div class="a2ui-card-top">
+        <h3 class="a2ui-card-title">${titleHtml}</h3>
+        <span class="a2ui-card-badge" style="background: rgba(56, 189, 248, 0.2); color: #7dd3fc;">🔢 Counting Chart</span>
+      </div>
+      ${descHtml ? `<p class="a2ui-card-content" style="margin-bottom: 12px;">${descHtml}</p>` : ""}
+      <div class="a2ui-counting-chart" role="list">${rows.join("")}</div>
+      <div class="a2ui-graph-actions">
+        <button class="a2ui-discuss-btn" style="margin-top: 0;" onclick="window.gandalSpaceApp.askGandhoAboutTopic('${escapeAttr(graphDiscussPrompt)}')">
+          🎙️ Ask Gandho to Explain This Model
+        </button>
+      </div>
+    `;
+    return card;
+  }
+
   buildGraphCard(comp) {
+    if (isCountingGraph(comp)) {
+      return this.buildCountingGraphCard(comp);
+    }
     const cardId = "graph_" + Math.random().toString(36).substring(2, 9);
     const card = document.createElement("div");
     card.className = "a2ui-card a2ui-graph-card";
