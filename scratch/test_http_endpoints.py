@@ -140,6 +140,23 @@ def run_test():
             assert "ONE K-12 topic" in (data.get("topic") or {}).get("lesson_prompt", "")
         print("POST track intent: PASSED!\n")
 
+        print("Testing POST /api/gandal_space/track/start...")
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/gandal_space/track/start",
+            data=json.dumps({
+                "student_id": "HttpTrackTest",
+                "subject": "physics",
+                "from_scratch": True
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            assert data.get("success") is True
+            assert data.get("topic", {}).get("title") == "Our five senses"
+            assert "ONE K-12 topic" in (data.get("topic") or {}).get("lesson_prompt", "")
+        print("POST track start: PASSED!\n")
+
         # 3. Test Static files
         print("Testing GET /gandal_space/gandal_space.css...")
         with urllib.request.urlopen(f"http://127.0.0.1:{TEST_PORT}/gandal_space/gandal_space.css", timeout=5) as resp:
@@ -155,6 +172,9 @@ def run_test():
             js_text = resp.read().decode("utf-8")
             assert "GandalSpaceClient" in js_text
             assert "openTrackIntake" in js_text
+            assert "bindTrackIntake" in js_text
+            assert "gandalTrackStartBtn" in js_text
+            assert "startSelectedTrack" in js_text
         print("GET gandal_space.js: PASSED!\n")
 
         print("=== ALL LIVE HTTP ENDPOINT TESTS PASSED! ===")

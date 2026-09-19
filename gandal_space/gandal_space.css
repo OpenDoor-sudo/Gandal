@@ -2626,6 +2626,12 @@
   border-color: rgba(52, 211, 153, 0.45);
 }
 
+.gandal-track-subject.selected {
+  background: rgba(168, 85, 247, 0.28);
+  border-color: rgba(168, 85, 247, 0.6);
+  color: #f5d0fe;
+}
+
 .gandal-track-subject.soon {
   opacity: 0.65;
 }

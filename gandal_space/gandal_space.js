@@ -1085,32 +1085,74 @@ class GandalSpaceClient {
       { id: "french", title: "French", walkable: true }
     ]).map((s) => {
       const ready = s.walkable ? "ready" : "soon";
-      return `<button type="button" class="gandal-track-subject ${ready}" data-subject="${escapeAttr(s.id)}" onclick="window.gandalSpaceApp.pickTrackSubject('${escapeAttr(s.id)}', ${s.walkable ? "true" : "false"})">${escapeHtml(s.title)}${s.walkable ? "" : " · soon"}</button>`;
+      return `<button type="button" class="gandal-track-subject ${ready}" data-subject="${escapeAttr(s.id)}">${escapeHtml(s.title)}${s.walkable ? "" : " · soon"}</button>`;
     }).join("");
     surface.innerHTML = `
-      <div class="gandal-track-intake" id="gandalTrackIntake">
+      <form class="gandal-track-intake" id="gandalTrackIntake" action="#" method="post">
         <h3>What do you want to learn?</h3>
         <p>Tell Gandho the subject (and if you are starting from scratch). The full catalog stays hidden — you will see <strong>one topic</strong> at a time, then a quiz, then the next topic.</p>
-        <div class="gandal-track-subjects">${subjectBtns}</div>
+        <div class="gandal-track-subjects" id="gandalTrackSubjects">${subjectBtns}</div>
         <label class="gandal-track-scratch">
           <input type="checkbox" id="gandalTrackFromScratch" checked />
           I am starting from scratch
         </label>
         <input type="text" id="gandalTrackIntentInput" class="gandal-track-intent-input" placeholder="e.g. I want to learn physics from scratch, or teach me the English alphabet" />
         <div class="gandal-track-intake-actions">
-          <button type="button" class="gandal-track-btn primary" onclick="window.gandalSpaceApp.submitTrackIntent()">Start this topic</button>
+          <button type="submit" class="gandal-track-btn primary" id="gandalTrackStartBtn">Start this topic</button>
         </div>
         <p class="gandal-track-footnote">Free ask, Quiz me, Show graph, and Tableau Noir stay available. All seven subjects walk K–12 one topic at a time.</p>
-      </div>
+      </form>
     `;
+    this.bindTrackIntake();
     this.appendGandhoBubble("What do you want to learn, and are you starting from scratch? Mathematics, Physics, Chemistry, Biology, Philosophy, English, and French are ready.");
+  }
+
+  bindTrackIntake() {
+    const form = document.getElementById("gandalTrackIntake");
+    const startBtn = document.getElementById("gandalTrackStartBtn");
+    const scratchEl = document.getElementById("gandalTrackFromScratch");
+    const start = () => this.submitTrackIntent();
+    if (form) {
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        start();
+      });
+    }
+    if (startBtn) {
+      startBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        start();
+      });
+    }
+    document.querySelectorAll("#gandalTrackSubjects .gandal-track-subject").forEach((btn) => {
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        this.pickTrackSubject(btn.getAttribute("data-subject"), btn.classList.contains("ready"));
+      });
+    });
+    if (scratchEl) {
+      scratchEl.addEventListener("change", () => {
+        if (this._pendingTrackSubject) {
+          this.pickTrackSubject(this._pendingTrackSubject, true);
+        }
+      });
+    }
+    this.pickTrackSubject(this._pendingTrackSubject || "mathematics", true);
   }
 
   pickTrackSubject(subjectId, walkable) {
     this._pendingTrackSubject = subjectId;
     const input = document.getElementById("gandalTrackIntentInput");
+    const scratchEl = document.getElementById("gandalTrackFromScratch");
+    const fromScratch = !scratchEl || scratchEl.checked;
+    document.querySelectorAll("#gandalTrackSubjects .gandal-track-subject").forEach((btn) => {
+      btn.classList.toggle("selected", btn.getAttribute("data-subject") === subjectId);
+    });
     if (input && walkable) {
-      input.value = subjectId === "mathematics" ? "I want to learn math from scratch" : `I want to learn ${subjectId}`;
+      const base = subjectId === "mathematics" ? "I want to learn math" : `I want to learn ${subjectId}`;
+      input.value = fromScratch ? `${base} from scratch` : base;
     }
     if (!walkable) {
       this.appendGandhoBubble(`${subjectId} is in the picker but not walkable yet.`);
@@ -1118,19 +1160,65 @@ class GandalSpaceClient {
   }
 
   async submitTrackIntent(customMessage) {
-    const input = document.getElementById("gandalTrackIntentInput");
-    const scratchEl = document.getElementById("gandalTrackFromScratch");
-    let message = (typeof customMessage === "string" && customMessage.trim()) ? customMessage.trim() : (input ? input.value.trim() : "");
-    if (!message && this._pendingTrackSubject) {
-      message = this._pendingTrackSubject === "mathematics" ? "I want to learn math" : `I want to learn ${this._pendingTrackSubject}`;
+    if (this._startingTrack) return false;
+    this._startingTrack = true;
+    try {
+      const input = document.getElementById("gandalTrackIntentInput");
+      const scratchEl = document.getElementById("gandalTrackFromScratch");
+      const fromScratch = !scratchEl || scratchEl.checked;
+      let message = (typeof customMessage === "string" && customMessage.trim()) ? customMessage.trim() : (input ? input.value.trim() : "");
+      if (this._pendingTrackSubject) {
+        return await this.startSelectedTrack(this._pendingTrackSubject, fromScratch);
+      }
+      if (!message) {
+        message = fromScratch ? "I want to learn math from scratch" : "I want to learn math";
+      } else if (fromScratch && !/scratch|début|zero|beginner/i.test(message)) {
+        message = `${message} from scratch`;
+      }
+      const started = await this.applyTrackIntent(message);
+      if (started) return true;
+      return await this.startSelectedTrack("mathematics", fromScratch);
+    } finally {
+      this._startingTrack = false;
     }
-    if (scratchEl && scratchEl.checked && message && !/scratch|début|zero|beginner/i.test(message)) {
-      message = `${message} from scratch`;
+  }
+
+  async startSelectedTrack(subjectId, fromScratch) {
+    try {
+      const resp = await fetch("/api/gandal_space/track/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: subjectId || "mathematics",
+          from_scratch: !!fromScratch
+        })
+      });
+      const data = await resp.json();
+      return this.activateTrackResult(data, !!fromScratch);
+    } catch (e) {
+      console.warn("[GANDAL TRACK] start", e);
+      this.appendGandhoBubble("Could not start that topic. Try again.");
+      return false;
     }
-    if (!message) {
-      message = "I want to learn math from scratch";
+  }
+
+  activateTrackResult(data, fromScratch) {
+    if (!data || !data.success || !data.topic) {
+      this.appendGandhoBubble((data && (data.reply || data.error)) || "Could not start that topic.");
+      return true;
     }
-    return this.applyTrackIntent(message);
+    this.trackMode = true;
+    this.trackState = data;
+    this.applyTrackChrome();
+    const topic = data.topic;
+    const title = topic.subject_title || "this subject";
+    this.appendGandhoBubble(data.reply || (fromScratch
+      ? `We will start ${title} from the beginning. First topic only: ${topic.title} (${topic.band}). The rest of the track stays hidden. Quiz, then we move on.`
+      : `One topic at a time: ${topic.title} (${topic.band}, ${(topic.index || 0) + 1} of ${topic.total}). Quiz when you are ready and I will advance you.`));
+    if (topic.lesson_prompt) {
+      this.loadTrackLesson(topic.lesson_prompt);
+    }
+    return true;
   }
 
   async applyTrackIntent(message) {
@@ -1142,18 +1230,7 @@ class GandalSpaceClient {
       });
       const data = await resp.json();
       if (!data.matched) return false;
-      if (!data.success) {
-        this.appendGandhoBubble(data.reply || data.error || "That track is not walkable yet.");
-        return true;
-      }
-      this.trackMode = true;
-      this.trackState = data;
-      this.applyTrackChrome();
-      this.appendGandhoBubble(data.reply || `One topic: ${data.topic && data.topic.title}`);
-      if (data.topic && data.topic.lesson_prompt) {
-        await this.loadTrackLesson(data.topic.lesson_prompt);
-      }
-      return true;
+      return this.activateTrackResult(data, !!(data.from_scratch));
     } catch (e) {
       console.warn("[GANDAL TRACK] intent", e);
       return false;
