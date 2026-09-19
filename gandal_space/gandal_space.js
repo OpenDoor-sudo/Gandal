@@ -747,6 +747,9 @@ class GandalSpaceClient {
     this._wbQuizCardId = null;
     this._wbQuizSet = [];
     this._wbQuizIndex = 0;
+    this.trackMode = false;
+    this.trackState = null;
+    this._loadingTrackLesson = false;
   }
 
   init() {
@@ -759,6 +762,7 @@ class GandalSpaceClient {
     this.checkEngineStatus();
     this.initSpeechRecognition();
     this.initConvoRecognition();
+    this.refreshTrackState();
   }
 
   renderSkeleton() {
@@ -780,14 +784,25 @@ class GandalSpaceClient {
               <span id="statusText">Checking intelligence engine...</span>
             </div>
 
-            <!-- Starter Topic Chips -->
-            <div class="gandal-quick-topics" style="margin-top: 6px;">
+            <!-- Starter Topic Chips (hidden while a K-12 track is active) -->
+            <div class="gandal-quick-topics" id="gandalQuickTopics" style="margin-top: 6px;">
               <span class="quick-topic-chip" onclick="window.gandalSpaceApp.selectPrompt('what is a sign function?')">📈 Sign Function sgn(x)</span>
               <span class="quick-topic-chip" onclick="window.gandalSpaceApp.selectPrompt('area(x^2, 0, 2)')">📐 area(x^2, 0, 2)</span>
               <span class="quick-topic-chip" onclick="window.gandalSpaceApp.selectPrompt('Practice reading the alphabet: Letter A')">🔤 Letter 'A' Phonics</span>
               <span class="quick-topic-chip" onclick="window.gandalSpaceApp.selectPrompt('Explain Newton\\'s 2nd Law of Motion')">⚛️ Newton's 2nd Law</span>
               <span class="quick-topic-chip" onclick="window.gandalSpaceApp.selectPrompt('How does Photosynthesis work?')">🌿 Photosynthesis</span>
               <span class="quick-topic-chip" onclick="window.gandalSpaceApp.selectPrompt('Summary of the French Revolution')">🏛️ French Revolution</span>
+              <span class="quick-topic-chip gandal-track-chip" onclick="window.gandalSpaceApp.openTrackIntake()">🎓 K-12 Track</span>
+            </div>
+            <div class="gandal-track-bar" id="gandalTrackBar" hidden>
+              <div class="gandal-track-bar-main">
+                <span class="gandal-track-kicker">K-12 track · one topic</span>
+                <strong id="gandalTrackTitle">Mathematics</strong>
+                <span id="gandalTrackMeta">Tell Gandho what you want to learn</span>
+              </div>
+              <div class="gandal-track-bar-actions">
+                <button type="button" class="gandal-track-btn" onclick="window.gandalSpaceApp.leaveTrack()">Leave track</button>
+              </div>
             </div>
           </header>
 
@@ -843,6 +858,7 @@ class GandalSpaceClient {
                 <div class="gandal-add-item" onclick="window.gandalSpaceApp.selectPrompt('Explain Newton\\'s 2nd Law with examples')">⚛️ Physics: Newton's 2nd Law</div>
                 <div class="gandal-add-item" onclick="window.gandalSpaceApp.selectPrompt('How does photosynthesis work?')">🌿 Biology: Photosynthesis</div>
                 <div class="gandal-add-item" onclick="window.gandalSpaceApp.selectPrompt('Summary of the French Revolution')">📜 History: French Revolution</div>
+                <div class="gandal-add-item" onclick="window.gandalSpaceApp.openTrackIntake()">🎓 Start a K-12 track</div>
               </div>
 
               <!-- Main Input Field (Type or Speak Question) -->
@@ -1012,6 +1028,197 @@ class GandalSpaceClient {
       const text = document.getElementById("statusText");
       if (dot) dot.className = "status-dot offline";
       if (text) text.innerText = "Gemma 4 E4B not running on :8080";
+    }
+  }
+
+  /* ------------------------------------------------------------------------
+     ADDITIVE K-12 TRACK (one topic at a time; free ask still works)
+     ------------------------------------------------------------------------ */
+  applyTrackChrome() {
+    const chips = document.getElementById("gandalQuickTopics");
+    const bar = document.getElementById("gandalTrackBar");
+    const title = document.getElementById("gandalTrackTitle");
+    const meta = document.getElementById("gandalTrackMeta");
+    const topic = this.trackState && this.trackState.topic;
+    if (this.trackMode && topic) {
+      if (chips) chips.style.display = "none";
+      if (bar) bar.hidden = false;
+      if (title) title.innerText = `${topic.subject_title || "Mathematics"} · ${topic.title}`;
+      if (meta) {
+        meta.innerText = `${topic.band || ""} · ${topic.index + 1} of ${topic.total} · quiz then advance`;
+      }
+    } else {
+      if (chips) chips.style.display = "";
+      if (bar) bar.hidden = true;
+    }
+  }
+
+  async refreshTrackState() {
+    try {
+      const resp = await fetch("/api/gandal_space/tracks");
+      if (!resp.ok) return;
+      const data = await resp.json();
+      this._trackCatalog = data.subjects || [];
+      if (data.current && data.current.topic) {
+        this.trackMode = true;
+        this.trackState = data.current;
+      }
+      this.applyTrackChrome();
+    } catch (e) {
+      console.warn("[GANDAL TRACK] status", e);
+    }
+  }
+
+  openTrackIntake() {
+    const menu = document.getElementById("gandalAddMenu");
+    if (menu) menu.classList.remove("active");
+    const surface = document.getElementById("gandalA2UISurface");
+    if (!surface) return;
+    const subjects = this._trackCatalog || [];
+    const subjectBtns = (subjects.length ? subjects : [
+      { id: "mathematics", title: "Mathematics", walkable: true },
+      { id: "physics", title: "Physics", walkable: false },
+      { id: "chemistry", title: "Chemistry", walkable: false },
+      { id: "biology", title: "Biology", walkable: false },
+      { id: "philosophy", title: "Philosophy", walkable: false },
+      { id: "english", title: "English", walkable: false },
+      { id: "french", title: "French", walkable: false }
+    ]).map((s) => {
+      const ready = s.walkable ? "ready" : "soon";
+      return `<button type="button" class="gandal-track-subject ${ready}" data-subject="${escapeAttr(s.id)}" onclick="window.gandalSpaceApp.pickTrackSubject('${escapeAttr(s.id)}', ${s.walkable ? "true" : "false"})">${escapeHtml(s.title)}${s.walkable ? "" : " · soon"}</button>`;
+    }).join("");
+    surface.innerHTML = `
+      <div class="gandal-track-intake" id="gandalTrackIntake">
+        <h3>What do you want to learn?</h3>
+        <p>Tell Gandho the subject (and if you are starting from scratch). The full catalog stays hidden — you will see <strong>one topic</strong> at a time, then a quiz, then the next topic.</p>
+        <div class="gandal-track-subjects">${subjectBtns}</div>
+        <label class="gandal-track-scratch">
+          <input type="checkbox" id="gandalTrackFromScratch" checked />
+          I am starting from scratch
+        </label>
+        <input type="text" id="gandalTrackIntentInput" class="gandal-track-intent-input" placeholder="e.g. I want to learn math from scratch, or teach me fractions" />
+        <div class="gandal-track-intake-actions">
+          <button type="button" class="gandal-track-btn primary" onclick="window.gandalSpaceApp.submitTrackIntent()">Start this topic</button>
+        </div>
+        <p class="gandal-track-footnote">Free ask, Quiz me, Show graph, and Tableau Noir stay available. Only Mathematics is walkable end-to-end right now.</p>
+      </div>
+    `;
+    this.appendGandhoBubble("What do you want to learn, and are you starting from scratch? Mathematics is ready; the other subjects are in the picker only.");
+  }
+
+  pickTrackSubject(subjectId, walkable) {
+    this._pendingTrackSubject = subjectId;
+    const input = document.getElementById("gandalTrackIntentInput");
+    if (input && walkable) {
+      input.value = subjectId === "mathematics" ? "I want to learn math from scratch" : `I want to learn ${subjectId}`;
+    }
+    if (!walkable) {
+      this.appendGandhoBubble(`${subjectId} is in the picker but not walkable yet. Mathematics is the full K–12 track in this build.`);
+    }
+  }
+
+  async submitTrackIntent(customMessage) {
+    const input = document.getElementById("gandalTrackIntentInput");
+    const scratchEl = document.getElementById("gandalTrackFromScratch");
+    let message = (typeof customMessage === "string" && customMessage.trim()) ? customMessage.trim() : (input ? input.value.trim() : "");
+    if (!message && this._pendingTrackSubject) {
+      message = this._pendingTrackSubject === "mathematics" ? "I want to learn math" : `I want to learn ${this._pendingTrackSubject}`;
+    }
+    if (scratchEl && scratchEl.checked && message && !/scratch|début|zero|beginner/i.test(message)) {
+      message = `${message} from scratch`;
+    }
+    if (!message) {
+      message = "I want to learn math from scratch";
+    }
+    return this.applyTrackIntent(message);
+  }
+
+  async applyTrackIntent(message) {
+    try {
+      const resp = await fetch("/api/gandal_space/track/intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message })
+      });
+      const data = await resp.json();
+      if (!data.matched) return false;
+      if (!data.success) {
+        this.appendGandhoBubble(data.reply || data.error || "That track is not walkable yet.");
+        return true;
+      }
+      this.trackMode = true;
+      this.trackState = data;
+      this.applyTrackChrome();
+      this.appendGandhoBubble(data.reply || `One topic: ${data.topic && data.topic.title}`);
+      if (data.topic && data.topic.lesson_prompt) {
+        await this.loadTrackLesson(data.topic.lesson_prompt);
+      }
+      return true;
+    } catch (e) {
+      console.warn("[GANDAL TRACK] intent", e);
+      return false;
+    }
+  }
+
+  async loadTrackLesson(prompt) {
+    this._loadingTrackLesson = true;
+    try {
+      await this.submitQuery(prompt, false);
+    } finally {
+      this._loadingTrackLesson = false;
+    }
+  }
+
+  async leaveTrack() {
+    try {
+      await fetch("/api/gandal_space/track/exit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+    } catch (e) {}
+    this.trackMode = false;
+    this.trackState = null;
+    this.applyTrackChrome();
+    this.appendGandhoBubble("Left the K-12 track. Free explore, Quiz me, Show graph, and Tableau Noir are still here.");
+  }
+
+  async reportTrackQuiz(correct, question) {
+    if (!this.trackMode || !this.trackState || !this.trackState.topic) return;
+    try {
+      const resp = await fetch("/api/gandal_space/track/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic_id: this.trackState.topic.id,
+          correct: !!correct,
+          question: question || ""
+        })
+      });
+      const data = await resp.json();
+      if (!data.success) return;
+      if (data.correct && data.advanced && data.topic) {
+        this.trackState = data;
+        this.applyTrackChrome();
+        this.appendGandhoBubble(`Nice. Next topic only: ${data.topic.title}.`);
+        const surface = document.getElementById("gandalA2UISurface");
+        if (surface) {
+          const btn = document.createElement("button");
+          btn.className = "gandal-track-btn primary";
+          btn.innerText = `Continue to ${data.topic.title}`;
+          btn.onclick = () => this.loadTrackLesson(data.topic.lesson_prompt);
+          const wrap = document.createElement("div");
+          wrap.className = "gandal-track-advance";
+          wrap.appendChild(btn);
+          surface.appendChild(wrap);
+        }
+      } else if (data.correct && data.finished) {
+        this.appendGandhoBubble("You reached the end of the Mathematics track. Free-explore or pick another subject.");
+      } else if (!data.correct) {
+        this.appendGandhoBubble("Recorded as a struggle in your OKF profile. Retry this quiz, then we advance.");
+      }
+    } catch (e) {
+      console.warn("[GANDAL TRACK] quiz", e);
     }
   }
 
@@ -1246,6 +1453,10 @@ class GandalSpaceClient {
   async handleStudentVoiceInput(message) {
     // 1. Append Student Bubble
     this.appendStudentBubble(message);
+    if (await this.applyTrackIntent(message)) {
+      this.setConvoStateUI("idle", "K-12 track");
+      return;
+    }
 
     // Update state to thinking
     this.setConvoStateUI("thinking", "Gandho is thinking...");
@@ -2146,6 +2357,10 @@ class GandalSpaceClient {
     const input = document.getElementById("gandalQueryInput");
     const query = (typeof customQuery === "string" && customQuery.trim()) ? customQuery.trim() : (input ? input.value.trim() : "");
     if (!query) return;
+    if (!this._loadingTrackLesson) {
+      const tracked = await this.applyTrackIntent(query);
+      if (tracked) return;
+    }
 
     // Reset search input immediately so the student can follow up with another question
     if (input) {
@@ -3678,6 +3893,7 @@ class GandalSpaceClient {
       explanationEl.classList.add("visible");
     }
     this.syncTableauQuizMarks(cardId, selectedIndex);
+    this.reportTrackQuiz(isCorrect, quiz.question || "");
   }
 
   async checkQuizWithAI(cardId) {

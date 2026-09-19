@@ -1557,6 +1557,17 @@ translations = {
 }
 
 
+def _space_student_id(explicit=None):
+    if explicit and str(explicit).strip():
+        return str(explicit).strip()
+    session_data = load_session_info()
+    return (
+        session_data.get("active_student_id")
+        or session_data.get("student_id")
+        or "Alseny"
+    )
+
+
 def query_local_llm(prompt, system_prompt=None, timeout=8):
     """Ventuno Q local-first: call Gemma/OpenAI-compatible server on :8080. Returns text or None."""
     import urllib.request
@@ -2133,6 +2144,51 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             except Exception as _e:
                 status_data = {"error": str(_e)}
             body = json.dumps(status_data).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            return
+
+        if clean_path == '/api/gandal_space/tracks':
+            try:
+                import gandal_space.k12_tracks as tracks
+                qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                student_id = _space_student_id((qs.get("student_id") or [None])[0])
+                payload = {
+                    "success": True,
+                    "student_id": student_id,
+                    "subjects": tracks.list_subjects(),
+                    "current": tracks.current_progress(student_id),
+                }
+            except Exception as _e:
+                payload = {"success": False, "error": str(_e)}
+            body = json.dumps(payload).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            return
+
+        if clean_path == '/api/gandal_space/track/current':
+            try:
+                import gandal_space.k12_tracks as tracks
+                qs = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                student_id = _space_student_id((qs.get("student_id") or [None])[0])
+                payload = {
+                    "success": True,
+                    "student_id": student_id,
+                    "current": tracks.current_progress(student_id),
+                }
+            except Exception as _e:
+                payload = {"success": False, "error": str(_e)}
+            body = json.dumps(payload).encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -4438,6 +4494,100 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
                 )
             except Exception as e:
                 result = {"success": False, "reply": str(e), "error": str(e), "provider": "Error"}
+            body = json.dumps(result).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            return
+
+        if clean_path == '/api/gandal_space/track/intent':
+            content_length = int(self.headers.get('Content-Length', 0) or 0)
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8') or "{}")
+                import gandal_space.k12_tracks as tracks
+                student_id = _space_student_id(data.get("student_id"))
+                result = tracks.handle_intent(student_id, data.get("message") or data.get("prompt") or "")
+                result["student_id"] = student_id
+            except Exception as e:
+                result = {"success": False, "error": str(e)}
+            body = json.dumps(result).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            return
+
+        if clean_path == '/api/gandal_space/track/start':
+            content_length = int(self.headers.get('Content-Length', 0) or 0)
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8') or "{}")
+                import gandal_space.k12_tracks as tracks
+                student_id = _space_student_id(data.get("student_id"))
+                result = tracks.start_track(
+                    student_id,
+                    data.get("subject") or "mathematics",
+                    from_scratch=bool(data.get("from_scratch")),
+                    topic_id=data.get("topic_id"),
+                )
+                result["student_id"] = student_id
+            except Exception as e:
+                result = {"success": False, "error": str(e)}
+            body = json.dumps(result).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            return
+
+        if clean_path == '/api/gandal_space/track/quiz':
+            content_length = int(self.headers.get('Content-Length', 0) or 0)
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8') or "{}")
+                import gandal_space.k12_tracks as tracks
+                student_id = _space_student_id(data.get("student_id"))
+                result = tracks.apply_quiz(
+                    student_id,
+                    data.get("topic_id") or "",
+                    bool(data.get("correct")),
+                    question=data.get("question") or "",
+                )
+                result["student_id"] = student_id
+            except Exception as e:
+                result = {"success": False, "error": str(e)}
+            body = json.dumps(result).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            return
+
+        if clean_path == '/api/gandal_space/track/exit':
+            content_length = int(self.headers.get('Content-Length', 0) or 0)
+            post_data = self.rfile.read(content_length) if content_length else b"{}"
+            try:
+                data = json.loads(post_data.decode('utf-8') or "{}")
+                import gandal_space.k12_tracks as tracks
+                student_id = _space_student_id(data.get("student_id"))
+                result = tracks.exit_track(student_id)
+                result["student_id"] = student_id
+            except Exception as e:
+                result = {"success": False, "error": str(e)}
             body = json.dumps(result).encode('utf-8')
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')

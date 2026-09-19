@@ -7,6 +7,7 @@ import os
 import json
 import time
 import threading
+import shutil
 import urllib.request
 import http.server
 
@@ -114,12 +115,37 @@ def run_test():
             assert "Gemma" in (data.get("reply") or data.get("error") or "")
         print("POST chat: PASSED!\n")
 
+        print("Testing GET /api/gandal_space/tracks...")
+        with urllib.request.urlopen(f"http://127.0.0.1:{TEST_PORT}/api/gandal_space/tracks?student_id=HttpTrackTest", timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            assert data.get("success") is True
+            assert any(s.get("id") == "mathematics" and s.get("walkable") for s in data.get("subjects") or [])
+            assert any(s.get("id") == "physics" and not s.get("walkable") for s in data.get("subjects") or [])
+        print("GET tracks: PASSED!\n")
+
+        print("Testing POST /api/gandal_space/track/intent...")
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/gandal_space/track/intent",
+            data=json.dumps({
+                "student_id": "HttpTrackTest",
+                "message": "I want to learn math from scratch"
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            assert data.get("success") is True
+            assert data.get("topic", {}).get("title") == "Counting to 20"
+            assert "ONE K-12 topic" in (data.get("topic") or {}).get("lesson_prompt", "")
+        print("POST track intent: PASSED!\n")
+
         # 3. Test Static files
         print("Testing GET /gandal_space/gandal_space.css...")
         with urllib.request.urlopen(f"http://127.0.0.1:{TEST_PORT}/gandal_space/gandal_space.css", timeout=5) as resp:
             assert resp.status == 200
             css_text = resp.read().decode("utf-8")
             assert "gandal-search-bar-pill" in css_text
+            assert "gandal-track-bar" in css_text
         print("GET gandal_space.css: PASSED!\n")
 
         print("Testing GET /gandal_space/gandal_space.js...")
@@ -127,6 +153,7 @@ def run_test():
             assert resp.status == 200
             js_text = resp.read().decode("utf-8")
             assert "GandalSpaceClient" in js_text
+            assert "openTrackIntake" in js_text
         print("GET gandal_space.js: PASSED!\n")
 
         print("=== ALL LIVE HTTP ENDPOINT TESTS PASSED! ===")
@@ -134,6 +161,9 @@ def run_test():
     finally:
         server.shutdown()
         server.server_close()
+        leftover = os.path.join(PROJECT_ROOT, "student_profiles", "HttpTrackTest")
+        if os.path.isdir(leftover):
+            shutil.rmtree(leftover)
 
 if __name__ == "__main__":
     run_test()

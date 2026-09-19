@@ -2526,5 +2526,140 @@
   border-color: #38bdf8 !important;
 }
 
+/* Additive K-12 track chrome */
+.quick-topic-chip.gandal-track-chip {
+  border-color: rgba(168, 85, 247, 0.45);
+  color: #e9d5ff;
+}
+
+.gandal-track-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 860px;
+  margin: 8px auto 0;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+}
+
+.gandal-track-bar[hidden] {
+  display: none !important;
+}
+
+.gandal-track-kicker {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+}
+
+.gandal-track-bar-main strong {
+  display: block;
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+#gandalTrackMeta {
+  display: block;
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.gandal-track-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.6);
+  color: #e2e8f0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.gandal-track-btn.primary {
+  background: rgba(168, 85, 247, 0.28);
+  border-color: rgba(168, 85, 247, 0.5);
+  color: #f5d0fe;
+}
+
+.gandal-track-intake {
+  max-width: 720px;
+  margin: 12px auto 0;
+  padding: 22px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gandal-track-intake h3 {
+  margin: 0 0 8px;
+  color: #f8fafc;
+}
+
+.gandal-track-intake p {
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+.gandal-track-subjects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.gandal-track-subject {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.gandal-track-subject.ready {
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+.gandal-track-subject.soon {
+  opacity: 0.65;
+}
+
+.gandal-track-scratch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e2e8f0;
+  margin: 10px 0;
+}
+
+.gandal-track-intent-input {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #12141a;
+  color: #f8fafc;
+  padding: 10px 12px;
+}
+
+.gandal-track-intake-actions {
+  margin-top: 12px;
+}
+
+.gandal-track-footnote {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.gandal-track-advance {
+  margin-top: 16px;
+}
+
 
 
