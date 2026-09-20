@@ -45,6 +45,7 @@ def run_test():
             assert ":8080" in data["local_edge"]["endpoint"]
             assert "11434" not in data["local_edge"]["endpoint"]
             assert data["local_edge"]["available"] is False
+            assert data["cloud_fallback"]["model"] == "gemini-3.8-flash"
         print("GET status: PASSED!\n")
 
         # 2. Test Audio Eval
@@ -244,6 +245,7 @@ def run_test():
             assert "compareChartHtml" in js_text
             assert "Cloud Turbo" not in js_text
             assert "Need Gemma or a Gemini key to generate this quiz" not in js_text
+            assert 'id="gandalStatusBar" hidden' in js_text
             assert "buildTrackTopicQuizBank" in js_text
             assert "quizMatchesTrackTopic" in js_text
             assert "generatePracticeQuiz" in js_text

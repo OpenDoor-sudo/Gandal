@@ -450,7 +450,7 @@ def run_tests():
     print("Test 10 PASSED!\n")
 
     print("=== TEST 11: Comparing numbers graph is towers, not sgn(x) ===")
-    assert ae.gemini_model_name() == "gemini-3.1-flash"
+    assert ae.gemini_model_name() == "gemini-3.8-flash"
     wrapped = {
         "type": "Container",
         "title": "Comparing numbers",

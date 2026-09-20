@@ -984,7 +984,7 @@ class GandalSpaceClient {
             <p class="gandal-space-subtitle">
               Explore any topic across mathematics, science, language, and the humanities powered by local-first edge intelligence with cloud fallback.
             </p>
-            <div class="gandal-engine-status-bar" id="gandalStatusBar">
+            <div class="gandal-engine-status-bar" id="gandalStatusBar" hidden>
               <span class="status-dot edge-online" id="statusDot"></span>
               <span id="statusText">Checking intelligence engine...</span>
             </div>

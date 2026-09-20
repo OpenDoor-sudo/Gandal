@@ -2,7 +2,7 @@
 agent_engine.py - Gandal Space Hybrid AI Engine (A2UI & Offline Edge / Cloud Fallback)
 Supports:
   1. Local Edge LLM: Gemma 4 E4B via OpenAI-compat LOCAL_LLM_URL (default http://127.0.0.1:8080/v1)
-  2. Cloud Fallback: Google Gemini (gemini-3.1-flash via google-genai SDK / REST) when a key is present
+  2. Cloud Fallback: Google Gemini (gemini-3.8-flash via google-genai SDK / REST) when a key is present
   3. Declarative A2UI Protocol: TextBlock, Card, Container, FormulaCard, PronunciationCard, AudioFeedback
 
 This is the same Gemma endpoint the rest of Gandal uses. It is not Ollama :11434,
@@ -42,7 +42,7 @@ _load_env()
 
 DEFAULT_LOCAL_LLM_URL = "http://127.0.0.1:8080/v1"
 DEFAULT_LOCAL_LLM_MODEL = "gemma-4-e4b"
-DEFAULT_GEMINI_MODEL = "gemini-3.1-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
 
 
 def _prefer_ipv4_http_url(url: str) -> str:
@@ -2146,7 +2146,7 @@ class GandalSpaceEngine:
 
         questions = assemble_practice_quiz(title, payload, band=band, topic_id=topic_id)
 
-        # If Cloud Turbo / Gemma is already serving lessons, never surface the
+        # If Gemini / Gemma is already serving lessons, never surface the
         # "need Gemma or a Gemini key" error — pad from the topic instead.
         if local_ok or gemini_ok:
             if len(questions) < 5:
