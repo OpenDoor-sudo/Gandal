@@ -2139,7 +2139,7 @@
 .a2ui-compare-line {
   position: relative;
   height: 52px;
-  margin: 18px 12px 4px;
+  margin: 18px 28px 4px;
   border-top: 2px solid #64748b;
 }
 
@@ -2174,6 +2174,7 @@
   font-size: 0.95rem;
   padding: 1px 6px;
   border-radius: 6px;
+  white-space: nowrap;
 }
 
 .a2ui-compare-mark.is-left {

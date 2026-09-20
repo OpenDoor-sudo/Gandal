@@ -206,7 +206,9 @@ def is_comparing_numbers_lesson(text: str) -> bool:
 
 
 def parse_compare_pair(text: str, default: Tuple[int, int] = (5, 10)) -> Tuple[int, int]:
-    nums = [int(n) for n in re.findall(r"\b(\d{1,2})\b", text or "")]
+    cleaned = re.sub(r"\bK[\s\-–—]*\d+\b", " ", text or "", flags=re.I)
+    cleaned = re.sub(r"\b\d+\s*[\-–—]\s*\d+\+?\b", " ", cleaned)
+    nums = [int(n) for n in re.findall(r"\b(\d{1,2})\b", cleaned)]
     nums = [n for n in nums if 0 <= n <= 20]
     for i in range(len(nums) - 1):
         if nums[i] != nums[i + 1]:
@@ -349,7 +351,9 @@ _META_QUIZ_RE = re.compile(
     r"if you get a question wrong on|"
     r"the rest of the track stays hidden|"
     r"finished and we should change|"
-    r"name the given lengths"
+    r"name the given lengths|"
+    r"ready to practice|"
+    r"change subject"
     r")",
     re.I,
 )

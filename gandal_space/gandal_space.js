@@ -359,7 +359,7 @@ function cloneQuizItem(q) {
 function isMetaQuizQuestion(q) {
   if (!q) return true;
   const blob = `${q.question || ""} ${(q.options || []).join(" ")} ${q.explanation || ""}`;
-  return /current lesson|change subjects|naming triangle sides|only about\s*[πp]i|π and circles|pi and circles|jump to geometry|rest of the track|leave the track|switch to a new subject|what should you practice right now|which statement is true about|a good next step on|what is a good next step when you see a geometric figure|if you get a question wrong on|the rest of the track stays hidden|finished and we should change|name the given lengths/i.test(blob);
+  return /current lesson|change subjects|change subject|ready to practice|naming triangle sides|only about\s*[πp]i|π and circles|pi and circles|jump to geometry|rest of the track|leave the track|switch to a new subject|what should you practice right now|which statement is true about|a good next step on|what is a good next step when you see a geometric figure|if you get a question wrong on|the rest of the track stays hidden|finished and we should change|name the given lengths/i.test(blob);
 }
 
 const PRACTICE_QUIZ_BANKS = {
@@ -2359,7 +2359,7 @@ class GandalSpaceClient {
     }
     if (model === "compare") {
       const pair = parseComparePair(comp, topic);
-      return `Deux tours : $${pair.left}$ et $${pair.right}$. La plus haute est le plus grand nombre. Où sont-ils sur la droite numérique, et quel symbole ($>$, $<$, $=$) est vrai ?`;
+      return `Deux tours : ${pair.left} et ${pair.right}. La plus haute est le plus grand nombre. Où sont-ils sur la droite numérique, et quel symbole (>, <, =) est vrai ?`;
     }
     if (model.startsWith("physics_")) {
       return `Observe ce modèle de **${topic}**. Que change un déplacement le long de la courbe — et que cela te dit-il physiquement ?`;
@@ -3147,19 +3147,22 @@ class GandalSpaceClient {
     const leftH = Math.max(12, Math.round((left / max) * 150));
     const rightH = Math.max(12, Math.round((right / max) * 150));
     const symbol = left > right ? ">" : left < right ? "<" : "=";
-    const lineMax = Math.max(12, max + 2);
+    const lineMax = Math.max(10, max);
+    const labelSet = new Set([0, left, right]);
     const ticks = [];
     for (let n = 0; n <= lineMax; n++) {
       const pct = (n / lineMax) * 100;
+      const label = labelSet.has(n) ? `<em>${n}</em>` : "";
       ticks.push(
         `<span class="a2ui-compare-tick" style="left:${pct}%;">` +
-          `<i></i><em>${n}</em>` +
+          `<i></i>${label}` +
         `</span>`
       );
     }
     const mark = (value, cls) => {
       const pct = (value / lineMax) * 100;
-      return `<span class="a2ui-compare-mark ${cls}" style="left:${pct}%;">${value}</span>`;
+      const shift = pct >= 99 ? "translateX(-100%)" : "translateX(-50%)";
+      return `<span class="a2ui-compare-mark ${cls}" style="left:${pct}%;transform:${shift};">${value}</span>`;
     };
     return `
       <div class="a2ui-compare-chart">
