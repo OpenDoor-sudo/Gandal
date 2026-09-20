@@ -768,12 +768,63 @@ function isCountingGraph(comp) {
   if (mt.indexOf("geometry_") === 0 || mt.indexOf("physics_") === 0 || mt.indexOf("chemistry_") === 0) {
     return false;
   }
+  if (mt === "compare") return false;
   const blob = `${comp.formula || ""} ${comp.description || ""} ${comp.title || ""}`;
   if (/skip[\s-]?count/i.test(blob) && !looksLikeInlineCountingChart(blob)) return false;
   if (looksLikeInlineCountingChart(blob)) return true;
   if (/count(?:ing)?\s+to\s+\d+/i.test(blob)) return true;
   if (/each number represents a quantity/i.test(blob)) return true;
   return false;
+}
+
+function isComparingNumbersTopic(topic, extra) {
+  const t = `${topic || ""} ${extra || ""}`.toLowerCase();
+  if (/math\.k2\.compare\b/.test(t)) return true;
+  if (/compar(?:e|ing)\s+numbers/.test(t)) return true;
+  if (/\bgreater than\b|\bless than\b/.test(t) && /\bnumbers?\b/.test(t) && !/fraction|length|weight|capacity/.test(t)) {
+    return true;
+  }
+  return false;
+}
+
+function isComparingGraph(comp, topic) {
+  if (comp && String(comp.model_type || "").toLowerCase() === "compare") return true;
+  const blob = `${(comp && comp.title) || ""} ${(comp && comp.formula) || ""} ${(comp && comp.description) || ""} ${topic || ""}`;
+  if (isCountingGraph(comp) && !isComparingNumbersTopic(blob)) return false;
+  return isComparingNumbersTopic(blob);
+}
+
+function parseComparePair(comp, topic) {
+  const leftN = Number(comp && comp.left);
+  const rightN = Number(comp && comp.right);
+  if (Number.isFinite(leftN) && Number.isFinite(rightN) && leftN !== rightN) {
+    return { left: Math.round(leftN), right: Math.round(rightN) };
+  }
+  const blob = `${(comp && comp.formula) || ""} ${topic || ""}`;
+  const nums = [];
+  const re = /\b(\d{1,2})\b/g;
+  let m;
+  while ((m = re.exec(blob))) {
+    const v = parseInt(m[1], 10);
+    if (v >= 0 && v <= 20) nums.push(v);
+  }
+  for (let i = 0; i < nums.length - 1; i++) {
+    if (nums[i] !== nums[i + 1]) return { left: nums[i], right: nums[i + 1] };
+  }
+  return { left: 5, right: 10 };
+}
+
+function compareGraphComp(topic, comp) {
+  const pair = parseComparePair(comp || {}, topic);
+  const symbol = pair.left > pair.right ? ">" : pair.left < pair.right ? "<" : "=";
+  return {
+    model_type: "compare",
+    left: pair.left,
+    right: pair.right,
+    title: (comp && comp.title) || "Comparing numbers",
+    formula: `${pair.left} ${symbol} ${pair.right}`,
+    description: (comp && comp.description) || `${pair.left} vs ${pair.right}. The taller tower is greater.`
+  };
 }
 
 function inferGeometryModelType(comp, topic) {
@@ -1159,18 +1210,29 @@ class GandalSpaceClient {
         const compDot = document.getElementById("gandalCompanionDot");
         const compText = document.getElementById("gandalCompanionStatusText");
 
+        const bar = document.getElementById("gandalStatusBar");
         if (data.local_edge && data.local_edge.available) {
           const modelName = data.local_edge.model || "gemma-4-e4b";
+          if (bar) {
+            bar.hidden = false;
+            bar.removeAttribute("hidden");
+          }
           if (dot) dot.className = "status-dot edge-online";
           if (text) text.innerHTML = `<strong>Edge/Gemma</strong>: ${escapeHtml(modelName)}`;
           if (compDot) compDot.className = "status-dot edge-online";
           if (compText) compText.innerText = "Edge/Gemma on :8080";
         } else if (data.cloud_fallback && data.cloud_fallback.available) {
-          if (dot) dot.className = "status-dot cloud-online";
-          if (text) text.innerHTML = `<strong>Cloud Turbo</strong>: ${escapeHtml(data.cloud_fallback.model || "Gemini")} (online fallback)`;
+          if (bar) {
+            bar.hidden = true;
+            bar.setAttribute("hidden", "");
+          }
           if (compDot) compDot.className = "status-dot cloud-online";
-          if (compText) compText.innerText = "Gemini Cloud Voice Turbo Active";
+          if (compText) compText.innerText = "Ready";
         } else {
+          if (bar) {
+            bar.hidden = false;
+            bar.removeAttribute("hidden");
+          }
           if (dot) dot.className = "status-dot offline";
           if (text) text.innerText = "Gemma 4 E4B not running on :8080";
           if (compDot) compDot.className = "status-dot offline";
@@ -2295,6 +2357,10 @@ class GandalSpaceClient {
     if (model === "geometry_polygon") {
       return "Un polygone régulier : nombre de côtés $n$ et longueur $s$. Que devient l'angle central $2\\pi/n$ ?";
     }
+    if (model === "compare") {
+      const pair = parseComparePair(comp, topic);
+      return `Deux tours : $${pair.left}$ et $${pair.right}$. La plus haute est le plus grand nombre. Où sont-ils sur la droite numérique, et quel symbole ($>$, $<$, $=$) est vrai ?`;
+    }
     if (model.startsWith("physics_")) {
       return `Observe ce modèle de **${topic}**. Que change un déplacement le long de la courbe — et que cela te dit-il physiquement ?`;
     }
@@ -2373,6 +2439,10 @@ class GandalSpaceClient {
   }
 
   presentGraphOnTableau(comp, topic) {
+    if (isComparingGraph(comp, topic) || isComparingNumbersTopic(topic)) {
+      this.presentCompareGraphOnTableau(compareGraphComp(topic, comp), topic);
+      return;
+    }
     this._wbQuizCardId = null;
     const wbPane = document.getElementById("gandalWhiteboardPane");
     const wrapper = document.querySelector(".gandal-space-wrapper");
@@ -2541,11 +2611,35 @@ class GandalSpaceClient {
     if (expl) expl.hidden = false;
   }
 
+  presentCompareGraphOnTableau(comp, topic) {
+    this._wbQuizCardId = null;
+    this.openTableauNoir();
+    const pair = parseComparePair(comp, topic);
+    const prompt = this.socraticGraphPrompt(Object.assign({}, comp, { model_type: "compare" }), topic);
+    const chart = this.compareChartHtml(pair);
+    const html = `
+      <div class="gandal-wb-socratic">
+        <div class="gandal-wb-kicker">📈 Question socratique — graphe</div>
+        <div class="gandal-wb-question">${this.formatMathWithKaTeX(prompt)}</div>
+        ${chart}
+      </div>
+    `;
+    this.setWhiteboardHtml(html, "Graphe affiché", "completed");
+  }
+
   handleShowGraph() {
     this.openTableauNoir();
     const surface = document.getElementById("gandalA2UISurface");
     const existingGraph = surface ? surface.querySelector(".a2ui-graph-card") : null;
-    const topic = this.currentContext || "right triangle";
+    const track = this.quizFocusTopic && this.quizFocusTopic();
+    const topic = (track && track.title) || this.currentContext || "right triangle";
+    if (isComparingNumbersTopic(topic, track && track.id) || isComparingGraph(
+      (existingGraph && this.activeModels && this.activeModels[existingGraph.id]) || {},
+      topic
+    )) {
+      this.presentCompareGraphOnTableau(compareGraphComp(topic), topic);
+      return;
+    }
     const show = (card) => {
       if (card) this.highlightA2UICard(card);
       const raw = (card && this.activeModels && this.activeModels[card.id]) || {};
@@ -2578,18 +2672,58 @@ class GandalSpaceClient {
     });
   }
 
-  generatePracticeQuiz(topic, extras) {
+  async generatePracticeQuiz(topic, extras) {
     const extra = extras || {};
-    return fetch("/api/gandal_space/quiz", {
+    const body = {
+      topic: topic || "",
+      topic_id: extra.topic_id || extra.topicId || "",
+      band: extra.band || "",
+      context: extra.context || this.currentContext || topic || ""
+    };
+    const parseJson = async (resp) => {
+      const text = await resp.text();
+      try { return JSON.parse(text); } catch (e) { return {}; }
+    };
+    try {
+      const resp = await fetch("/api/gandal_space/quiz", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      if (resp.ok) {
+        const data = await parseJson(resp);
+        if (data && data.success && Array.isArray(data.questions) && data.questions.length) {
+          return data;
+        }
+      }
+    } catch (e) {}
+    const askResp = await fetch("/api/gandal_space/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        topic: topic || "",
-        topic_id: extra.topic_id || extra.topicId || "",
-        band: extra.band || "",
-        context: extra.context || this.currentContext || topic || ""
+        prompt: (
+          `Write a practice quiz of FIVE distinct content multiple-choice questions ` +
+          `about this ONE topic. Include five QuizCard children. Topic: ${topic}. ` +
+          `Do not ask meta questions about the current lesson, changing subjects, triangles, or pi.`
+        ),
+        context: body.context
       })
-    }).then((resp) => resp.json());
+    });
+    const asked = await parseJson(askResp);
+    const kids = ((asked.ui_payload || {}).children) || [];
+    const questions = kids
+      .filter((c) => c && c.type === "QuizCard")
+      .map((c) => ({
+        question: c.question,
+        options: c.options,
+        answerIndex: c.answer_index,
+        answer_index: c.answer_index,
+        explanation: c.explanation
+      }));
+    if (questions.length) {
+      return { success: true, questions, provider: asked.provider, engine_type: asked.engine_type };
+    }
+    return asked;
   }
 
   async handleQuizMe() {
@@ -2627,7 +2761,7 @@ class GandalSpaceClient {
         set.push(cloneQuizItem(q));
       });
       if (!data || !data.success || !set.length) {
-        const err = (data && (data.error || data.reply)) || "Need Gemma or a Gemini key to generate this quiz.";
+        const err = (data && (data.error || data.reply)) || "Could not load a quiz for this topic.";
         this.setWhiteboardHtml(
           `<div class="gandal-wb-socratic"><div class="gandal-wb-kicker">❓ Quiz me</div><p class="gandal-wb-hint">${escapeHtml(err)}</p></div>`,
           "Quiz unavailable",
@@ -2640,7 +2774,7 @@ class GandalSpaceClient {
       this.presentCurrentTableauQuiz();
     } catch (e) {
       this.setWhiteboardHtml(
-        `<div class="gandal-wb-socratic"><div class="gandal-wb-kicker">❓ Quiz me</div><p class="gandal-wb-hint">Need Gemma or a Gemini key to generate this quiz.</p></div>`,
+        `<div class="gandal-wb-socratic"><div class="gandal-wb-kicker">❓ Quiz me</div><p class="gandal-wb-hint">Could not load a quiz for this topic.</p></div>`,
         "Quiz unavailable",
         "error"
       );
@@ -3006,6 +3140,72 @@ class GandalSpaceClient {
     return card;
   }
 
+  compareChartHtml(pair) {
+    const left = pair.left;
+    const right = pair.right;
+    const max = Math.max(left, right, 1);
+    const leftH = Math.max(12, Math.round((left / max) * 150));
+    const rightH = Math.max(12, Math.round((right / max) * 150));
+    const symbol = left > right ? ">" : left < right ? "<" : "=";
+    const lineMax = Math.max(12, max + 2);
+    const ticks = [];
+    for (let n = 0; n <= lineMax; n++) {
+      const pct = (n / lineMax) * 100;
+      ticks.push(
+        `<span class="a2ui-compare-tick" style="left:${pct}%;">` +
+          `<i></i><em>${n}</em>` +
+        `</span>`
+      );
+    }
+    const mark = (value, cls) => {
+      const pct = (value / lineMax) * 100;
+      return `<span class="a2ui-compare-mark ${cls}" style="left:${pct}%;">${value}</span>`;
+    };
+    return `
+      <div class="a2ui-compare-chart">
+        <div class="a2ui-compare-towers" role="img" aria-label="${left} versus ${right}">
+          <div class="a2ui-compare-col">
+            <div class="a2ui-compare-bar${left > right ? " is-greater" : ""}" style="height:${leftH}px"></div>
+            <div class="a2ui-compare-num">${left}</div>
+          </div>
+          <div class="a2ui-compare-symbol" aria-hidden="true">${symbol}</div>
+          <div class="a2ui-compare-col">
+            <div class="a2ui-compare-bar${right > left ? " is-greater" : ""}" style="height:${rightH}px"></div>
+            <div class="a2ui-compare-num">${right}</div>
+          </div>
+        </div>
+        <p class="a2ui-compare-caption">${left} ${symbol} ${right} — the taller tower is greater.</p>
+        <div class="a2ui-compare-line" role="img" aria-label="Number line from 0 to ${lineMax}">
+          ${ticks.join("")}
+          ${mark(left, "is-left")}
+          ${mark(right, "is-right")}
+        </div>
+      </div>
+    `;
+  }
+
+  buildCompareGraphCard(comp) {
+    const card = document.createElement("div");
+    card.className = "a2ui-card a2ui-graph-card a2ui-compare-card";
+    const pair = parseComparePair(comp);
+    const titleHtml = this.formatMarkdown(comp.title || "Comparing numbers");
+    const descHtml = comp.description ? this.formatMarkdown(comp.description) : "";
+    card.innerHTML = `
+      <div class="a2ui-card-top">
+        <h3 class="a2ui-card-title">${titleHtml}</h3>
+        <span class="a2ui-card-badge" style="background: rgba(250, 204, 21, 0.2); color: #fde68a;">⚖️ Compare</span>
+      </div>
+      ${descHtml ? `<p class="a2ui-card-content" style="margin-bottom: 12px;">${descHtml}</p>` : ""}
+      ${this.compareChartHtml(pair)}
+      <div class="a2ui-graph-actions">
+        <button class="a2ui-discuss-btn" style="margin-top: 0;" onclick="window.gandalSpaceApp.askGandhoAboutTopic('${escapeAttr(comp.title || "Comparing numbers")}')">
+          🎙️ Ask Gandho to Explain This Model
+        </button>
+      </div>
+    `;
+    return card;
+  }
+
   buildCountingGraphCard(comp) {
     const card = document.createElement("div");
     card.className = "a2ui-card a2ui-graph-card a2ui-counting-card";
@@ -3044,6 +3244,9 @@ class GandalSpaceClient {
   buildGraphCard(comp) {
     if (isCountingGraph(comp)) {
       return this.buildCountingGraphCard(comp);
+    }
+    if (isComparingGraph(comp)) {
+      return this.buildCompareGraphCard(comp);
     }
     const cardId = "graph_" + Math.random().toString(36).substring(2, 9);
     const card = document.createElement("div");

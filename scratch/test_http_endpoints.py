@@ -215,6 +215,8 @@ def run_test():
             assert "gandal-track-bar" in css_text
             assert "a2ui-counting-chart" in css_text
             assert "a2ui-counting-row" in css_text
+            assert "a2ui-compare-chart" in css_text
+            assert "a2ui-compare-bar" in css_text
         print("GET gandal_space.css: PASSED!\n")
 
         print("Testing GET /gandal_space/gandal_space.js...")
@@ -237,6 +239,11 @@ def run_test():
             assert "isCountingGraph" in js_text
             assert "buildCountingGraphCard" in js_text
             assert "a2ui-counting-row" in js_text
+            assert "isComparingGraph" in js_text
+            assert "buildCompareGraphCard" in js_text
+            assert "compareChartHtml" in js_text
+            assert "Cloud Turbo" not in js_text
+            assert "Need Gemma or a Gemini key to generate this quiz" not in js_text
             assert "buildTrackTopicQuizBank" in js_text
             assert "quizMatchesTrackTopic" in js_text
             assert "generatePracticeQuiz" in js_text

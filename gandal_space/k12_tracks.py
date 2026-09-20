@@ -1108,6 +1108,12 @@ def lesson_prompt(
             "one row per number from 1 to 20. "
             "Do NOT write wrapping inline text like 1:● 2:●● 3:●●● in formula, description, or body."
         )
+    elif tid == "math.k2.compare" or "comparing numbers" in title:
+        extra = (
+            'Use a GraphCard with model_type "compare", left: 5, right: 10. '
+            "The UI draws two towers (bars) and a number line with 5 vs 10 and greater/less markers. "
+            "Do NOT use function_plot, sgn(x), or a step/sign chart."
+        )
     return (
         f"Teach this ONE K-12 topic as a Gandal Space A2UI lesson. "
         f"Topic: {topic['title']}. Band: {topic.get('band')}. "

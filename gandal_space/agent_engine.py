@@ -2,7 +2,7 @@
 agent_engine.py - Gandal Space Hybrid AI Engine (A2UI & Offline Edge / Cloud Fallback)
 Supports:
   1. Local Edge LLM: Gemma 4 E4B via OpenAI-compat LOCAL_LLM_URL (default http://127.0.0.1:8080/v1)
-  2. Cloud Fallback: Google Gemini (gemini-2.5-flash via google-genai SDK) when a key is present
+  2. Cloud Fallback: Google Gemini (gemini-3.1-flash via google-genai SDK / REST) when a key is present
   3. Declarative A2UI Protocol: TextBlock, Card, Container, FormulaCard, PronunciationCard, AudioFeedback
 
 This is the same Gemma endpoint the rest of Gandal uses. It is not Ollama :11434,
@@ -42,7 +42,7 @@ _load_env()
 
 DEFAULT_LOCAL_LLM_URL = "http://127.0.0.1:8080/v1"
 DEFAULT_LOCAL_LLM_MODEL = "gemma-4-e4b"
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-3.1-flash"
 
 
 def _prefer_ipv4_http_url(url: str) -> str:
@@ -181,6 +181,111 @@ def normalize_counting_graph_cards(payload: Dict[str, Any], query: str) -> Dict[
             len(children),
         )
         children.insert(quiz_idx, counting_graph_card(blob_all))
+    payload["children"] = children
+    return payload
+
+
+_COMPARE_NUMBERS_RE = re.compile(
+    r"compar(?:e|ing)\s+numbers|math\.k2\.compare\b",
+    re.I,
+)
+
+
+def is_comparing_numbers_lesson(text: str) -> bool:
+    """K-2 comparing numbers — not fractions, not length/weight, not counting."""
+    t = text or ""
+    if is_counting_lesson(t) and not _COMPARE_NUMBERS_RE.search(t):
+        return False
+    if _COMPARE_NUMBERS_RE.search(t):
+        return True
+    if re.search(r"\bgreater than\b|\bless than\b", t, re.I) and re.search(r"\bnumbers?\b", t, re.I):
+        if re.search(r"fraction|length|weight|capacity", t, re.I):
+            return False
+        return True
+    return False
+
+
+def parse_compare_pair(text: str, default: Tuple[int, int] = (5, 10)) -> Tuple[int, int]:
+    nums = [int(n) for n in re.findall(r"\b(\d{1,2})\b", text or "")]
+    nums = [n for n in nums if 0 <= n <= 20]
+    for i in range(len(nums) - 1):
+        if nums[i] != nums[i + 1]:
+            return nums[i], nums[i + 1]
+    return default
+
+
+def compare_graph_card(query: str = "", left: Optional[int] = None, right: Optional[int] = None) -> Dict[str, Any]:
+    parsed = parse_compare_pair(query or "")
+    a = left if isinstance(left, int) else parsed[0]
+    b = right if isinstance(right, int) else parsed[1]
+    a = max(0, min(20, int(a)))
+    b = max(0, min(20, int(b)))
+    if a == b:
+        b = 10 if a != 10 else 5
+    symbol = ">" if a > b else "<" if a < b else "="
+    return {
+        "type": "GraphCard",
+        "model_type": "compare",
+        "left": a,
+        "right": b,
+        "title": "Comparing numbers",
+        "formula": f"{a} {symbol} {b}",
+        "description": (
+            f"Two towers and a number line: {a} vs {b}. "
+            f"The taller tower is the greater number. {a} {symbol} {b}."
+        ),
+    }
+
+
+def apply_compare_card(card: Dict[str, Any], blob: str) -> None:
+    left, right = parse_compare_pair(blob)
+    try:
+        if card.get("left") is not None:
+            left = int(card.get("left"))
+        if card.get("right") is not None:
+            right = int(card.get("right"))
+    except (TypeError, ValueError):
+        pass
+    built = compare_graph_card(blob, left=left, right=right)
+    card["model_type"] = "compare"
+    card["left"] = built["left"]
+    card["right"] = built["right"]
+    card["title"] = card.get("title") or built["title"]
+    formula = card.get("formula") or ""
+    if not formula or looks_like_inline_counting_chart(formula) or formula.lower() in ("sgn(x)", "sign(x)", "x^2"):
+        card["formula"] = built["formula"]
+    if not card.get("description"):
+        card["description"] = built["description"]
+
+
+def normalize_compare_graph_cards(payload: Dict[str, Any], query: str) -> Dict[str, Any]:
+    """Force comparing-numbers lessons onto two towers + a number line, not sgn(x)."""
+    if not isinstance(payload, dict):
+        return payload
+    children = payload.get("children")
+    if not isinstance(children, list):
+        return payload
+    blob_all = f"{query} {payload.get('title') or ''}"
+    lesson = is_comparing_numbers_lesson(blob_all)
+    for child in children:
+        if not isinstance(child, dict) or child.get("type") != "GraphCard":
+            continue
+        existing = (child.get("model_type") or "")
+        if existing.startswith(_PROTECTED_GRAPH_PREFIXES) or existing in ("counting", "count_dots", "count"):
+            continue
+        card_blob = f"{child.get('formula') or ''} {child.get('description') or ''} {child.get('title') or ''} {blob_all}"
+        if existing == "compare" or (lesson and existing in ("", "function_plot", "compare")):
+            apply_compare_card(child, card_blob)
+    has_compare = any(
+        isinstance(c, dict) and c.get("type") == "GraphCard" and (c.get("model_type") or "") == "compare"
+        for c in children
+    )
+    if not has_compare and lesson:
+        quiz_idx = next(
+            (i for i, c in enumerate(children) if isinstance(c, dict) and c.get("type") == "QuizCard"),
+            len(children),
+        )
+        children.insert(quiz_idx, compare_graph_card(blob_all))
     payload["children"] = children
     return payload
 
@@ -659,7 +764,7 @@ Available A2UI Components:
 6. GraphCard (MANDATORY for Math, Geometry, Physics, and Chemistry):
    {
      "type": "GraphCard",
-     "model_type": "geometry_triangle" | "geometry_circle" | "geometry_pythagoras" | "geometry_ellipse" | "geometry_rectangle" | "geometry_square" | "geometry_polygon" | "physics_projectile" | "physics_newton" | "chemistry_titration" | "chemistry_kinetics" | "function_plot" | "counting",
+     "model_type": "geometry_triangle" | "geometry_circle" | "geometry_pythagoras" | "geometry_ellipse" | "geometry_rectangle" | "geometry_square" | "geometry_polygon" | "physics_projectile" | "physics_newton" | "chemistry_titration" | "chemistry_kinetics" | "function_plot" | "counting" | "compare",
      "title": "Interactive Model: Triangle ABC / Function / Simulation / Counting to 20",
      "formula": "triangle" | "circle" | "sgn(x)" | "x^2" | "sin(x)" | "F = ma",
      "count": 20,
@@ -700,6 +805,7 @@ CRITICAL RULES:
 - SUGGESTED FOLLOW-UPS: Always provide 2 to 3 enticing 'suggested_followups' that allow the student to explore deeper or test variations of the concept.
 - For math queries (e.g. 'area(x^2, 0, 2)'): ALWAYS provide FormulaCard with step-by-step calculus integration and exact fraction + decimal answer.
 - COUNTING / ONE-TO-ONE (Counting to 10 or 20): Use GraphCard with model_type "counting" and count: N. The UI draws a TWO-COLUMN list — numeral on the left, that many dots on the right, one row per number. NEVER write wrapping inline charts like "1:● 2:●● 3:●●●" in formula, description, or TextBlock.
+- COMPARING NUMBERS: Use GraphCard with model_type "compare", left: 5, right: 10. The UI draws two towers and a number line with greater/less markers. NEVER use function_plot, sgn(x), or a step/sign chart for comparing numbers.
 - For reading/phonics practice: Use PronunciationCard with warm, encouraging prompts and phoneme details.
 - Always be pedagogical, accurate, structured, and inspiring.
 """
@@ -859,6 +965,8 @@ class GandalSpaceEngine:
         ]
         if is_counting_lesson(f"{prompt} {topic}"):
             children.append(counting_graph_card(f"{prompt} {topic}"))
+        elif is_comparing_numbers_lesson(f"{prompt} {topic}"):
+            children.append(compare_graph_card(f"{prompt} {topic}"))
         children.append({
             "type": "QuizCard",
             "question": f"Ready to practice {topic}?",
@@ -1671,6 +1779,7 @@ class GandalSpaceEngine:
 
             # Counting-to-N: two-column numeral | dots (never wrapping 1:● 2:●●)
             payload = normalize_counting_graph_cards(payload, query)
+            payload = normalize_compare_graph_cards(payload, query)
             children = payload.get("children") if isinstance(payload.get("children"), list) else children
             has_graph = any(isinstance(c, dict) and c.get("type") == "GraphCard" for c in children)
 
@@ -1681,7 +1790,9 @@ class GandalSpaceEngine:
                         f_str = (c.get("formula") or "").lower()
                         t_str = (c.get("title") or "").lower()
                         c_text = f"{f_str} {t_str} {q_lower}"
-                        if re.search(r'\b(right[\s-]triangle|triangle[\s-]rectangle|pythagor(as|ean)?|hypotenuse|right[\s-]angle)\b', c_text):
+                        if is_comparing_numbers_lesson(c_text):
+                            apply_compare_card(c, c_text)
+                        elif re.search(r'\b(right[\s-]triangle|triangle[\s-]rectangle|pythagor(as|ean)?|hypotenuse|right[\s-]angle)\b', c_text):
                             c["model_type"] = "geometry_pythagoras"
                         elif re.search(r'\btriangles?\b', c_text):
                             c["model_type"] = "geometry_triangle"
@@ -1703,9 +1814,11 @@ class GandalSpaceEngine:
             # Only inject a GraphCard if it is truly a STEM topic and lacks one
             if not has_graph and not is_non_stem_topic:
                 graph_card = None
-                
+
+                if is_comparing_numbers_lesson(combined_text):
+                    graph_card = compare_graph_card(combined_text)
                 # 1. Geometry: Right Triangle & Pythagorean Theorem
-                if re.search(r'\b(right[\s-]triangle|triangle[\s-]rectangle|pythagor(as|ean)?|hypotenuse|right[\s-]angled|right[\s-]angle)\b', combined_text):
+                elif re.search(r'\b(right[\s-]triangle|triangle[\s-]rectangle|pythagor(as|ean)?|hypotenuse|right[\s-]angled|right[\s-]angle)\b', combined_text):
                     graph_card = {
                         "type": "GraphCard",
                         "model_type": "geometry_pythagoras",
@@ -1839,7 +1952,7 @@ class GandalSpaceEngine:
                         "description": "Exothermic reaction coordinate showing the energy barrier $E_a$ required to reach the transition state, and the net enthalpy change $\\Delta H < 0$."
                     }
                 # 8. General Math Function / Calculus / Curves
-                else:
+                elif not is_comparing_numbers_lesson(combined_text):
                     math_keywords = [
                         r'\b(sign|sgn|signum)\b', r'\b(derivative|integral|calculus)\b',
                         r'\b(sin|cos|tan)\b', r'\b(parabola|slope|quadratic)\b',
@@ -1930,7 +2043,7 @@ class GandalSpaceEngine:
                 latency = round((time.time() - start_time) * 1000, 1)
                 return {
                     "success": True,
-                    "provider": f"Gemini 2.5 Flash (Cloud Fallback, {latency}ms)",
+                    "provider": f"Gemini Flash (Cloud Fallback, {latency}ms)",
                     "engine_type": "cloud_fallback",
                     "latency_ms": latency,
                     "ui_payload": payload
@@ -1986,15 +2099,6 @@ class GandalSpaceEngine:
                 "engine_type": "unavailable",
             }
 
-        prompt = (
-            "Write 5 distinct multiple-choice CONTENT questions about this topic.\n"
-            f"Topic: {title}\n"
-            f"Band: {band or 'K-12'}\n"
-            f"Topic id: {topic_id or ''}\n"
-            f"Lesson context: {context or title}\n"
-            "Return JSON with a 'questions' array of 5 items."
-        )
-
         def _ok(questions: list, provider: str, engine_type: str) -> Dict[str, Any]:
             latency = round((time.time() - start_time) * 1000, 1)
             return {
@@ -2009,46 +2113,57 @@ class GandalSpaceEngine:
             }
 
         questions: list = []
+        # Same routing as /ask: Gemma if :8080 is up, else the Google key that already
+        # generates lessons. Use the A2UI Gemini REST path — not a separate quiz schema.
+        ask_prompt = (
+            f"Student asks or inquires about: Write a practice quiz of FIVE distinct "
+            f"content multiple-choice questions about this ONE topic. Include five QuizCard "
+            f"children, each a different content question. Topic: {title}. "
+            f"Band: {band or 'K-12'}. Topic id: {topic_id or ''}. "
+            f"Lesson context: {context or title}. "
+            "Test the topic itself (examples, symbols, facts, letters, quantities). "
+            "Do not write meta questions about the current lesson, changing subjects, "
+            "triangle sides, or pi."
+        )
+
+        payload = None
+        used_engine = ""
         local_ok, _ = self.check_local_llm_status()
         if local_ok:
-            payload = self._query_local_llm(prompt, system_instruction=QUIZ_SYSTEM_INSTRUCTION)
-            questions = assemble_practice_quiz(title, payload, band=band, topic_id=topic_id)
-            # assemble pads from the topic; only accept if the model contributed
-            model_only = [
-                normalize_quiz_item(x)
-                for x in extract_quiz_items(payload)
-            ]
-            model_only = [q for q in model_only if q and not is_meta_quiz_item(q)]
-            if len(model_only) >= 1 and len(questions) >= 5:
-                latency_label = round((time.time() - start_time) * 1000, 1)
-                return _ok(questions[:5], f"Gemma 4 E4B (Edge/Gemma, {latency_label}ms)", "offline_edge")
+            payload = self._query_local_llm(ask_prompt)
+            if payload:
+                used_engine = "offline_edge"
 
         gemini_ok, _ = self.check_gemini_status()
-        if gemini_ok:
-            if (os.environ.get("GANDAL_SPACE_GEMINI_STUB") or "").strip() == "1":
-                questions = assemble_practice_quiz(title, None, band=band, topic_id=topic_id)
-                if len(questions) >= 5:
-                    return _ok(
-                        questions[:5],
-                        "Gemini 2.5 Flash (Cloud Fallback, stub)",
-                        "cloud_fallback",
-                    )
-            payload = self._query_gemini(prompt, system_instruction=QUIZ_SYSTEM_INSTRUCTION)
-            gemini_qs = assemble_practice_quiz(title, payload, band=band, topic_id=topic_id)
-            model_only = [
-                normalize_quiz_item(x)
-                for x in extract_quiz_items(payload)
-            ]
-            model_only = [q for q in model_only if q and not is_meta_quiz_item(q)]
-            if len(model_only) >= 1 and len(gemini_qs) >= 5:
-                latency_label = round((time.time() - start_time) * 1000, 1)
-                return _ok(gemini_qs[:5], f"Gemini 2.5 Flash (Cloud Fallback, {latency_label}ms)", "cloud_fallback")
-            if len(gemini_qs) > len(questions):
-                questions = gemini_qs
+        if not payload and gemini_ok:
+            payload = self._query_gemini(ask_prompt)
+            if payload:
+                used_engine = "cloud_fallback"
 
-        if len(questions) >= 5:
-            latency_label = round((time.time() - start_time) * 1000, 1)
-            return _ok(questions[:5], f"Gandal quiz ({latency_label}ms)", "topic_derived")
+        questions = assemble_practice_quiz(title, payload, band=band, topic_id=topic_id)
+
+        # If Cloud Turbo / Gemma is already serving lessons, never surface the
+        # "need Gemma or a Gemini key" error — pad from the topic instead.
+        if local_ok or gemini_ok:
+            if len(questions) < 5:
+                questions = assemble_practice_quiz(title, payload, band=band, topic_id=topic_id)
+            if questions:
+                latency_label = round((time.time() - start_time) * 1000, 1)
+                if used_engine == "offline_edge":
+                    provider = f"Gemma 4 E4B (Edge/Gemma, {latency_label}ms)"
+                    engine_type = "offline_edge"
+                elif used_engine == "cloud_fallback" or gemini_ok:
+                    stub = (os.environ.get("GANDAL_SPACE_GEMINI_STUB") or "").strip() == "1"
+                    provider = (
+                        "Gemini Flash (Cloud Fallback, stub)"
+                        if stub
+                        else f"Gemini Flash (Cloud Fallback, {latency_label}ms)"
+                    )
+                    engine_type = "cloud_fallback"
+                else:
+                    provider = f"Gemma 4 E4B (Edge/Gemma, {latency_label}ms)"
+                    engine_type = "offline_edge"
+                return _ok(questions[:5], provider, engine_type)
 
         err = self._unavailable_message()
         return {
@@ -2139,7 +2254,7 @@ class GandalSpaceEngine:
                 return {
                     "success": True,
                     "reply": "Gemini online fallback is ready. Gemma is not required.",
-                    "provider": "Gemini 2.5 Flash (Cloud, stub)"
+                    "provider": "Gemini Flash (Cloud, stub)"
                 }
             client = self._init_gemini()
             if client:
@@ -2159,7 +2274,7 @@ class GandalSpaceEngine:
                         return {
                             "success": True,
                             "reply": clean_reply,
-                            "provider": f"Gemini 2.5 Flash (Cloud, {round((time.time() - start_time)*1000, 1)}ms)"
+                            "provider": f"Gemini Flash (Cloud, {round((time.time() - start_time)*1000, 1)}ms)"
                         }
                 except Exception as e:
                     print(f"[GANDAL CHAT] Gemini SDK chat error: {e}")
@@ -2169,7 +2284,7 @@ class GandalSpaceEngine:
                 return {
                     "success": True,
                     "reply": str(reply).replace("*", "").replace("#", ""),
-                    "provider": f"Gemini 2.5 Flash (Cloud, {round((time.time() - start_time)*1000, 1)}ms)"
+                    "provider": f"Gemini Flash (Cloud, {round((time.time() - start_time)*1000, 1)}ms)"
                 }
 
         # 3. Intelligent fallback (specialized for column arithmetic and general Socratic dialogue)

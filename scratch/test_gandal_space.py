@@ -85,7 +85,53 @@ class _MockGemmaHandler(BaseHTTPRequestHandler):
             if m.get("role") == "system":
                 system = m.get("content") or ""
                 break
-        if "practice quizzes" in system.lower() or "exactly 5" in system.lower():
+        user = ""
+        for m in messages:
+            if m.get("role") == "user":
+                user += " " + str(m.get("content") or "")
+        if "five distinct" in user.lower() or "practice quiz" in user.lower() or "five quizcard" in user.lower():
+            content = json.dumps({
+                "type": "Container",
+                "title": "Comparing numbers",
+                "children": [
+                    {
+                        "type": "QuizCard",
+                        "question": "Which number is greater: 8 or 3?",
+                        "options": ["8", "3", "5", "11"],
+                        "answer_index": 0,
+                        "explanation": "8 is greater than 3.",
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "Which symbol makes this true: 9 __ 4?",
+                        "options": [">", "<", "=", "+"],
+                        "answer_index": 0,
+                        "explanation": "9 > 4.",
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "Which number is less: 12 or 15?",
+                        "options": ["12", "15", "27", "3"],
+                        "answer_index": 0,
+                        "explanation": "12 < 15.",
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "Compare 6 and 6. Which is true?",
+                        "options": ["6 = 6", "6 > 6", "6 < 6", "6 is greater"],
+                        "answer_index": 0,
+                        "explanation": "Equal numbers use =.",
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "Which sentence is correct: 2 compared with 7?",
+                        "options": ["2 is less than 7", "2 is greater than 7", "2 equals 7", "They cannot be compared"],
+                        "answer_index": 0,
+                        "explanation": "2 < 7.",
+                    },
+                ],
+            })
+        elif "practice quizzes" in system.lower() or "exactly 5" in system.lower():
             content = json.dumps({
                 "questions": [
                     {
@@ -373,6 +419,14 @@ def run_tests():
     assert all(not ae.is_meta_quiz_item(q) for q in qs)
     stub_blob = " ".join(q["question"] for q in qs).lower()
     assert any(k in stub_blob for k in ("greater", "less", "compare", ">", "<", "="))
+
+    silent = ae.GandalSpaceEngine()
+    silent._query_gemini = lambda prompt, system_instruction=None: None
+    silent._query_local_llm = lambda prompt, system_instruction=None: None
+    despite = silent.generate_practice_quiz("Comparing numbers", topic_id="math.k2.compare")
+    assert despite["success"] is True
+    assert despite["engine_type"] == "cloud_fallback"
+    assert len(despite["questions"]) == 5
     os.environ.pop("GOOGLE_API_KEY", None)
     os.environ.pop("GANDAL_SPACE_GEMINI_STUB", None)
 
@@ -394,6 +448,41 @@ def run_tests():
         os.environ.pop("LOCAL_LLM_URL", None)
         os.environ.pop("LOCAL_LLM_MODEL", None)
     print("Test 10 PASSED!\n")
+
+    print("=== TEST 11: Comparing numbers graph is towers, not sgn(x) ===")
+    assert ae.gemini_model_name() == "gemini-3.1-flash"
+    wrapped = {
+        "type": "Container",
+        "title": "Comparing numbers",
+        "children": [{
+            "type": "GraphCard",
+            "model_type": "function_plot",
+            "title": "Comparing Numbers. Learn to compare numbers using greater than, less than.",
+            "formula": "sgn(x)",
+        }],
+    }
+    out = ae.normalize_compare_graph_cards(wrapped, "Comparing numbers")
+    g = out["children"][0]
+    assert g["model_type"] == "compare"
+    assert g.get("left") == 5
+    assert g.get("right") == 10
+    assert "sgn" not in (g.get("formula") or "").lower()
+
+    os.environ["GOOGLE_API_KEY"] = "AIzaSyMOCK_GANDAL_ONLINE_TEST_KEY"
+    os.environ["GANDAL_SPACE_GEMINI_STUB"] = "1"
+    cloud = ae.GandalSpaceEngine()
+    asked = cloud.process_query("Teach this ONE K-12 topic. Topic: Comparing numbers. Band: K–2.")
+    kids = (asked.get("ui_payload") or {}).get("children") or []
+    graphs = [c for c in kids if c.get("type") == "GraphCard"]
+    assert graphs and graphs[0].get("model_type") == "compare"
+    os.environ.pop("GOOGLE_API_KEY", None)
+    os.environ.pop("GANDAL_SPACE_GEMINI_STUB", None)
+
+    res_area = engine.process_query("area(x^2, 0, 2)")
+    area_graphs = [c for c in (res_area.get("ui_payload") or {}).get("children") or [] if c.get("type") == "GraphCard"]
+    assert area_graphs
+    assert area_graphs[0].get("model_type") != "compare"
+    print("Test 11 PASSED!\n")
 
     print("=== ALL AUTOMATED TESTS PASSED! ===")
 
