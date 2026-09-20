@@ -10,6 +10,7 @@ import threading
 import shutil
 import urllib.request
 import http.server
+import re
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
@@ -176,6 +177,35 @@ def run_test():
             assert "ONE K-12 topic" in (data.get("topic") or {}).get("lesson_prompt", "")
         print("POST track start: PASSED!\n")
 
+        print("Testing POST /api/gandal_space/quiz (Comparing numbers, stub)...")
+        os.environ["GOOGLE_API_KEY"] = "AIzaSyMOCK_GANDAL_ONLINE_TEST_KEY"
+        os.environ["GANDAL_SPACE_GEMINI_STUB"] = "1"
+        quiz_data = json.dumps({
+            "topic": "Comparing numbers",
+            "topic_id": "math.k2.compare",
+            "band": "K–2",
+            "context": "Comparing numbers"
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{TEST_PORT}/api/gandal_space/quiz",
+            data=quiz_data,
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            questions = data.get("questions") or []
+            assert data.get("success") is True
+            assert len(questions) == 5
+            texts = [q.get("question") or "" for q in questions]
+            assert len(set(texts)) == 5
+            blob = " ".join(texts).lower()
+            assert "greater" in blob or "less" in blob or ">" in blob or "<" in blob or "compare" in blob
+            banned = "current lesson|change subjects|naming triangle sides|π and circles|jump to geometry|rest of the track"
+            assert not re.search(banned, json.dumps(questions), re.I)
+        os.environ.pop("GOOGLE_API_KEY", None)
+        os.environ.pop("GANDAL_SPACE_GEMINI_STUB", None)
+        print("POST quiz Comparing numbers: PASSED!\n")
+
         # 3. Test Static files
         print("Testing GET /gandal_space/gandal_space.css...")
         with urllib.request.urlopen(f"http://127.0.0.1:{TEST_PORT}/gandal_space/gandal_space.css", timeout=5) as resp:
@@ -209,8 +239,10 @@ def run_test():
             assert "a2ui-counting-row" in js_text
             assert "buildTrackTopicQuizBank" in js_text
             assert "quizMatchesTrackTopic" in js_text
+            assert "generatePracticeQuiz" in js_text
+            assert "isMetaQuizQuestion" in js_text
+            assert "/api/gandal_space/quiz" in js_text
             assert "What comes right after 9 when you count to 20?" in js_text
-            assert "buildTrackTopicQuizBank(trackTopic).forEach(push)" in js_text
             assert "rememberSavedTrack(data.current)" in js_text
         print("GET gandal_space.js: PASSED!\n")
 

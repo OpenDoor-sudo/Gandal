@@ -356,6 +356,12 @@ function cloneQuizItem(q) {
   };
 }
 
+function isMetaQuizQuestion(q) {
+  if (!q) return true;
+  const blob = `${q.question || ""} ${(q.options || []).join(" ")} ${q.explanation || ""}`;
+  return /current lesson|change subjects|naming triangle sides|only about\s*[πp]i|π and circles|pi and circles|jump to geometry|rest of the track|leave the track|switch to a new subject|what should you practice right now|which statement is true about|a good next step on|what is a good next step when you see a geometric figure|if you get a question wrong on|the rest of the track stays hidden|finished and we should change|name the given lengths/i.test(blob);
+}
+
 const PRACTICE_QUIZ_BANKS = {
   circle: [
     {
@@ -2572,22 +2578,73 @@ class GandalSpaceClient {
     });
   }
 
-  handleQuizMe() {
+  generatePracticeQuiz(topic, extras) {
+    const extra = extras || {};
+    return fetch("/api/gandal_space/quiz", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic: topic || "",
+        topic_id: extra.topic_id || extra.topicId || "",
+        band: extra.band || "",
+        context: extra.context || this.currentContext || topic || ""
+      })
+    }).then((resp) => resp.json());
+  }
+
+  async handleQuizMe() {
     this.openTableauNoir();
     const surface = document.getElementById("gandalA2UISurface");
     const existingQuizEl = surface ? surface.querySelector(".a2ui-quiz-card") : null;
     const track = this.quizFocusTopic();
-    const topic = (track && track.title) || this.currentContext || "right triangle";
-    const existingQuiz = existingQuizEl && this.quizCards[existingQuizEl.id]
-      ? this.quizCards[existingQuizEl.id]
-      : null;
-    const modelHint = (track && (track.id === "math.k2.counting" || /counting to \d+/i.test(track.title || "")))
-      ? "counting"
-      : ((this.activeModels && Object.values(this.activeModels).slice(-1)[0] && Object.values(this.activeModels).slice(-1)[0].model_type) || "");
-    this._wbQuizSet = this.buildPracticeQuizSet(topic, modelHint, existingQuiz);
-    this._wbQuizIndex = 0;
+    const topic = (track && track.title) || this.currentContext || "";
+    if (!topic) {
+      this.setWhiteboardHtml(
+        `<div class="gandal-wb-socratic"><div class="gandal-wb-kicker">❓ Quiz me</div><p class="gandal-wb-hint">Tell me what you are studying first — start a K-12 topic or ask a question — then tap Quiz me.</p></div>`,
+        "Need a topic",
+        "error"
+      );
+      return;
+    }
     if (existingQuizEl) this.highlightA2UICard(existingQuizEl);
-    this.presentCurrentTableauQuiz();
+    this.setWhiteboardHtml(
+      `<div class="gandal-wb-socratic"><div class="gandal-wb-kicker">❓ Question socratique — quiz</div><p class="gandal-wb-hint">Préparation de 5 questions sur <strong>${escapeHtml(topic)}</strong>…</p></div>`,
+      "Chargement du quiz",
+      "speaking"
+    );
+    try {
+      const data = await this.generatePracticeQuiz(topic, {
+        topic_id: track && track.id,
+        band: track && track.band,
+        context: this.currentContext || topic
+      });
+      const raw = (data && data.questions) || [];
+      const set = [];
+      const seen = new Set();
+      raw.forEach((q) => {
+        if (!q || !q.question || isMetaQuizQuestion(q) || seen.has(q.question) || set.length >= 5) return;
+        seen.add(q.question);
+        set.push(cloneQuizItem(q));
+      });
+      if (!data || !data.success || !set.length) {
+        const err = (data && (data.error || data.reply)) || "Need Gemma or a Gemini key to generate this quiz.";
+        this.setWhiteboardHtml(
+          `<div class="gandal-wb-socratic"><div class="gandal-wb-kicker">❓ Quiz me</div><p class="gandal-wb-hint">${escapeHtml(err)}</p></div>`,
+          "Quiz unavailable",
+          "error"
+        );
+        return;
+      }
+      this._wbQuizSet = set;
+      this._wbQuizIndex = 0;
+      this.presentCurrentTableauQuiz();
+    } catch (e) {
+      this.setWhiteboardHtml(
+        `<div class="gandal-wb-socratic"><div class="gandal-wb-kicker">❓ Quiz me</div><p class="gandal-wb-hint">Need Gemma or a Gemini key to generate this quiz.</p></div>`,
+        "Quiz unavailable",
+        "error"
+      );
+    }
   }
 
   async handleExplainSimpler() {

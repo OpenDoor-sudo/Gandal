@@ -4554,6 +4554,32 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.flush()
             return
 
+        if clean_path == '/api/gandal_space/quiz':
+            content_length = int(self.headers.get('Content-Length', 0) or 0)
+            post_data = self.rfile.read(content_length)
+            try:
+                data = json.loads(post_data.decode('utf-8') or "{}")
+                import importlib
+                import gandal_space.agent_engine as ae
+                importlib.reload(ae)
+                result = ae.default_engine.generate_practice_quiz(
+                    topic=data.get("topic") or data.get("title") or "",
+                    context=data.get("context") or "",
+                    band=data.get("band") or "",
+                    topic_id=data.get("topic_id") or data.get("topicId") or "",
+                )
+            except Exception as e:
+                result = {"success": False, "error": str(e), "questions": []}
+            body = json.dumps(result).encode('utf-8')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            self.wfile.flush()
+            return
+
         if clean_path == '/api/gandal_space/chat':
             content_length = int(self.headers.get('Content-Length', 0) or 0)
             post_data = self.rfile.read(content_length)

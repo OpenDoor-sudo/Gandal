@@ -85,7 +85,42 @@ class _MockGemmaHandler(BaseHTTPRequestHandler):
             if m.get("role") == "system":
                 system = m.get("content") or ""
                 break
-        if "A2UI" in system or "JSON object" in system:
+        if "practice quizzes" in system.lower() or "exactly 5" in system.lower():
+            content = json.dumps({
+                "questions": [
+                    {
+                        "question": "Which number is greater: 8 or 3?",
+                        "options": ["8", "3", "5", "11"],
+                        "answer_index": 0,
+                        "explanation": "8 is greater than 3.",
+                    },
+                    {
+                        "question": "Which symbol makes this true: 9 __ 4?",
+                        "options": [">", "<", "=", "+"],
+                        "answer_index": 0,
+                        "explanation": "9 > 4.",
+                    },
+                    {
+                        "question": "Which number is less: 12 or 15?",
+                        "options": ["12", "15", "27", "3"],
+                        "answer_index": 0,
+                        "explanation": "12 < 15.",
+                    },
+                    {
+                        "question": "Compare 6 and 6. Which is true?",
+                        "options": ["6 = 6", "6 > 6", "6 < 6", "6 is greater"],
+                        "answer_index": 0,
+                        "explanation": "Equal numbers use =.",
+                    },
+                    {
+                        "question": "Which sentence is correct: 2 compared with 7?",
+                        "options": ["2 is less than 7", "2 is greater than 7", "2 equals 7", "They cannot be compared"],
+                        "answer_index": 0,
+                        "explanation": "2 < 7.",
+                    },
+                ]
+            })
+        elif "A2UI" in system or "JSON object" in system:
             content = json.dumps(MOCK_A2UI)
         else:
             content = "Chlorophyll captures photons; this reply is from mock Gemma 4 E4B."
@@ -281,6 +316,84 @@ def run_tests():
     assert area_graphs[0].get("model_type") != "counting"
     assert area_graphs[0].get("formula") == "x^2"
     print("Test 9 PASSED!\n")
+
+    print("=== TEST 10: Dynamic Quiz me — 5 distinct content MCQs, no meta pad ===")
+    meta = {
+        "question": 'Which statement is true about "Comparing numbers"?',
+        "options": [
+            "It is the current lesson (K–2).",
+            "It is about naming triangle sides.",
+            "It is only about π and circles.",
+            "It is finished and we should change subjects.",
+        ],
+        "answer_index": 0,
+        "explanation": "Stay with Comparing numbers.",
+    }
+    assert ae.is_meta_quiz_item(meta) is True
+    assembled = ae.assemble_practice_quiz(
+        "Comparing numbers",
+        {"questions": [meta]},
+        band="K–2",
+        topic_id="math.k2.compare",
+    )
+    assert len(assembled) == 5
+    assert all(not ae.is_meta_quiz_item(q) for q in assembled)
+    assert len({q["question"] for q in assembled}) == 5
+    compare_blob = " ".join(q["question"] for q in assembled).lower()
+    assert "greater" in compare_blob or "less" in compare_blob or "compare" in compare_blob
+
+    alphabet = ae.topic_derived_content_quiz("The English alphabet", topic_id="eng.k2.alphabet")
+    assert len(alphabet) == 5
+    assert len({q["question"] for q in alphabet}) == 5
+    assert all(not ae.is_meta_quiz_item(q) for q in alphabet)
+    alpha_blob = " ".join(q["question"] for q in alphabet).lower()
+    assert "letter" in alpha_blob or "alphabet" in alpha_blob
+
+    dead = ae.GandalSpaceEngine()
+    no_llm = dead.generate_practice_quiz("Comparing numbers", topic_id="math.k2.compare")
+    assert no_llm["success"] is False
+    assert "gemma" in (no_llm.get("error") or "").lower()
+    assert no_llm.get("questions") == []
+
+    os.environ["GOOGLE_API_KEY"] = "AIzaSyMOCK_GANDAL_ONLINE_TEST_KEY"
+    os.environ["GANDAL_SPACE_GEMINI_STUB"] = "1"
+    cloud = ae.GandalSpaceEngine()
+    stub_quiz = cloud.generate_practice_quiz(
+        "Comparing numbers",
+        context="Comparing numbers",
+        band="K–2",
+        topic_id="math.k2.compare",
+    )
+    assert stub_quiz["success"] is True
+    assert stub_quiz["engine_type"] == "cloud_fallback"
+    assert "Gemini" in stub_quiz["provider"]
+    qs = stub_quiz["questions"]
+    assert len(qs) == 5
+    assert len({q["question"] for q in qs}) == 5
+    assert all(not ae.is_meta_quiz_item(q) for q in qs)
+    stub_blob = " ".join(q["question"] for q in qs).lower()
+    assert any(k in stub_blob for k in ("greater", "less", "compare", ">", "<", "="))
+    os.environ.pop("GOOGLE_API_KEY", None)
+    os.environ.pop("GANDAL_SPACE_GEMINI_STUB", None)
+
+    mock = _start_mock()
+    try:
+        os.environ["LOCAL_LLM_URL"] = f"http://127.0.0.1:{mock.server_address[1]}/v1"
+        os.environ["LOCAL_LLM_MODEL"] = "gemma-4-e4b"
+        live = ae.GandalSpaceEngine()
+        gemma_quiz = live.generate_practice_quiz("Comparing numbers", topic_id="math.k2.compare")
+        assert gemma_quiz["success"] is True
+        assert gemma_quiz["engine_type"] == "offline_edge"
+        assert "Gemma 4 E4B" in gemma_quiz["provider"]
+        gqs = gemma_quiz["questions"]
+        assert len(gqs) == 5
+        assert "Which number is greater: 8 or 3?" in [q["question"] for q in gqs]
+        assert all(not ae.is_meta_quiz_item(q) for q in gqs)
+    finally:
+        mock.shutdown()
+        os.environ.pop("LOCAL_LLM_URL", None)
+        os.environ.pop("LOCAL_LLM_MODEL", None)
+    print("Test 10 PASSED!\n")
 
     print("=== ALL AUTOMATED TESTS PASSED! ===")
 

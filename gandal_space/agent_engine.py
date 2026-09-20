@@ -198,6 +198,394 @@ def _real_google_api_key() -> Optional[str]:
         return None
     return key
 
+
+QUIZ_SYSTEM_INSTRUCTION = """You write short practice quizzes for one school topic.
+Return ONLY a single raw JSON object. Do NOT wrap it in markdown fences.
+
+Schema:
+{
+  "questions": [
+    {
+      "question": "Content question that tests the topic itself",
+      "options": ["Correct answer", "Plausible distractor", "Plausible distractor", "Plausible distractor"],
+      "answer_index": 0,
+      "explanation": "Why the correct option is right"
+    }
+  ]
+}
+
+Rules:
+- Exactly 5 DISTINCT multiple-choice questions about the CONTENT of the given topic.
+- Each item has exactly 4 options and one correct answer (answer_index 0-3).
+- Questions must test facts, examples, symbols, letters, quantities, or skills from THAT topic.
+- If the topic is comparing numbers: ask greater/less, < > =, and concrete number pairs. Every item must be different.
+- If the topic is an alphabet: ask letter order, starting sounds, or example words. Every item must be different.
+- BANNED meta templates (never write these): "this is the current lesson", "change subjects", "naming triangle sides", "only about π and circles", "jump to geometry", "the rest of the track", "leave the track", "Which statement is true about '<topic>'?", "What should you practice right now?", "What is a good next step when you see a geometric figure?".
+- Do not ask whether the student should switch subjects or whether this is the current lesson.
+- Do not repeat the same question with different wording.
+"""
+
+_META_QUIZ_RE = re.compile(
+    r"("
+    r"current lesson|"
+    r"change subjects|"
+    r"naming triangle sides|"
+    r"only about\s*[πp]i|"
+    r"π and circles|"
+    r"pi and circles|"
+    r"jump to geometry|"
+    r"rest of the track|"
+    r"leave the track|"
+    r"switch to a new subject|"
+    r"what should you practice right now|"
+    r"which statement is true about|"
+    r"a good next step on|"
+    r"what is a good next step when you see a geometric figure|"
+    r"if you get a question wrong on|"
+    r"the rest of the track stays hidden|"
+    r"finished and we should change|"
+    r"name the given lengths"
+    r")",
+    re.I,
+)
+
+
+def _topic_seed(topic: str) -> int:
+    seed = 0
+    for i, ch in enumerate(topic or "topic"):
+        seed = (seed * 31 + ord(ch) + i) & 0x7FFFFFFF
+    return seed or 1
+
+
+def is_meta_quiz_item(item: Any) -> bool:
+    if not isinstance(item, dict):
+        return True
+    blob = " ".join(
+        [
+            str(item.get("question") or ""),
+            " ".join(str(o) for o in (item.get("options") or [])),
+            str(item.get("explanation") or ""),
+        ]
+    )
+    return bool(_META_QUIZ_RE.search(blob))
+
+
+def normalize_quiz_item(raw: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(raw, dict):
+        return None
+    question = str(raw.get("question") or "").strip()
+    options = raw.get("options") or []
+    if isinstance(options, dict):
+        options = list(options.values())
+    if not isinstance(options, list):
+        return None
+    cleaned = [str(o).strip() for o in options if o is not None and str(o).strip()]
+    if not question or len(cleaned) < 2:
+        return None
+    while len(cleaned) < 4:
+        cleaned.append("Not this one")
+    cleaned = cleaned[:4]
+    idx = raw.get("answerIndex")
+    if idx is None:
+        idx = raw.get("answer_index", 0)
+    try:
+        idx = int(idx)
+    except (TypeError, ValueError):
+        idx = 0
+    if idx < 0 or idx >= len(cleaned):
+        idx = 0
+    return {
+        "question": question,
+        "options": cleaned,
+        "answerIndex": idx,
+        "answer_index": idx,
+        "explanation": str(raw.get("explanation") or "").strip(),
+    }
+
+
+def extract_quiz_items(payload: Any) -> list:
+    if not payload:
+        return []
+    if isinstance(payload, list):
+        return [x for x in payload if isinstance(x, dict)]
+    if not isinstance(payload, dict):
+        return []
+    for key in ("questions", "quiz", "items"):
+        val = payload.get(key)
+        if isinstance(val, list):
+            return [x for x in val if isinstance(x, dict)]
+    children = payload.get("children")
+    if isinstance(children, list):
+        cards = [c for c in children if isinstance(c, dict) and c.get("type") == "QuizCard"]
+        if cards:
+            return cards
+    if payload.get("question") and payload.get("options"):
+        return [payload]
+    return []
+
+
+def _dynamic_compare_quiz(topic: str) -> list:
+    seed = _topic_seed(topic or "comparing numbers")
+    items = []
+    used_q = set()
+    i = 0
+    while len(items) < 5 and i < 20:
+        a = 2 + ((seed + i * 11) % 18)
+        b = 2 + ((seed + i * 17 + 5) % 18)
+        kind = i % 5
+        if kind == 4:
+            b = a
+        elif a == b:
+            b = a + 2 if a <= 17 else a - 2
+        bigger, smaller = (a, b) if a >= b else (b, a)
+        if kind == 0:
+            item = {
+                "question": f"Which number is greater: {a} or {b}?",
+                "options": [str(bigger), str(smaller), str(a + b), str(abs(a - b) or 1)],
+                "answer_index": 0,
+                "explanation": f"{bigger} is greater than {smaller}. We write {bigger} > {smaller}.",
+            }
+        elif kind == 1:
+            item = {
+                "question": f"Which number is less: {a} or {b}?",
+                "options": [str(smaller), str(bigger), str(a + b), str(a * b if a * b < 100 else abs(a - b))],
+                "answer_index": 0,
+                "explanation": f"{smaller} is less than {bigger}. We write {smaller} < {bigger}.",
+            }
+        elif kind == 2:
+            symbol = ">" if a > b else "<" if a < b else "="
+            distractors = [s for s in (">", "<", "=", "+") if s != symbol]
+            item = {
+                "question": f"Which symbol makes this true: {a} __ {b}?",
+                "options": [symbol] + distractors[:3],
+                "answer_index": 0,
+                "explanation": f"{a} compared with {b} uses {symbol}.",
+            }
+        elif kind == 3:
+            item = {
+                "question": f"Compare {a} and {b}. Which sentence is correct?",
+                "options": [
+                    f"{bigger} is greater than {smaller}",
+                    f"{smaller} is greater than {bigger}",
+                    f"{a} plus {b} is smaller than both",
+                    f"{a} and {b} cannot be compared",
+                ],
+                "answer_index": 0,
+                "explanation": f"{bigger} > {smaller}.",
+            }
+        else:
+            item = {
+                "question": f"Compare {a} and {b}. Which is true?",
+                "options": [f"{a} = {b}", f"{a} > {b}", f"{a} < {b}", f"{a} cannot equal {b}"],
+                "answer_index": 0,
+                "explanation": f"The same number is equal: {a} = {b}.",
+            }
+        q = item["question"]
+        if q not in used_q:
+            used_q.add(q)
+            items.append(item)
+        i += 1
+    return items[:5]
+
+
+def _dynamic_count_quiz(topic: str) -> list:
+    seed = _topic_seed(topic or "counting")
+    nums = []
+    n = 1
+    while len(nums) < 5:
+        v = 1 + ((seed + n * 7) % 19)
+        if v not in nums:
+            nums.append(v)
+        n += 1
+    a, b, c, d, e = nums
+    bigger, smaller = (a, b) if a >= b else (b, a)
+    return [
+        {
+            "question": f"The number {c} means how many things?",
+            "options": [str(c), str(max(1, c - 1)), str(c + 1), str(c + 10 if c + 10 <= 20 else 1)],
+            "answer_index": 0,
+            "explanation": f"The numeral {c} stands for {c} things.",
+        },
+        {
+            "question": f"How many dots should stand next to the number {d}?",
+            "options": [str(d), "0", str(d + 1), str(max(1, d - 2))],
+            "answer_index": 0,
+            "explanation": f"{d} means {d} dots — one for each thing.",
+        },
+        {
+            "question": f"Which number has more things: {a} or {b}?",
+            "options": [str(bigger), str(smaller), "They have the same", "Neither has a quantity"],
+            "answer_index": 0,
+            "explanation": f"{bigger} is a bigger quantity than {smaller}.",
+        },
+        {
+            "question": f"What comes right after {e} when you count?",
+            "options": [str(e + 1), str(e), str(max(1, e - 1)), str(e + 10 if e + 10 <= 20 else e + 2)],
+            "answer_index": 0,
+            "explanation": f"After {e} you say {e + 1}.",
+        },
+        {
+            "question": f"If you add one more object to a group of {c}, how many do you have?",
+            "options": [str(c + 1), str(c), str(max(1, c - 1)), str(c + 10 if c + 10 <= 20 else 20)],
+            "answer_index": 0,
+            "explanation": f"Counting on by one: {c} and one more is {c + 1}.",
+        },
+    ]
+
+
+def _dynamic_alphabet_quiz(topic: str) -> list:
+    seed = _topic_seed(topic or "alphabet")
+    letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    start = seed % 20
+    words = {
+        "A": "Apple", "B": "Ball", "C": "Cat", "D": "Dog", "E": "Egg",
+        "F": "Fish", "G": "Goat", "H": "Hat", "I": "Igloo", "J": "Jam",
+        "K": "Kite", "L": "Lion", "M": "Moon", "N": "Nest", "O": "Orange",
+        "P": "Pig", "Q": "Queen", "R": "Rain", "S": "Sun", "T": "Tree",
+        "U": "Umbrella", "V": "Van", "W": "Water", "X": "X-ray", "Y": "Yarn",
+        "Z": "Zoo",
+    }
+    items = []
+    for i in range(5):
+        letter = letters[start + i]
+        nxt = letters[start + i + 1]
+        word = words.get(letter, letter)
+        kind = i % 3
+        if kind == 0:
+            items.append({
+                "question": f"Which letter comes right after {letter}?",
+                "options": [nxt, letter, letters[(start + i + 5) % 26], "Q" if letter != "Q" else "Z"],
+                "answer_index": 0,
+                "explanation": f"After {letter} comes {nxt}.",
+            })
+        elif kind == 1:
+            wrong = words.get(nxt, "Sun")
+            items.append({
+                "question": f"Which word starts with the letter {letter}?",
+                "options": [word, wrong, "Seven" if letter != "S" else "Moon", "Quiet" if letter != "Q" else "Ball"],
+                "answer_index": 0,
+                "explanation": f"{word} starts with {letter}.",
+            })
+        else:
+            items.append({
+                "question": f"How many letters are in the English alphabet, and where is {letter}?",
+                "options": [
+                    f"26 letters; {letter} is one of them",
+                    "10 letters only",
+                    f"{letter} is not a letter",
+                    "The alphabet has no order",
+                ],
+                "answer_index": 0,
+                "explanation": f"The English alphabet has 26 letters. {letter} is one of them.",
+            })
+    return items[:5]
+
+
+def _dynamic_generic_quiz(topic: str) -> list:
+    title = (topic or "this topic").strip() or "this topic"
+    return [
+        {
+            "question": f"Which example belongs with {title}?",
+            "options": [
+                f"An example that uses {title}",
+                "An unrelated leftover fact",
+                "A skipped practice item",
+                "A blank unused idea",
+            ],
+            "answer_index": 0,
+            "explanation": f"Practice stays on examples of {title}.",
+        },
+        {
+            "question": f"What should you be able to do after practicing {title}?",
+            "options": [
+                f"Solve a {title} problem in your own words",
+                "Repeat a random unused fact",
+                "Ignore the examples",
+                "Leave the idea unused",
+            ],
+            "answer_index": 0,
+            "explanation": f"The skill is to use {title}, not to skip it.",
+        },
+        {
+            "question": f"Which choice matches {title}?",
+            "options": [
+                f"A fact that belongs to {title}",
+                "A fact from a different idea",
+                "An empty answer",
+                "A skipped example",
+            ],
+            "answer_index": 0,
+            "explanation": f"Pick the fact that belongs to {title}.",
+        },
+        {
+            "question": f"A student working on {title} should look for…",
+            "options": [
+                f"Key words and examples inside {title}",
+                "A different unused subject",
+                "Nothing on the page",
+                "A random leftover number",
+            ],
+            "answer_index": 0,
+            "explanation": f"Stay with the words and examples of {title}.",
+        },
+        {
+            "question": f"Which practice item tests {title}?",
+            "options": [
+                f"A question that uses the ideas in {title}",
+                "A question from an unused subject",
+                "A question with no content",
+                "A question that skips the idea",
+            ],
+            "answer_index": 0,
+            "explanation": f"The quiz item should test {title} itself.",
+        },
+    ]
+
+
+def topic_derived_content_quiz(topic: str, band: str = "", topic_id: str = "") -> list:
+    """Build 5 content MCQs from the topic string — not a stored bank."""
+    blob = f"{topic or ''} {band or ''} {topic_id or ''}".lower()
+    tid = (topic_id or "").strip().lower()
+    if tid == "math.k2.compare" or re.search(
+        r"compar(?:e|ing).*(number|numeral)|greater than|less than", blob
+    ):
+        return _dynamic_compare_quiz(topic)
+    if tid == "math.k2.counting" or (
+        re.search(r"\bcount(?:ing)?\b", blob) and not re.search(r"skip[\s-]?count", blob)
+    ):
+        return _dynamic_count_quiz(topic)
+    if tid == "eng.k2.alphabet" or re.search(r"alphabet|letter|phonic", blob):
+        return _dynamic_alphabet_quiz(topic)
+    return _dynamic_generic_quiz(topic or "this topic")
+
+
+def assemble_practice_quiz(topic: str, payload: Any = None, band: str = "", topic_id: str = "") -> list:
+    """Keep distinct non-meta items; pad from the topic if the model returned too few."""
+    seen = set()
+    out: list = []
+
+    def push(raw: Any) -> None:
+        item = normalize_quiz_item(raw)
+        if not item or is_meta_quiz_item(item):
+            return
+        q = item["question"]
+        if q in seen or len(out) >= 5:
+            return
+        seen.add(q)
+        out.append(item)
+
+    for raw in extract_quiz_items(payload):
+        push(raw)
+        if len(out) >= 5:
+            return out[:5]
+    if len(out) < 5:
+        for raw in topic_derived_content_quiz(topic, band=band, topic_id=topic_id):
+            push(raw)
+            if len(out) >= 5:
+                break
+    return out[:5]
+
+
 A2UI_SYSTEM_INSTRUCTION = """You are Gandal Space AI, an elite adaptive educational assistant for students across K-12 and university level.
 You must ALWAYS respond with a single, raw, valid JSON object conforming to the A2UI (Agent-to-User Interface) specification.
 Do NOT wrap your output in markdown code blocks like ```json ... ```. Return ONLY the parseable JSON payload.
@@ -440,11 +828,11 @@ class GandalSpaceEngine:
             print(f"[GANDAL SPACE] Local Gemma ({base}) query error: {e}")
             return None
 
-    def _query_local_llm(self, prompt: str) -> Optional[Dict[str, Any]]:
-        """Ask Gemma for an A2UI JSON payload over the OpenAI-compatible API."""
+    def _query_local_llm(self, prompt: str, system_instruction: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Ask Gemma for a JSON payload over the OpenAI-compatible API."""
         raw = self._chat_completions(
             messages=[
-                {"role": "system", "content": A2UI_SYSTEM_INSTRUCTION},
+                {"role": "system", "content": system_instruction or A2UI_SYSTEM_INSTRUCTION},
                 {"role": "user", "content": prompt},
             ],
             timeout=30.0,
@@ -488,7 +876,7 @@ class GandalSpaceEngine:
             "children": children,
         }
 
-    def _query_gemini_rest(self, prompt: str) -> Optional[Dict[str, Any]]:
+    def _query_gemini_rest(self, prompt: str, system_instruction: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Call Gemini generateContent over HTTPS — no google-genai SDK required."""
         api_key = _real_google_api_key()
         if not api_key:
@@ -499,7 +887,7 @@ class GandalSpaceEngine:
             f"{model}:generateContent?key={api_key}"
         )
         body = {
-            "system_instruction": {"parts": [{"text": A2UI_SYSTEM_INSTRUCTION}]},
+            "system_instruction": {"parts": [{"text": system_instruction or A2UI_SYSTEM_INSTRUCTION}]},
             "contents": [{"role": "user", "parts": [{"text": prompt}]}],
             "generationConfig": {
                 "temperature": 0.3,
@@ -522,9 +910,20 @@ class GandalSpaceEngine:
             print(f"[GANDAL SPACE] Gemini REST query error: {e}")
             return None
 
-    def _query_gemini(self, prompt: str) -> Optional[Dict[str, Any]]:
+    def _query_gemini(self, prompt: str, system_instruction: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Query Google Gemini (stub, SDK, or REST). Works without the google package."""
+        sys_inst = system_instruction or A2UI_SYSTEM_INSTRUCTION
         if (os.environ.get("GANDAL_SPACE_GEMINI_STUB") or "").strip() == "1" and _real_google_api_key():
+            if sys_inst == QUIZ_SYSTEM_INSTRUCTION:
+                topic = "this topic"
+                match = re.search(r"Topic:\s*([^\n.]+)", prompt or "")
+                if match:
+                    topic = match.group(1).strip()
+                tid_match = re.search(r"Topic id:\s*([^\n]+)", prompt or "")
+                tid = tid_match.group(1).strip() if tid_match else ""
+                band_match = re.search(r"Band:\s*([^\n]+)", prompt or "")
+                band = band_match.group(1).strip() if band_match else ""
+                return {"questions": topic_derived_content_quiz(topic, band=band, topic_id=tid)}
             return self._gemini_stub_payload(prompt)
         if not self._gemini_client:
             self._init_gemini()
@@ -532,7 +931,7 @@ class GandalSpaceEngine:
             try:
                 from google.genai import types
                 config = types.GenerateContentConfig(
-                    system_instruction=A2UI_SYSTEM_INSTRUCTION,
+                    system_instruction=sys_inst,
                     response_mime_type="application/json",
                     temperature=0.3
                 )
@@ -545,7 +944,7 @@ class GandalSpaceEngine:
                     return self._clean_and_parse_json(response.text)
             except Exception as e:
                 print(f"[GANDAL SPACE] Gemini SDK query error: {e}")
-        return self._query_gemini_rest(prompt)
+        return self._query_gemini_rest(prompt, system_instruction=sys_inst)
 
     def _clean_and_parse_json(self, raw_text: str) -> Optional[Dict[str, Any]]:
         """Clean markdown markers if present and parse JSON safely, handling LaTeX backslashes."""
@@ -1565,6 +1964,100 @@ class GandalSpaceEngine:
             "provider": "none",
             "engine_type": "unavailable",
             "latency_ms": latency,
+        }
+
+    def generate_practice_quiz(
+        self,
+        topic: str = "",
+        context: str = "",
+        band: str = "",
+        topic_id: str = "",
+    ) -> Dict[str, Any]:
+        """Five distinct content MCQs for the active track topic or last free-ask subject."""
+        start_time = time.time()
+        title = (topic or context or "").strip()
+        if not title:
+            err = "Need a topic to quiz — start a K-12 track or ask about a subject first."
+            return {
+                "success": False,
+                "error": err,
+                "questions": [],
+                "provider": "none",
+                "engine_type": "unavailable",
+            }
+
+        prompt = (
+            "Write 5 distinct multiple-choice CONTENT questions about this topic.\n"
+            f"Topic: {title}\n"
+            f"Band: {band or 'K-12'}\n"
+            f"Topic id: {topic_id or ''}\n"
+            f"Lesson context: {context or title}\n"
+            "Return JSON with a 'questions' array of 5 items."
+        )
+
+        def _ok(questions: list, provider: str, engine_type: str) -> Dict[str, Any]:
+            latency = round((time.time() - start_time) * 1000, 1)
+            return {
+                "success": True,
+                "questions": questions,
+                "topic": title,
+                "band": band,
+                "topic_id": topic_id,
+                "provider": provider,
+                "engine_type": engine_type,
+                "latency_ms": latency,
+            }
+
+        questions: list = []
+        local_ok, _ = self.check_local_llm_status()
+        if local_ok:
+            payload = self._query_local_llm(prompt, system_instruction=QUIZ_SYSTEM_INSTRUCTION)
+            questions = assemble_practice_quiz(title, payload, band=band, topic_id=topic_id)
+            # assemble pads from the topic; only accept if the model contributed
+            model_only = [
+                normalize_quiz_item(x)
+                for x in extract_quiz_items(payload)
+            ]
+            model_only = [q for q in model_only if q and not is_meta_quiz_item(q)]
+            if len(model_only) >= 1 and len(questions) >= 5:
+                latency_label = round((time.time() - start_time) * 1000, 1)
+                return _ok(questions[:5], f"Gemma 4 E4B (Edge/Gemma, {latency_label}ms)", "offline_edge")
+
+        gemini_ok, _ = self.check_gemini_status()
+        if gemini_ok:
+            if (os.environ.get("GANDAL_SPACE_GEMINI_STUB") or "").strip() == "1":
+                questions = assemble_practice_quiz(title, None, band=band, topic_id=topic_id)
+                if len(questions) >= 5:
+                    return _ok(
+                        questions[:5],
+                        "Gemini 2.5 Flash (Cloud Fallback, stub)",
+                        "cloud_fallback",
+                    )
+            payload = self._query_gemini(prompt, system_instruction=QUIZ_SYSTEM_INSTRUCTION)
+            gemini_qs = assemble_practice_quiz(title, payload, band=band, topic_id=topic_id)
+            model_only = [
+                normalize_quiz_item(x)
+                for x in extract_quiz_items(payload)
+            ]
+            model_only = [q for q in model_only if q and not is_meta_quiz_item(q)]
+            if len(model_only) >= 1 and len(gemini_qs) >= 5:
+                latency_label = round((time.time() - start_time) * 1000, 1)
+                return _ok(gemini_qs[:5], f"Gemini 2.5 Flash (Cloud Fallback, {latency_label}ms)", "cloud_fallback")
+            if len(gemini_qs) > len(questions):
+                questions = gemini_qs
+
+        if len(questions) >= 5:
+            latency_label = round((time.time() - start_time) * 1000, 1)
+            return _ok(questions[:5], f"Gandal quiz ({latency_label}ms)", "topic_derived")
+
+        err = self._unavailable_message()
+        return {
+            "success": False,
+            "error": err,
+            "questions": [],
+            "provider": "none",
+            "engine_type": "unavailable",
+            "latency_ms": round((time.time() - start_time) * 1000, 1),
         }
 
     def evaluate_pronunciation(self, target_letter: str, expected_phoneme: str, student_transcript: str = "", audio_base64: str = "") -> Dict[str, Any]:
