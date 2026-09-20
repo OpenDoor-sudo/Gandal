@@ -3148,7 +3148,7 @@ class GandalSpaceClient {
     const rightH = Math.max(12, Math.round((right / max) * 150));
     const symbol = left > right ? ">" : left < right ? "<" : "=";
     const lineMax = Math.max(10, max);
-    const labelSet = new Set([0, left, right]);
+    const labelSet = new Set([0]);
     const ticks = [];
     for (let n = 0; n <= lineMax; n++) {
       const pct = (n / lineMax) * 100;
