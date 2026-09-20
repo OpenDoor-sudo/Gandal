@@ -16,7 +16,6 @@ def get_google_api_key():
     env_paths = [
         os.path.join(BASE_DIR, '..', '..', '.env'),
         os.path.join(BASE_DIR, '.env'),
-        'c:/Users/lalyb/Desktop/ventuno_ai_testbed/.env'
     ]
     for p in env_paths:
         if os.path.exists(p):

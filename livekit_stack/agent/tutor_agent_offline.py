@@ -3,10 +3,9 @@ import sys
 from types import ModuleType
 import numpy as np
 
-# Force offline environment flags
+# Honor caller-set hub flags. Do not force HF offline: Faster-Whisper tiny
+# weights must be downloadable on a first Linux boot.
 import os
-os.environ["HF_HUB_OFFLINE"] = "1"
-os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 # Workaround: Mock VAD with a pure-python RMS implementation to bypass native Windows DLL crashes
 class MockVAD:
@@ -44,6 +43,11 @@ logger = logging.getLogger("offline-agent")
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 os.chdir(PROJECT_ROOT)
+
+SESSION_JSON_PATH = os.environ.get(
+    "SESSION_JSON_PATH",
+    os.path.join(os.environ.get("GANDHO_PROJECT_ROOT", PROJECT_ROOT), "active_session.json"),
+)
 
 # Load environment variables from parent directory .env
 env_path = os.path.join(PROJECT_ROOT, ".env")
@@ -90,55 +94,8 @@ from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm, s
 from livekit.agents.voice import Agent, AgentSession
 from livekit.plugins import silero, openai
 
-# 1. Gemma Native Direct Audio Input (Whisper-Bypass Mode for Multimodal Gemma on Hexagon NPU)
-class GemmaNativeAudioSTT(stt.STT):
-    """
-    Direct Audio Token Ingestor for Multimodal Gemma (Audio In).
-    Directly packages audio waveforms into base64 audio tokens / raw PCM buffers
-    for Gemma's native audio encoder, bypassing Whisper completely to save RAM.
-    """
-    def __init__(self, local_endpoint: str = "http://localhost:8080/v1"):
-        super().__init__(
-            capabilities=stt.STTCapabilities(
-                streaming=False,
-                interim_results=False
-            )
-        )
-        self.local_endpoint = local_endpoint
-        logger.info(f"[NATIVE S2S] Initialized Gemma Native Audio Ingestor (Whisper Bypassed). Endpoint: {local_endpoint}")
-
-    @property
-    def model(self) -> str:
-        return "gemma-native-audio-in"
-
-    async def _recognize_impl(
-        self,
-        buffer,
-        *,
-        language: str | None = None,
-        conn_options = None,
-    ) -> stt.SpeechEvent:
-        try:
-            import io
-            import base64
-            combined = rtc.combine_audio_frames(buffer)
-            wav_bytes = combined.to_wav_bytes()
-            b64_audio = base64.b64encode(wav_bytes).decode('utf-8')
-            
-            return stt.SpeechEvent(
-                type=stt.SpeechEventType.FINAL_TRANSCRIPT,
-                alternatives=[
-                    stt.SpeechData(
-                        language=language or "fr",
-                        text=f"[AUDIO_IN:{b64_audio}]"
-                    )
-                ]
-            )
-        except Exception as err:
-            logger.error(f"[NATIVE AUDIO IN ERROR] Direct audio ingest failed: {err}")
-            raise
-
-# 2. Legacy Faster-Whisper Cascaded STT Fallback
+# Faster-Whisper is the working offline STT. There is no Gemma native-audio /
+# Hexagon NPU pipeline in this tree; USE_NATIVE_AUDIO_INPUT is ignored.
 class FasterWhisperSTT(stt.STT):
     def __init__(self):
         super().__init__(
@@ -147,8 +104,15 @@ class FasterWhisperSTT(stt.STT):
                 interim_results=False
             )
         )
-        from faster_whisper import WhisperModel
-        self._whisper = WhisperModel("tiny", device="cpu", compute_type="int8")
+        try:
+            from faster_whisper import WhisperModel
+            self._whisper = WhisperModel("tiny", device="cpu", compute_type="int8")
+        except Exception as err:
+            raise RuntimeError(
+                "Faster-Whisper STT failed to load the 'tiny' model. Install faster-whisper "
+                "and allow the model download (unset HF_HUB_OFFLINE). "
+                "Gemma native-audio / NPU STT is not implemented in this tree."
+            ) from err
 
     @property
     def model(self) -> str:
@@ -214,33 +178,39 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"Connecting to LiveKit Offline Room: {ctx.room.name}")
     
     local_llm_url = os.environ.get("LOCAL_LLM_URL", "http://localhost:8080/v1")
-    use_native_audio = os.environ.get("USE_NATIVE_AUDIO_INPUT", "1") == "1"
-    
-    # 1. Setup VAD (Silero) and Audio Input (Native Gemma vs Whisper Fallback)
+    if os.environ.get("USE_NATIVE_AUDIO_INPUT", "0") == "1":
+        logger.warning(
+            "[OFFLINE STT] USE_NATIVE_AUDIO_INPUT=1 is set, but Gemma native-audio / NPU "
+            "STT is not implemented. Using Faster-Whisper instead (no fake base64 transcripts)."
+        )
+
+    # 1. Setup VAD (Silero) and Faster-Whisper STT
     vad = silero.VAD.load()
-    if use_native_audio:
-        logger.info("[OFFLINE S2S] Mode: Gemma Native Audio Input (Whisper Bypassed -> Saving RAM/VRAM).")
-        audio_in = GemmaNativeAudioSTT(local_endpoint=local_llm_url)
-    else:
-        logger.info("[OFFLINE S2S] Mode: Faster-Whisper Cascaded STT Fallback.")
-        audio_in = FasterWhisperSTT()
+    logger.info("[OFFLINE STT] Mode: Faster-Whisper (tiny, CPU).")
+    audio_in = FasterWhisperSTT()
         
     stt_instance = stt.StreamAdapter(stt=audio_in, vad=vad)
     
     # 2. Resolve Active Locale and OKF Student Profile
     active_locale = "en_US"
-    session_file = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"
-    student_id = "alseny"
+    session_file = SESSION_JSON_PATH
+    student_id = "Alseny"
+    s_data = {}
     if os.path.exists(session_file):
         try:
             with open(session_file, "r") as sf:
                 s_data = json.load(sf)
                 active_locale = s_data.get("active_locale", "en_US")
-                student_id = s_data.get("active_student_id", "alseny")
+                student_id = s_data.get("active_student_id") or s_data.get("active_student_name") or "Alseny"
         except Exception as e:
             logger.warning(f"Failed to read active_session.json: {e}")
-            
-    logger.info(f"[OFFLINE AGENT STARTUP] Student ID: '{student_id}' | Active Locale: {active_locale}")
+    else:
+        logger.warning(
+            f"[SESSION] {session_file} is missing. Using student_id={student_id!r}. "
+            "Start display_client.py so the classroom can write this file."
+        )
+
+    logger.info(f"[OFFLINE AGENT STARTUP] Student ID: '{student_id}' | Active Locale: {active_locale} | session={session_file}")
 
     # Load OKF Student Memory Profile
     okf_meta, okf_body = student_memory.get_subject_profile(student_id, "general")
@@ -281,7 +251,12 @@ async def entrypoint(ctx: JobContext):
             base_url=kokoro_url
         )
     else:
-        logger.info("Local Kokoro TTS not active. Route audio to local TTS bridge on port 8000.")
+        logger.error(
+            "[OFFLINE TTS] Kokoro is not reachable at %s. There is no local Piper/SAPI/NPU TTS "
+            "in this tree. Speech output will fail until Kokoro is started on :8880 "
+            "(or KOKORO_URL points at a real OpenAI-compatible TTS).",
+            kokoro_url,
+        )
         tts = openai.TTS(
             model="tts-1",
             voice="local",
@@ -294,7 +269,7 @@ async def entrypoint(ctx: JobContext):
     savant_context_offline = ""
     try:
         from savant_curriculum_matrix import get_savant_and_connections_context
-        active_vid_id = s_data.get("active_video_id", "default_vid") if os.path.exists(session_file) else "default_vid"
+        active_vid_id = s_data.get("active_video_id", "default_vid") if s_data else "default_vid"
         savant_context_offline = get_savant_and_connections_context(active_vid_id, "General", active_locale)
     except Exception as s_err:
         logger.warning(f"Failed to load savant matrix in offline agent: {s_err}")
@@ -395,7 +370,7 @@ async def entrypoint(ctx: JobContext):
     logger.info("Offline Agent successfully connected and listening...")
     
     time_salutation = get_time_greeting(active_locale)
-    active_vid = s_data.get("active_video_id", "default_vid") if os.path.exists(session_file) else "default_vid"
+    active_vid = s_data.get("active_video_id", "default_vid") if s_data else "default_vid"
     is_new_vid = active_vid not in OFFLINE_GREETED_VIDEOS_CACHE
     OFFLINE_GREETED_VIDEOS_CACHE.add(active_vid)
 

@@ -1,9 +1,12 @@
 """
 agent_engine.py - Gandal Space Hybrid AI Engine (A2UI & Offline Edge / Cloud Fallback)
 Supports:
-  1. Local Edge LLM: Gemma 4 e4b via Ollama (http://localhost:11434)
-  2. Cloud Fallback: Google Gemini (gemini-2.5-flash via google-genai SDK)
+  1. Local Edge LLM: Gemma 4 E4B via OpenAI-compat LOCAL_LLM_URL (default http://127.0.0.1:8080/v1)
+  2. Cloud Fallback: Google Gemini (gemini-3.8-flash via google-genai SDK / REST) when a key is present
   3. Declarative A2UI Protocol: TextBlock, Card, Container, FormulaCard, PronunciationCard, AudioFeedback
+
+This is the same Gemma endpoint the rest of Gandal uses. It is not Ollama :11434,
+Hexagon NPU, or native-audio STT.
 """
 
 import os
@@ -37,9 +40,660 @@ def _load_env():
 
 _load_env()
 
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("LOCAL_LLM_MODEL", "gemma4:e4b")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+DEFAULT_LOCAL_LLM_URL = "http://127.0.0.1:8080/v1"
+DEFAULT_LOCAL_LLM_MODEL = "gemma-4-e4b"
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+
+
+def _prefer_ipv4_http_url(url: str) -> str:
+    """Rewrite localhost → 127.0.0.1 so Linux does not hang on IPv6 ::1."""
+    u = (url or "").strip()
+    for scheme in ("http://", "https://"):
+        needle = scheme + "localhost"
+        if u.lower().startswith(needle):
+            return scheme + "127.0.0.1" + u[len(needle):]
+    return u
+
+
+def local_llm_base_url() -> str:
+    raw = os.environ.get("LOCAL_LLM_URL") or DEFAULT_LOCAL_LLM_URL
+    return _prefer_ipv4_http_url(raw).rstrip("/")
+
+
+def local_llm_model() -> str:
+    return (
+        os.environ.get("LOCAL_LLM_MODEL")
+        or os.environ.get("LOCAL_MODEL_NAME")
+        or DEFAULT_LOCAL_LLM_MODEL
+    )
+
+
+def gemini_model_name() -> str:
+    return os.environ.get("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL
+
+
+_COUNTING_DOT_RE = re.compile(r"\d+\s*:\s*[●•○◉⚫⬤]+")
+_COUNTING_TO_RE = re.compile(r"\bcount(?:ing)?\s+to\s+(\d+)\b", re.I)
+_SKIP_COUNT_RE = re.compile(r"\bskip[\s-]?count", re.I)
+_PROTECTED_GRAPH_PREFIXES = ("geometry_", "physics_", "chemistry_")
+
+
+def looks_like_inline_counting_chart(text: str) -> bool:
+    """True when the model dumped a wrapping '1:● 2:●● …' chart."""
+    return len(_COUNTING_DOT_RE.findall(text or "")) >= 2
+
+
+def is_counting_lesson(text: str) -> bool:
+    """Counting-to-N / one-to-one dots — not skip-counting or other graphs."""
+    t = text or ""
+    if looks_like_inline_counting_chart(t):
+        return True
+    if _SKIP_COUNT_RE.search(t):
+        return False
+    if _COUNTING_TO_RE.search(t):
+        return True
+    if re.search(r"\beach number represents a quantity\b", t, re.I):
+        return True
+    return False
+
+
+def parse_counting_max(text: str, default: int = 20) -> int:
+    m = _COUNTING_TO_RE.search(text or "")
+    if m:
+        return max(1, min(20, int(m.group(1))))
+    nums = [int(n) for n in re.findall(r"(\d+)\s*:\s*[●•○◉⚫⬤]", text or "")]
+    if nums:
+        return max(1, min(20, max(nums)))
+    return default
+
+
+def strip_inline_counting_chart(text: str) -> str:
+    if not text:
+        return ""
+    cleaned = re.sub(r"(?:\d+\s*:\s*[●•○◉⚫⬤]+\s*)+", " ", text)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
+
+def counting_graph_card(query: str = "", count: Optional[int] = None) -> Dict[str, Any]:
+    n = count if isinstance(count, int) and count >= 1 else parse_counting_max(query, 20)
+    n = max(1, min(20, n))
+    return {
+        "type": "GraphCard",
+        "model_type": "counting",
+        "count": n,
+        "title": f"Counting to {n}",
+        "formula": "",
+        "description": (
+            "Each number is a row. The left column is the numeral. "
+            "The right column shows that many dots."
+        ),
+    }
+
+
+def apply_counting_card(card: Dict[str, Any], blob: str) -> None:
+    n = 0
+    try:
+        n = int(card.get("count") or 0)
+    except (TypeError, ValueError):
+        n = 0
+    if n < 1:
+        n = parse_counting_max(blob, 20)
+    card["model_type"] = "counting"
+    card["count"] = n
+    formula = card.get("formula") or ""
+    if looks_like_inline_counting_chart(formula) or re.search(r"\d+\s*:\s*[●•○◉⚫⬤]", formula):
+        card["formula"] = ""
+    desc = card.get("description") or ""
+    if desc:
+        card["description"] = strip_inline_counting_chart(desc)
+
+
+def normalize_counting_graph_cards(payload: Dict[str, Any], query: str) -> Dict[str, Any]:
+    """Force counting lessons onto a two-column GraphCard; strip wrapping 1:● 2:●● text."""
+    if not isinstance(payload, dict):
+        return payload
+    children = payload.get("children")
+    if not isinstance(children, list):
+        return payload
+    blob_all = f"{query} {payload.get('title') or ''}"
+    for child in children:
+        if not isinstance(child, dict):
+            continue
+        if child.get("type") == "TextBlock" and looks_like_inline_counting_chart(child.get("content") or ""):
+            child["content"] = strip_inline_counting_chart(child.get("content") or "")
+        if child.get("type") != "GraphCard":
+            continue
+        existing = (child.get("model_type") or "")
+        card_blob = f"{child.get('formula') or ''} {child.get('description') or ''} {child.get('title') or ''} {blob_all}"
+        is_count_type = existing in ("counting", "count_dots", "count")
+        steal_ok = not existing.startswith(_PROTECTED_GRAPH_PREFIXES)
+        if is_count_type or (steal_ok and is_counting_lesson(card_blob)):
+            apply_counting_card(child, card_blob)
+    has_counting = any(
+        isinstance(c, dict)
+        and c.get("type") == "GraphCard"
+        and (c.get("model_type") or "") in ("counting", "count_dots", "count")
+        for c in children
+    )
+    if not has_counting and is_counting_lesson(blob_all):
+        quiz_idx = next(
+            (i for i, c in enumerate(children) if isinstance(c, dict) and c.get("type") == "QuizCard"),
+            len(children),
+        )
+        children.insert(quiz_idx, counting_graph_card(blob_all))
+    payload["children"] = children
+    return payload
+
+
+_COMPARE_NUMBERS_RE = re.compile(
+    r"compar(?:e|ing)\s+numbers|math\.k2\.compare\b",
+    re.I,
+)
+
+
+def is_comparing_numbers_lesson(text: str) -> bool:
+    """K-2 comparing numbers — not fractions, not length/weight, not counting."""
+    t = text or ""
+    if is_counting_lesson(t) and not _COMPARE_NUMBERS_RE.search(t):
+        return False
+    if _COMPARE_NUMBERS_RE.search(t):
+        return True
+    if re.search(r"\bgreater than\b|\bless than\b", t, re.I) and re.search(r"\bnumbers?\b", t, re.I):
+        if re.search(r"fraction|length|weight|capacity", t, re.I):
+            return False
+        return True
+    return False
+
+
+def parse_compare_pair(text: str, default: Tuple[int, int] = (5, 10)) -> Tuple[int, int]:
+    cleaned = re.sub(r"\bK[\s\-–—]*\d+\b", " ", text or "", flags=re.I)
+    cleaned = re.sub(r"\b\d+\s*[\-–—]\s*\d+\+?\b", " ", cleaned)
+    nums = [int(n) for n in re.findall(r"\b(\d{1,2})\b", cleaned)]
+    nums = [n for n in nums if 0 <= n <= 20]
+    for i in range(len(nums) - 1):
+        if nums[i] != nums[i + 1]:
+            return nums[i], nums[i + 1]
+    return default
+
+
+def compare_graph_card(query: str = "", left: Optional[int] = None, right: Optional[int] = None) -> Dict[str, Any]:
+    parsed = parse_compare_pair(query or "")
+    a = left if isinstance(left, int) else parsed[0]
+    b = right if isinstance(right, int) else parsed[1]
+    a = max(0, min(20, int(a)))
+    b = max(0, min(20, int(b)))
+    if a == b:
+        b = 10 if a != 10 else 5
+    symbol = ">" if a > b else "<" if a < b else "="
+    return {
+        "type": "GraphCard",
+        "model_type": "compare",
+        "left": a,
+        "right": b,
+        "title": "Comparing numbers",
+        "formula": f"{a} {symbol} {b}",
+        "description": (
+            f"Two towers and a number line: {a} vs {b}. "
+            f"The taller tower is the greater number. {a} {symbol} {b}."
+        ),
+    }
+
+
+def apply_compare_card(card: Dict[str, Any], blob: str) -> None:
+    left, right = parse_compare_pair(blob)
+    try:
+        if card.get("left") is not None:
+            left = int(card.get("left"))
+        if card.get("right") is not None:
+            right = int(card.get("right"))
+    except (TypeError, ValueError):
+        pass
+    built = compare_graph_card(blob, left=left, right=right)
+    card["model_type"] = "compare"
+    card["left"] = built["left"]
+    card["right"] = built["right"]
+    card["title"] = card.get("title") or built["title"]
+    formula = card.get("formula") or ""
+    if not formula or looks_like_inline_counting_chart(formula) or formula.lower() in ("sgn(x)", "sign(x)", "x^2"):
+        card["formula"] = built["formula"]
+    if not card.get("description"):
+        card["description"] = built["description"]
+
+
+def normalize_compare_graph_cards(payload: Dict[str, Any], query: str) -> Dict[str, Any]:
+    """Force comparing-numbers lessons onto two towers + a number line, not sgn(x)."""
+    if not isinstance(payload, dict):
+        return payload
+    children = payload.get("children")
+    if not isinstance(children, list):
+        return payload
+    blob_all = f"{query} {payload.get('title') or ''}"
+    lesson = is_comparing_numbers_lesson(blob_all)
+    for child in children:
+        if not isinstance(child, dict) or child.get("type") != "GraphCard":
+            continue
+        existing = (child.get("model_type") or "")
+        if existing.startswith(_PROTECTED_GRAPH_PREFIXES) or existing in ("counting", "count_dots", "count"):
+            continue
+        card_blob = f"{child.get('formula') or ''} {child.get('description') or ''} {child.get('title') or ''} {blob_all}"
+        if existing == "compare" or (lesson and existing in ("", "function_plot", "compare")):
+            apply_compare_card(child, card_blob)
+    has_compare = any(
+        isinstance(c, dict) and c.get("type") == "GraphCard" and (c.get("model_type") or "") == "compare"
+        for c in children
+    )
+    if not has_compare and lesson:
+        quiz_idx = next(
+            (i for i, c in enumerate(children) if isinstance(c, dict) and c.get("type") == "QuizCard"),
+            len(children),
+        )
+        children.insert(quiz_idx, compare_graph_card(blob_all))
+    payload["children"] = children
+    return payload
+
+
+def _placeholder_api_key(key: Optional[str]) -> bool:
+    if not key or len(key.strip()) < 8:
+        return True
+    lowered = key.strip().lower()
+    return lowered in ("your_google_api_key_here", "changeme", "none", "null")
+
+
+def _real_google_api_key() -> Optional[str]:
+    key = (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY") or "").strip()
+    if not key or _placeholder_api_key(key):
+        return None
+    return key
+
+
+QUIZ_SYSTEM_INSTRUCTION = """You write short practice quizzes for one school topic.
+Return ONLY a single raw JSON object. Do NOT wrap it in markdown fences.
+
+Schema:
+{
+  "questions": [
+    {
+      "question": "Content question that tests the topic itself",
+      "options": ["Correct answer", "Plausible distractor", "Plausible distractor", "Plausible distractor"],
+      "answer_index": 0,
+      "explanation": "Why the correct option is right"
+    }
+  ]
+}
+
+Rules:
+- Exactly 5 DISTINCT multiple-choice questions about the CONTENT of the given topic.
+- Each item has exactly 4 options and one correct answer (answer_index 0-3).
+- Questions must test facts, examples, symbols, letters, quantities, or skills from THAT topic.
+- If the topic is comparing numbers: ask greater/less, < > =, and concrete number pairs. Every item must be different.
+- If the topic is an alphabet: ask letter order, starting sounds, or example words. Every item must be different.
+- BANNED meta templates (never write these): "this is the current lesson", "change subjects", "naming triangle sides", "only about π and circles", "jump to geometry", "the rest of the track", "leave the track", "Which statement is true about '<topic>'?", "What should you practice right now?", "What is a good next step when you see a geometric figure?".
+- Do not ask whether the student should switch subjects or whether this is the current lesson.
+- Do not repeat the same question with different wording.
+"""
+
+_META_QUIZ_RE = re.compile(
+    r"("
+    r"current lesson|"
+    r"change subjects|"
+    r"naming triangle sides|"
+    r"only about\s*[πp]i|"
+    r"π and circles|"
+    r"pi and circles|"
+    r"jump to geometry|"
+    r"rest of the track|"
+    r"leave the track|"
+    r"switch to a new subject|"
+    r"what should you practice right now|"
+    r"which statement is true about|"
+    r"a good next step on|"
+    r"what is a good next step when you see a geometric figure|"
+    r"if you get a question wrong on|"
+    r"the rest of the track stays hidden|"
+    r"finished and we should change|"
+    r"name the given lengths|"
+    r"ready to practice|"
+    r"change subject"
+    r")",
+    re.I,
+)
+
+
+def _topic_seed(topic: str) -> int:
+    seed = 0
+    for i, ch in enumerate(topic or "topic"):
+        seed = (seed * 31 + ord(ch) + i) & 0x7FFFFFFF
+    return seed or 1
+
+
+def is_meta_quiz_item(item: Any) -> bool:
+    if not isinstance(item, dict):
+        return True
+    blob = " ".join(
+        [
+            str(item.get("question") or ""),
+            " ".join(str(o) for o in (item.get("options") or [])),
+            str(item.get("explanation") or ""),
+        ]
+    )
+    return bool(_META_QUIZ_RE.search(blob))
+
+
+def normalize_quiz_item(raw: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(raw, dict):
+        return None
+    question = str(raw.get("question") or "").strip()
+    options = raw.get("options") or []
+    if isinstance(options, dict):
+        options = list(options.values())
+    if not isinstance(options, list):
+        return None
+    cleaned = [str(o).strip() for o in options if o is not None and str(o).strip()]
+    if not question or len(cleaned) < 2:
+        return None
+    while len(cleaned) < 4:
+        cleaned.append("Not this one")
+    cleaned = cleaned[:4]
+    idx = raw.get("answerIndex")
+    if idx is None:
+        idx = raw.get("answer_index", 0)
+    try:
+        idx = int(idx)
+    except (TypeError, ValueError):
+        idx = 0
+    if idx < 0 or idx >= len(cleaned):
+        idx = 0
+    return {
+        "question": question,
+        "options": cleaned,
+        "answerIndex": idx,
+        "answer_index": idx,
+        "explanation": str(raw.get("explanation") or "").strip(),
+    }
+
+
+def extract_quiz_items(payload: Any) -> list:
+    if not payload:
+        return []
+    if isinstance(payload, list):
+        return [x for x in payload if isinstance(x, dict)]
+    if not isinstance(payload, dict):
+        return []
+    for key in ("questions", "quiz", "items"):
+        val = payload.get(key)
+        if isinstance(val, list):
+            return [x for x in val if isinstance(x, dict)]
+    children = payload.get("children")
+    if isinstance(children, list):
+        cards = [c for c in children if isinstance(c, dict) and c.get("type") == "QuizCard"]
+        if cards:
+            return cards
+    if payload.get("question") and payload.get("options"):
+        return [payload]
+    return []
+
+
+def _dynamic_compare_quiz(topic: str) -> list:
+    seed = _topic_seed(topic or "comparing numbers")
+    items = []
+    used_q = set()
+    i = 0
+    while len(items) < 5 and i < 20:
+        a = 2 + ((seed + i * 11) % 18)
+        b = 2 + ((seed + i * 17 + 5) % 18)
+        kind = i % 5
+        if kind == 4:
+            b = a
+        elif a == b:
+            b = a + 2 if a <= 17 else a - 2
+        bigger, smaller = (a, b) if a >= b else (b, a)
+        if kind == 0:
+            item = {
+                "question": f"Which number is greater: {a} or {b}?",
+                "options": [str(bigger), str(smaller), str(a + b), str(abs(a - b) or 1)],
+                "answer_index": 0,
+                "explanation": f"{bigger} is greater than {smaller}. We write {bigger} > {smaller}.",
+            }
+        elif kind == 1:
+            item = {
+                "question": f"Which number is less: {a} or {b}?",
+                "options": [str(smaller), str(bigger), str(a + b), str(a * b if a * b < 100 else abs(a - b))],
+                "answer_index": 0,
+                "explanation": f"{smaller} is less than {bigger}. We write {smaller} < {bigger}.",
+            }
+        elif kind == 2:
+            symbol = ">" if a > b else "<" if a < b else "="
+            distractors = [s for s in (">", "<", "=", "+") if s != symbol]
+            item = {
+                "question": f"Which symbol makes this true: {a} __ {b}?",
+                "options": [symbol] + distractors[:3],
+                "answer_index": 0,
+                "explanation": f"{a} compared with {b} uses {symbol}.",
+            }
+        elif kind == 3:
+            item = {
+                "question": f"Compare {a} and {b}. Which sentence is correct?",
+                "options": [
+                    f"{bigger} is greater than {smaller}",
+                    f"{smaller} is greater than {bigger}",
+                    f"{a} plus {b} is smaller than both",
+                    f"{a} and {b} cannot be compared",
+                ],
+                "answer_index": 0,
+                "explanation": f"{bigger} > {smaller}.",
+            }
+        else:
+            item = {
+                "question": f"Compare {a} and {b}. Which is true?",
+                "options": [f"{a} = {b}", f"{a} > {b}", f"{a} < {b}", f"{a} cannot equal {b}"],
+                "answer_index": 0,
+                "explanation": f"The same number is equal: {a} = {b}.",
+            }
+        q = item["question"]
+        if q not in used_q:
+            used_q.add(q)
+            items.append(item)
+        i += 1
+    return items[:5]
+
+
+def _dynamic_count_quiz(topic: str) -> list:
+    seed = _topic_seed(topic or "counting")
+    nums = []
+    n = 1
+    while len(nums) < 5:
+        v = 1 + ((seed + n * 7) % 19)
+        if v not in nums:
+            nums.append(v)
+        n += 1
+    a, b, c, d, e = nums
+    bigger, smaller = (a, b) if a >= b else (b, a)
+    return [
+        {
+            "question": f"The number {c} means how many things?",
+            "options": [str(c), str(max(1, c - 1)), str(c + 1), str(c + 10 if c + 10 <= 20 else 1)],
+            "answer_index": 0,
+            "explanation": f"The numeral {c} stands for {c} things.",
+        },
+        {
+            "question": f"How many dots should stand next to the number {d}?",
+            "options": [str(d), "0", str(d + 1), str(max(1, d - 2))],
+            "answer_index": 0,
+            "explanation": f"{d} means {d} dots — one for each thing.",
+        },
+        {
+            "question": f"Which number has more things: {a} or {b}?",
+            "options": [str(bigger), str(smaller), "They have the same", "Neither has a quantity"],
+            "answer_index": 0,
+            "explanation": f"{bigger} is a bigger quantity than {smaller}.",
+        },
+        {
+            "question": f"What comes right after {e} when you count?",
+            "options": [str(e + 1), str(e), str(max(1, e - 1)), str(e + 10 if e + 10 <= 20 else e + 2)],
+            "answer_index": 0,
+            "explanation": f"After {e} you say {e + 1}.",
+        },
+        {
+            "question": f"If you add one more object to a group of {c}, how many do you have?",
+            "options": [str(c + 1), str(c), str(max(1, c - 1)), str(c + 10 if c + 10 <= 20 else 20)],
+            "answer_index": 0,
+            "explanation": f"Counting on by one: {c} and one more is {c + 1}.",
+        },
+    ]
+
+
+def _dynamic_alphabet_quiz(topic: str) -> list:
+    seed = _topic_seed(topic or "alphabet")
+    letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    start = seed % 20
+    words = {
+        "A": "Apple", "B": "Ball", "C": "Cat", "D": "Dog", "E": "Egg",
+        "F": "Fish", "G": "Goat", "H": "Hat", "I": "Igloo", "J": "Jam",
+        "K": "Kite", "L": "Lion", "M": "Moon", "N": "Nest", "O": "Orange",
+        "P": "Pig", "Q": "Queen", "R": "Rain", "S": "Sun", "T": "Tree",
+        "U": "Umbrella", "V": "Van", "W": "Water", "X": "X-ray", "Y": "Yarn",
+        "Z": "Zoo",
+    }
+    items = []
+    for i in range(5):
+        letter = letters[start + i]
+        nxt = letters[start + i + 1]
+        word = words.get(letter, letter)
+        kind = i % 3
+        if kind == 0:
+            items.append({
+                "question": f"Which letter comes right after {letter}?",
+                "options": [nxt, letter, letters[(start + i + 5) % 26], "Q" if letter != "Q" else "Z"],
+                "answer_index": 0,
+                "explanation": f"After {letter} comes {nxt}.",
+            })
+        elif kind == 1:
+            wrong = words.get(nxt, "Sun")
+            items.append({
+                "question": f"Which word starts with the letter {letter}?",
+                "options": [word, wrong, "Seven" if letter != "S" else "Moon", "Quiet" if letter != "Q" else "Ball"],
+                "answer_index": 0,
+                "explanation": f"{word} starts with {letter}.",
+            })
+        else:
+            items.append({
+                "question": f"How many letters are in the English alphabet, and where is {letter}?",
+                "options": [
+                    f"26 letters; {letter} is one of them",
+                    "10 letters only",
+                    f"{letter} is not a letter",
+                    "The alphabet has no order",
+                ],
+                "answer_index": 0,
+                "explanation": f"The English alphabet has 26 letters. {letter} is one of them.",
+            })
+    return items[:5]
+
+
+def _dynamic_generic_quiz(topic: str) -> list:
+    title = (topic or "this topic").strip() or "this topic"
+    return [
+        {
+            "question": f"Which example belongs with {title}?",
+            "options": [
+                f"An example that uses {title}",
+                "An unrelated leftover fact",
+                "A skipped practice item",
+                "A blank unused idea",
+            ],
+            "answer_index": 0,
+            "explanation": f"Practice stays on examples of {title}.",
+        },
+        {
+            "question": f"What should you be able to do after practicing {title}?",
+            "options": [
+                f"Solve a {title} problem in your own words",
+                "Repeat a random unused fact",
+                "Ignore the examples",
+                "Leave the idea unused",
+            ],
+            "answer_index": 0,
+            "explanation": f"The skill is to use {title}, not to skip it.",
+        },
+        {
+            "question": f"Which choice matches {title}?",
+            "options": [
+                f"A fact that belongs to {title}",
+                "A fact from a different idea",
+                "An empty answer",
+                "A skipped example",
+            ],
+            "answer_index": 0,
+            "explanation": f"Pick the fact that belongs to {title}.",
+        },
+        {
+            "question": f"A student working on {title} should look for…",
+            "options": [
+                f"Key words and examples inside {title}",
+                "A different unused subject",
+                "Nothing on the page",
+                "A random leftover number",
+            ],
+            "answer_index": 0,
+            "explanation": f"Stay with the words and examples of {title}.",
+        },
+        {
+            "question": f"Which practice item tests {title}?",
+            "options": [
+                f"A question that uses the ideas in {title}",
+                "A question from an unused subject",
+                "A question with no content",
+                "A question that skips the idea",
+            ],
+            "answer_index": 0,
+            "explanation": f"The quiz item should test {title} itself.",
+        },
+    ]
+
+
+def topic_derived_content_quiz(topic: str, band: str = "", topic_id: str = "") -> list:
+    """Build 5 content MCQs from the topic string — not a stored bank."""
+    blob = f"{topic or ''} {band or ''} {topic_id or ''}".lower()
+    tid = (topic_id or "").strip().lower()
+    if tid == "math.k2.compare" or re.search(
+        r"compar(?:e|ing).*(number|numeral)|greater than|less than", blob
+    ):
+        return _dynamic_compare_quiz(topic)
+    if tid == "math.k2.counting" or (
+        re.search(r"\bcount(?:ing)?\b", blob) and not re.search(r"skip[\s-]?count", blob)
+    ):
+        return _dynamic_count_quiz(topic)
+    if tid == "eng.k2.alphabet" or re.search(r"alphabet|letter|phonic", blob):
+        return _dynamic_alphabet_quiz(topic)
+    return _dynamic_generic_quiz(topic or "this topic")
+
+
+def assemble_practice_quiz(topic: str, payload: Any = None, band: str = "", topic_id: str = "") -> list:
+    """Keep distinct non-meta items; pad from the topic if the model returned too few."""
+    seen = set()
+    out: list = []
+
+    def push(raw: Any) -> None:
+        item = normalize_quiz_item(raw)
+        if not item or is_meta_quiz_item(item):
+            return
+        q = item["question"]
+        if q in seen or len(out) >= 5:
+            return
+        seen.add(q)
+        out.append(item)
+
+    for raw in extract_quiz_items(payload):
+        push(raw)
+        if len(out) >= 5:
+            return out[:5]
+    if len(out) < 5:
+        for raw in topic_derived_content_quiz(topic, band=band, topic_id=topic_id):
+            push(raw)
+            if len(out) >= 5:
+                break
+    return out[:5]
+
 
 A2UI_SYSTEM_INSTRUCTION = """You are Gandal Space AI, an elite adaptive educational assistant for students across K-12 and university level.
 You must ALWAYS respond with a single, raw, valid JSON object conforming to the A2UI (Agent-to-User Interface) specification.
@@ -114,9 +768,10 @@ Available A2UI Components:
 6. GraphCard (MANDATORY for Math, Geometry, Physics, and Chemistry):
    {
      "type": "GraphCard",
-     "model_type": "geometry_triangle" | "geometry_circle" | "geometry_pythagoras" | "physics_projectile" | "physics_newton" | "chemistry_titration" | "chemistry_kinetics" | "function_plot",
-     "title": "Interactive Model: Triangle ABC / Function / Simulation",
+     "model_type": "geometry_triangle" | "geometry_circle" | "geometry_pythagoras" | "geometry_ellipse" | "geometry_rectangle" | "geometry_square" | "geometry_polygon" | "physics_projectile" | "physics_newton" | "chemistry_titration" | "chemistry_kinetics" | "function_plot" | "counting" | "compare",
+     "title": "Interactive Model: Triangle ABC / Function / Simulation / Counting to 20",
      "formula": "triangle" | "circle" | "sgn(x)" | "x^2" | "sin(x)" | "F = ma",
+     "count": 20,
      "theorem": "\\angle A + \\angle B + \\angle C = 180^\\circ \\quad | \\quad \\text{Area} = \\frac{1}{2}bh",
      "domain": [-1, 6],
      "range": [-1, 5],
@@ -153,127 +808,255 @@ CRITICAL RULES:
 - LATEX MATH: For all mathematical variables, equations, integrals, and formulas, ALWAYS format with LaTeX math delimiters: inline with $...$ and block with $$...$$ (e.g. $f'(x) = nx^{n-1}$, $\\frac{d}{dx}(x^3) = 3x^2$, $\\angle A + \\angle B + \\angle C = 180^\\circ$). Never output raw unescaped math without delimiters.
 - SUGGESTED FOLLOW-UPS: Always provide 2 to 3 enticing 'suggested_followups' that allow the student to explore deeper or test variations of the concept.
 - For math queries (e.g. 'area(x^2, 0, 2)'): ALWAYS provide FormulaCard with step-by-step calculus integration and exact fraction + decimal answer.
+- COUNTING / ONE-TO-ONE (Counting to 10 or 20): Use GraphCard with model_type "counting" and count: N. The UI draws a TWO-COLUMN list — numeral on the left, that many dots on the right, one row per number. NEVER write wrapping inline charts like "1:● 2:●● 3:●●●" in formula, description, or TextBlock.
+- COMPARING NUMBERS: Use GraphCard with model_type "compare", left: 5, right: 10. The UI draws two towers and a number line with greater/less markers. NEVER use function_plot, sgn(x), or a step/sign chart for comparing numbers.
 - For reading/phonics practice: Use PronunciationCard with warm, encouraging prompts and phoneme details.
 - Always be pedagogical, accurate, structured, and inspiring.
 """
 
 class GandalSpaceEngine:
-    """Hybrid AI Engine with local-first Ollama and cloud Gemini fallback."""
+    """Hybrid AI Engine: local Gemma 4 E4B first, optional Gemini, honest failure otherwise."""
 
     def __init__(self):
         self._gemini_client = None
         # Lazy initialization: do not block startup/import with SDK loads
 
+    def _unavailable_message(self) -> str:
+        base = local_llm_base_url()
+        model = local_llm_model()
+        return (
+            f"Need Gemma or a Gemini key: Gemma 4 E4B is not running at {base} (model {model}), "
+            "and no usable GOOGLE_API_KEY is set. Start LOCAL_LLM_URL / gemma-4-e4b on :8080 "
+            "or add a real GOOGLE_API_KEY for Gemini online."
+        )
+
     def _init_gemini(self):
         if self._gemini_client is not None:
             return self._gemini_client
+        api_key = _real_google_api_key()
+        if not api_key:
+            return None
         try:
             from google import genai
-            api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-            if api_key:
-                self._gemini_client = genai.Client(api_key=api_key)
+            self._gemini_client = genai.Client(api_key=api_key)
         except Exception as e:
-            print(f"[GANDAL SPACE] Warning: Google GenAI client init failed: {e}")
+            print(f"[GANDAL SPACE] Warning: Google GenAI SDK unavailable ({e}); using REST fallback.")
         return self._gemini_client
 
-    def check_ollama_status(self) -> Tuple[bool, str]:
-        """Check if local Ollama daemon is running and which models are installed."""
+    def check_local_llm_status(self) -> Tuple[bool, str]:
+        """Probe OpenAI-compatible Gemma on LOCAL_LLM_URL (/v1/models)."""
+        base = local_llm_base_url()
+        model = local_llm_model()
+        models_url = f"{base}/models"
         try:
             req = urllib.request.Request(
-                f"{OLLAMA_BASE_URL}/api/tags",
+                models_url,
                 headers={"User-Agent": "GandalSpace/1.0"}
             )
-            with urllib.request.urlopen(req, timeout=1.0) as resp:
-                if resp.status == 200:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    models = [m.get("name", "") for m in data.get("models", [])]
-                    target_model = OLLAMA_MODEL.lower()
-                    has_gemma = any(target_model in m.lower() or "gemma" in m.lower() for m in models)
-                    if has_gemma:
-                        return True, f"Online ({len(models)} models available, Gemma ready)"
-                    else:
-                        return False, f"Ollama online, but {OLLAMA_MODEL} not loaded ({len(models)} other models)"
-        except Exception:
-            pass
-        return False, "Offline (Not running on port 11434)"
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
+                if resp.status != 200:
+                    return False, f"Offline ({base}/models HTTP {resp.status})"
+                data = json.loads(resp.read().decode("utf-8") or "{}")
+                listed = []
+                if isinstance(data, dict):
+                    listed = [m.get("id") or m.get("name") or "" for m in data.get("data") or []]
+                    if not listed:
+                        listed = [m.get("name", "") for m in data.get("models") or []]
+                names = [n for n in listed if n]
+                target = model.lower()
+                has_target = any(target in n.lower() or "gemma" in n.lower() for n in names)
+                if has_target or not names:
+                    return True, f"Edge/Gemma ready at {base} ({model})"
+                return True, f"Local LLM at {base} (using {model}; listed: {', '.join(names[:4])})"
+        except Exception as e:
+            return False, f"Offline (not reachable at {base}: {e.__class__.__name__})"
+
+    def check_ollama_status(self) -> Tuple[bool, str]:
+        """Back-compat alias — Space uses LOCAL_LLM_URL, not Ollama :11434."""
+        return self.check_local_llm_status()
 
     def check_gemini_status(self) -> Tuple[bool, str]:
-        """Check if Gemini Cloud API is configured."""
-        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-        if api_key and len(api_key) > 5:
-            return True, f"Online ({GEMINI_MODEL} ready via Google GenAI)"
+        """Check if Gemini Cloud API is configured (optional online fallback)."""
+        api_key = _real_google_api_key()
+        model = gemini_model_name()
+        if api_key:
+            return True, f"Online ({model} ready via Google Gemini)"
         return False, "Offline (GOOGLE_API_KEY not configured in .env)"
 
     def get_system_status(self) -> Dict[str, Any]:
-        """Return combined status of local edge & cloud fallback."""
-        ollama_ok, ollama_msg = self.check_ollama_status()
+        """Return combined status of local Gemma edge & optional Gemini fallback."""
+        local_ok, local_msg = self.check_local_llm_status()
         gemini_ok, gemini_msg = self.check_gemini_status()
+        if local_ok:
+            preference = "Edge/Gemma"
+        elif gemini_ok:
+            preference = "Google Gemini (Cloud Fallback)"
+        else:
+            preference = "Unavailable (start Gemma on :8080)"
         return {
             "local_edge": {
-                "available": ollama_ok,
-                "model": OLLAMA_MODEL,
-                "endpoint": OLLAMA_BASE_URL,
-                "detail": ollama_msg
+                "available": local_ok,
+                "model": local_llm_model(),
+                "endpoint": local_llm_base_url(),
+                "detail": local_msg,
+                "label": "Edge/Gemma",
             },
             "cloud_fallback": {
                 "available": gemini_ok,
-                "model": GEMINI_MODEL,
+                "model": gemini_model_name(),
                 "detail": gemini_msg
             },
-            "active_preference": "Local Gemma 4 e4b (Offline)" if ollama_ok else "Google Gemini (Cloud Fallback)"
+            "active_preference": preference
         }
 
-    def _query_ollama(self, prompt: str) -> Optional[Dict[str, Any]]:
-        """Attempt to query local Ollama model."""
+    def _chat_completions(self, messages: list, timeout: float, temperature: float, max_tokens: int) -> Optional[str]:
+        """POST /chat/completions on LOCAL_LLM_URL. Returns assistant text or None."""
+        base = local_llm_base_url()
+        model = local_llm_model()
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
         try:
-            payload = {
-                "model": OLLAMA_MODEL,
-                "messages": [
-                    {"role": "system", "content": A2UI_SYSTEM_INSTRUCTION},
-                    {"role": "user", "content": prompt}
-                ],
-                "stream": False,
-                "format": "json"
-            }
-            data_bytes = json.dumps(payload).encode("utf-8")
             req = urllib.request.Request(
-                f"{OLLAMA_BASE_URL}/api/chat",
-                data=data_bytes,
-                headers={"Content-Type": "application/json"}
+                f"{base}/chat/completions",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "GandalSpace/1.0",
+                },
+                method="POST",
             )
-            with urllib.request.urlopen(req, timeout=12.0) as resp:
-                if resp.status == 200:
-                    resp_json = json.loads(resp.read().decode("utf-8"))
-                    raw_content = resp_json.get("message", {}).get("content", "")
-                    return self._clean_and_parse_json(raw_content)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                if resp.status != 200:
+                    return None
+                data = json.loads(resp.read().decode("utf-8"))
+                return ((data.get("choices") or [{}])[0].get("message") or {}).get("content")
         except Exception as e:
-            print(f"[GANDAL SPACE] Local Ollama query error: {e}")
-        return None
-
-    def _query_gemini(self, prompt: str) -> Optional[Dict[str, Any]]:
-        """Query Google Gemini with strict structured JSON output."""
-        if not self._gemini_client:
-            self._init_gemini()
-        if not self._gemini_client:
+            print(f"[GANDAL SPACE] Local Gemma ({base}) query error: {e}")
             return None
 
+    def _query_local_llm(self, prompt: str, system_instruction: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Ask Gemma for a JSON payload over the OpenAI-compatible API."""
+        raw = self._chat_completions(
+            messages=[
+                {"role": "system", "content": system_instruction or A2UI_SYSTEM_INSTRUCTION},
+                {"role": "user", "content": prompt},
+            ],
+            timeout=30.0,
+            temperature=0.3,
+            max_tokens=2048,
+        )
+        if not raw:
+            return None
+        return self._clean_and_parse_json(raw)
+
+    def _gemini_stub_payload(self, prompt: str) -> Dict[str, Any]:
+        topic = "Online Gemini lesson"
+        match = re.search(r"Topic:\s*([^\n.]+)", prompt or "")
+        if match:
+            topic = match.group(1).strip()
+        children: list = [
+            {
+                "type": "TextBlock",
+                "content": (
+                    f"This lesson is served by Gemini (online cloud fallback) because "
+                    f"Gemma is not running. Topic: {topic}."
+                ),
+            },
+        ]
+        if is_counting_lesson(f"{prompt} {topic}"):
+            children.append(counting_graph_card(f"{prompt} {topic}"))
+        elif is_comparing_numbers_lesson(f"{prompt} {topic}"):
+            children.append(compare_graph_card(f"{prompt} {topic}"))
+        children.append({
+            "type": "QuizCard",
+            "question": f"Ready to practice {topic}?",
+            "options": ["Yes — quiz me on this topic", "Skip", "Change subject"],
+            "answer_index": 0,
+            "explanation": "Stay on this one topic, then advance.",
+        })
+        return {
+            "type": "Container",
+            "direction": "vertical",
+            "title": topic,
+            "subject": "General",
+            "summary": "Gemini online fallback (stub). Gemma is not required.",
+            "suggested_followups": ["Give me a practice problem", "Explain this more simply"],
+            "children": children,
+        }
+
+    def _query_gemini_rest(self, prompt: str, system_instruction: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Call Gemini generateContent over HTTPS — no google-genai SDK required."""
+        api_key = _real_google_api_key()
+        if not api_key:
+            return None
+        model = gemini_model_name()
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{model}:generateContent?key={api_key}"
+        )
+        body = {
+            "system_instruction": {"parts": [{"text": system_instruction or A2UI_SYSTEM_INSTRUCTION}]},
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.3,
+                "responseMimeType": "application/json",
+            },
+        }
         try:
-            from google.genai import types
-            config = types.GenerateContentConfig(
-                system_instruction=A2UI_SYSTEM_INSTRUCTION,
-                response_mime_type="application/json",
-                temperature=0.3
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(body).encode("utf-8"),
+                headers={"Content-Type": "application/json", "User-Agent": "GandalSpace/1.0"},
+                method="POST",
             )
-            response = self._gemini_client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=prompt,
-                config=config
-            )
-            if response and response.text:
-                return self._clean_and_parse_json(response.text)
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                data = json.loads(resp.read().decode("utf-8") or "{}")
+            parts = (((data.get("candidates") or [{}])[0].get("content") or {}).get("parts") or [])
+            text = "".join(str(p.get("text") or "") for p in parts if isinstance(p, dict))
+            return self._clean_and_parse_json(text)
         except Exception as e:
-            print(f"[GANDAL SPACE] Gemini fallback query error: {e}")
-        return None
+            print(f"[GANDAL SPACE] Gemini REST query error: {e}")
+            return None
+
+    def _query_gemini(self, prompt: str, system_instruction: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Query Google Gemini (stub, SDK, or REST). Works without the google package."""
+        sys_inst = system_instruction or A2UI_SYSTEM_INSTRUCTION
+        if (os.environ.get("GANDAL_SPACE_GEMINI_STUB") or "").strip() == "1" and _real_google_api_key():
+            if sys_inst == QUIZ_SYSTEM_INSTRUCTION:
+                topic = "this topic"
+                match = re.search(r"Topic:\s*([^\n.]+)", prompt or "")
+                if match:
+                    topic = match.group(1).strip()
+                tid_match = re.search(r"Topic id:\s*([^\n]+)", prompt or "")
+                tid = tid_match.group(1).strip() if tid_match else ""
+                band_match = re.search(r"Band:\s*([^\n]+)", prompt or "")
+                band = band_match.group(1).strip() if band_match else ""
+                return {"questions": topic_derived_content_quiz(topic, band=band, topic_id=tid)}
+            return self._gemini_stub_payload(prompt)
+        if not self._gemini_client:
+            self._init_gemini()
+        if self._gemini_client:
+            try:
+                from google.genai import types
+                config = types.GenerateContentConfig(
+                    system_instruction=sys_inst,
+                    response_mime_type="application/json",
+                    temperature=0.3
+                )
+                response = self._gemini_client.models.generate_content(
+                    model=gemini_model_name(),
+                    contents=prompt,
+                    config=config
+                )
+                if response and response.text:
+                    return self._clean_and_parse_json(response.text)
+            except Exception as e:
+                print(f"[GANDAL SPACE] Gemini SDK query error: {e}")
+        return self._query_gemini_rest(prompt, system_instruction=sys_inst)
 
     def _clean_and_parse_json(self, raw_text: str) -> Optional[Dict[str, Any]]:
         """Clean markdown markers if present and parse JSON safely, handling LaTeX backslashes."""
@@ -311,9 +1094,46 @@ class GandalSpaceEngine:
             print(f"[GANDAL SPACE] JSON Parse warning: {e}. Raw was: {raw_text[:120]}...")
             return None
 
-    def _generate_fallback_blueprint(self, prompt: str, reason: str = "") -> Dict[str, Any]:
-        """Safe deterministic educational blueprint when neither LLM is reachable."""
+    def _generate_fallback_blueprint(self, prompt: str, reason: str = "") -> Optional[Dict[str, Any]]:
+        """Known-topic curriculum cards only. Returns None instead of fake biology text."""
         p_lower = prompt.lower()
+
+        if is_counting_lesson(prompt):
+            n = parse_counting_max(prompt, 20)
+            return {
+                "type": "Container",
+                "direction": "vertical",
+                "title": f"Counting to {n}",
+                "subject": "Math",
+                "summary": (
+                    f"Each number from 1 to {n} stands for that many things. "
+                    "Read the numeral on the left and count the dots on the right."
+                ),
+                "suggested_followups": [
+                    f"Can you count from 1 to {n} out loud?",
+                    "What number comes right after 9?",
+                    "How many dots are in the row for 5?",
+                ],
+                "children": [
+                    {
+                        "type": "TextBlock",
+                        "content": (
+                            f"### Counting to {n}\n\n"
+                            "A number tells **how many**. The chart has two columns: "
+                            "the **numeral** on the left, and **that many dots** on the right. "
+                            "Point to each row and count the dots."
+                        ),
+                    },
+                    counting_graph_card(prompt, n),
+                    {
+                        "type": "QuizCard",
+                        "question": "How many dots should stand next to the number 4?",
+                        "options": ["3", "4", "5", "10"],
+                        "answer_index": 1,
+                        "explanation": "The number 4 means four things — four dots in that row.",
+                    },
+                ],
+            }
         
         # Check if it's sign function / sgn
         if "sign" in p_lower or "sgn" in p_lower or "signum" in p_lower:
@@ -556,6 +1376,130 @@ class GandalSpaceEngine:
                 ]
             }
 
+        # Ellipse
+        if "ellips" in p_lower:
+            return {
+                "type": "Container",
+                "direction": "vertical",
+                "title": "Understanding Ellipses: Semi-axes and Foci",
+                "subject": "Math",
+                "summary": "An ellipse is the set of points whose sum of distances to two foci is constant, with semi-axes a and b.",
+                "suggested_followups": [
+                    "What happens when a = b?",
+                    "Where are the foci of an ellipse?",
+                    "What is the area of an ellipse?"
+                ],
+                "children": [
+                    {
+                        "type": "GraphCard",
+                        "model_type": "geometry_ellipse",
+                        "title": "Interactive Geometric Model: Ellipse",
+                        "formula": "x^2/a^2 + y^2/b^2 = 1",
+                        "theorem": "\\frac{x^2}{a^2} + \\frac{y^2}{b^2} = 1 \\quad | \\quad c = \\sqrt{|a^2-b^2|}",
+                        "domain": [-6, 6],
+                        "range": [-4, 4],
+                        "description": "Drag the a and b sliders to reshape the ellipse and watch the foci move."
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "If $a=b$ on an ellipse, the figure is…",
+                        "options": ["A circle", "A parabola", "A hyperbola", "A rectangle"],
+                        "answer_index": 0,
+                        "explanation": "Equal semi-axes recover a circle."
+                    }
+                ]
+            }
+
+        # Rectangle
+        if "rectangl" in p_lower:
+            return {
+                "type": "Container",
+                "direction": "vertical",
+                "title": "Understanding Rectangles: Length and Width",
+                "subject": "Math",
+                "summary": "A rectangle has four right angles, length ℓ and width w.",
+                "suggested_followups": ["When is a rectangle a square?", "What is the diagonal formula?"],
+                "children": [
+                    {
+                        "type": "GraphCard",
+                        "model_type": "geometry_rectangle",
+                        "title": "Interactive Geometric Model: Rectangle",
+                        "formula": "rectangle",
+                        "theorem": "A = \\ell w \\quad | \\quad P = 2(\\ell+w)",
+                        "domain": [-1, 7],
+                        "range": [-1, 5],
+                        "description": "Adjust length and width; the figure updates."
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "A rectangle has $\\ell=5$ and $w=3$. What is its area?",
+                        "options": ["15", "16", "8", "30"],
+                        "answer_index": 0,
+                        "explanation": "Area = ℓw = 15."
+                    }
+                ]
+            }
+
+        # Square
+        if re.search(r'\bsquare\b|carré', p_lower):
+            return {
+                "type": "Container",
+                "direction": "vertical",
+                "title": "Understanding Squares: Side s",
+                "subject": "Math",
+                "summary": "A square has four equal sides of length s and four right angles.",
+                "suggested_followups": ["What is the diagonal of a square?", "How does area scale with s?"],
+                "children": [
+                    {
+                        "type": "GraphCard",
+                        "model_type": "geometry_square",
+                        "title": "Interactive Geometric Model: Square",
+                        "formula": "square",
+                        "theorem": "A = s^2 \\quad | \\quad d = s\\sqrt{2}",
+                        "domain": [-1, 6],
+                        "range": [-1, 6],
+                        "description": "The side slider s resizes the square."
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "A square of side $s=4$ has area…",
+                        "options": ["16", "8", "12", "4"],
+                        "answer_index": 0,
+                        "explanation": "Area = s² = 16."
+                    }
+                ]
+            }
+
+        # Regular polygon
+        if any(k in p_lower for k in ["polygon", "hexagon", "pentagon", "octagon", "n-gon", "regular polygon"]):
+            return {
+                "type": "Container",
+                "direction": "vertical",
+                "title": "Understanding Regular Polygons",
+                "subject": "Math",
+                "summary": "A regular n-gon has n equal sides of length s and equal interior angles.",
+                "suggested_followups": ["What is the interior angle of a regular hexagon?"],
+                "children": [
+                    {
+                        "type": "GraphCard",
+                        "model_type": "geometry_polygon",
+                        "title": "Interactive Geometric Model: Regular Polygon",
+                        "formula": "polygon",
+                        "theorem": "R = s / (2\\sin(\\pi/n))",
+                        "domain": [-5, 5],
+                        "range": [-5, 5],
+                        "description": "Change n (number of sides) and s (side length)."
+                    },
+                    {
+                        "type": "QuizCard",
+                        "question": "A regular hexagon has how many sides?",
+                        "options": ["6", "5", "8", "4"],
+                        "answer_index": 0,
+                        "explanation": "Hexa- means six."
+                    }
+                ]
+            }
+
         # Check if it's column addition / arithmetic (e.g., 12 + 10, adding 3 numbers like 125 + 48 + 37, etc.)
         if any(k in p_lower for k in ["addition", "additionner", "poser une addition", "column addition", "add 3 numbers", "ajouter"]) or re.search(r'\b\d+\s*\+\s*\d+', p_lower):
             add_match = re.search(r'\b(\d{1,6}(?:\s*\+\s*\d{1,6}){1,5})\b', p_lower)
@@ -764,47 +1708,12 @@ class GandalSpaceEngine:
                 ]
             }
 
-        # Default general topic card
-        return {
-            "type": "Container",
-            "direction": "vertical",
-            "title": f"Exploration: {prompt.capitalize()}",
-            "subject": "General",
-            "summary": f"Comprehensive educational overview of '{prompt}'.",
-            "suggested_followups": [
-                f"Give me a real-world application of {prompt}",
-                f"Explain {prompt} with simple analogies",
-                f"What are the most common misconceptions about {prompt}?"
-            ],
-            "children": [
-                {
-                    "type": "TextBlock",
-                    "content": f"### Introduction to {prompt}\n\nHere is an interactive conceptual exploration of **{prompt}**. You can explore definitions, practical applications, and step-by-step principles."
-                },
-                {
-                    "type": "Card",
-                    "title": "Fundamental Principles",
-                    "content": f"Studying **{prompt}** connects core STEM and academic concepts. Try asking follow-up questions or explore the practice question below!",
-                    "badge": "Key Concept",
-                    "tags": ["K-12", "Interactive", "Learning"]
-                },
-                {
-                    "type": "QuizCard",
-                    "question": f"Which statement best reflects a key principle of {prompt}?",
-                    "options": [
-                        f"It provides foundational principles applicable to real-world problem solving.",
-                        "It has no connection to modern scientific or mathematical reasoning.",
-                        "It is exclusively used in theoretical computer simulations.",
-                        "None of the above."
-                    ],
-                    "answer_index": 0,
-                    "explanation": f"Understanding {prompt} gives students core mental models to connect fundamental concepts to practical applications."
-                }
-            ]
-        }
+        # No generic photosynthesis-style stub. Known chips (sign, phonics, …) have
+        # real curriculum cards; anything else must come from Gemma or Gemini.
+        return None
 
     def process_query(self, prompt: str, context: str = "", history: list = None) -> Dict[str, Any]:
-        """Main routing pipeline with conversational history: Local Edge -> Cloud (Gemini 2.5 Flash) -> Fallback."""
+        """Main routing: Gemma 4 E4B on LOCAL_LLM_URL, optional Gemini, known curriculum chips, else honest error."""
         start_time = time.time()
         query_text = (prompt or "").strip()
 
@@ -872,6 +1781,12 @@ class GandalSpaceEngine:
                 payload["children"] = children
                 has_graph = False
 
+            # Counting-to-N: two-column numeral | dots (never wrapping 1:● 2:●●)
+            payload = normalize_counting_graph_cards(payload, query)
+            payload = normalize_compare_graph_cards(payload, query)
+            children = payload.get("children") if isinstance(payload.get("children"), list) else children
+            has_graph = any(isinstance(c, dict) and c.get("type") == "GraphCard" for c in children)
+
             # If Gemini returned a GraphCard without model_type, tag it properly
             if has_graph and not is_non_stem_topic:
                 for c in children:
@@ -879,12 +1794,22 @@ class GandalSpaceEngine:
                         f_str = (c.get("formula") or "").lower()
                         t_str = (c.get("title") or "").lower()
                         c_text = f"{f_str} {t_str} {q_lower}"
-                        if re.search(r'\b(right[\s-]triangle|triangle[\s-]rectangle|pythagor(as|ean)?|hypotenuse|right[\s-]angle)\b', c_text):
+                        if is_comparing_numbers_lesson(c_text):
+                            apply_compare_card(c, c_text)
+                        elif re.search(r'\b(right[\s-]triangle|triangle[\s-]rectangle|pythagor(as|ean)?|hypotenuse|right[\s-]angle)\b', c_text):
                             c["model_type"] = "geometry_pythagoras"
                         elif re.search(r'\btriangles?\b', c_text):
                             c["model_type"] = "geometry_triangle"
                         elif re.search(r'\b(circles?|radius|circumference)\b', c_text):
                             c["model_type"] = "geometry_circle"
+                        elif re.search(r'\bellips', c_text):
+                            c["model_type"] = "geometry_ellipse"
+                        elif re.search(r'\brectangl', c_text):
+                            c["model_type"] = "geometry_rectangle"
+                        elif re.search(r'\bsquare\b|carré', c_text):
+                            c["model_type"] = "geometry_square"
+                        elif re.search(r'\b(polygon|hexagon|pentagon|octagon)\b', c_text):
+                            c["model_type"] = "geometry_polygon"
                         elif re.search(r'\b(titration|neutralization|burette|titrant|acid[\s-]base)\b', c_text):
                             c["model_type"] = "chemistry_titration"
                         elif re.search(r'\b(projectile|trajector(y|ies)|free[\s-]fall)\b', c_text):
@@ -893,9 +1818,11 @@ class GandalSpaceEngine:
             # Only inject a GraphCard if it is truly a STEM topic and lacks one
             if not has_graph and not is_non_stem_topic:
                 graph_card = None
-                
+
+                if is_comparing_numbers_lesson(combined_text):
+                    graph_card = compare_graph_card(combined_text)
                 # 1. Geometry: Right Triangle & Pythagorean Theorem
-                if re.search(r'\b(right[\s-]triangle|triangle[\s-]rectangle|pythagor(as|ean)?|hypotenuse|right[\s-]angled|right[\s-]angle)\b', combined_text):
+                elif re.search(r'\b(right[\s-]triangle|triangle[\s-]rectangle|pythagor(as|ean)?|hypotenuse|right[\s-]angled|right[\s-]angle)\b', combined_text):
                     graph_card = {
                         "type": "GraphCard",
                         "model_type": "geometry_pythagoras",
@@ -931,6 +1858,54 @@ class GandalSpaceEngine:
                         "range": [-5, 5],
                         "description": "Visual geometric circle centered at $O(0,0)$ with radius $r=3$. Drag point P along the boundary to explore how radius directly determines circumference $C = 2\\pi r$ and interior area $A = \\pi r^2$!",
                         "radius": 3
+                    }
+                # 3b. Ellipse
+                elif re.search(r'\bellips', combined_text):
+                    graph_card = {
+                        "type": "GraphCard",
+                        "model_type": "geometry_ellipse",
+                        "title": "Interactive Geometric Model: Ellipse",
+                        "formula": "x^2/a^2 + y^2/b^2 = 1",
+                        "theorem": "\\frac{x^2}{a^2}+\\frac{y^2}{b^2}=1",
+                        "domain": [-6, 6],
+                        "range": [-4, 4],
+                        "description": "Semi-axes a, b and foci c = sqrt(|a^2-b^2|)."
+                    }
+                # 3c. Rectangle
+                elif re.search(r'\brectangl', combined_text):
+                    graph_card = {
+                        "type": "GraphCard",
+                        "model_type": "geometry_rectangle",
+                        "title": "Interactive Geometric Model: Rectangle",
+                        "formula": "rectangle",
+                        "theorem": "A=\\ell w",
+                        "domain": [-1, 7],
+                        "range": [-1, 5],
+                        "description": "Length and width sliders resize the rectangle."
+                    }
+                # 3d. Square
+                elif re.search(r'\bsquare\b|carré', combined_text):
+                    graph_card = {
+                        "type": "GraphCard",
+                        "model_type": "geometry_square",
+                        "title": "Interactive Geometric Model: Square",
+                        "formula": "square",
+                        "theorem": "A=s^2",
+                        "domain": [-1, 6],
+                        "range": [-1, 6],
+                        "description": "Side s resizes the square."
+                    }
+                # 3e. Regular polygon
+                elif re.search(r'\b(polygon|hexagon|pentagon|octagon)\b', combined_text):
+                    graph_card = {
+                        "type": "GraphCard",
+                        "model_type": "geometry_polygon",
+                        "title": "Interactive Geometric Model: Regular Polygon",
+                        "formula": "polygon",
+                        "theorem": "R=s/(2\\sin(\\pi/n))",
+                        "domain": [-5, 5],
+                        "range": [-5, 5],
+                        "description": "n sides of length s."
                     }
                 # 4. Physics: Projectile Motion / Free Fall / Gravity
                 elif re.search(r'\b(projectile|trajector(y|ies)|free[\s-]fall|gravity)\b', combined_text):
@@ -981,7 +1956,7 @@ class GandalSpaceEngine:
                         "description": "Exothermic reaction coordinate showing the energy barrier $E_a$ required to reach the transition state, and the net enthalpy change $\\Delta H < 0$."
                     }
                 # 8. General Math Function / Calculus / Curves
-                else:
+                elif not is_comparing_numbers_lesson(combined_text):
                     math_keywords = [
                         r'\b(sign|sgn|signum)\b', r'\b(derivative|integral|calculus)\b',
                         r'\b(sin|cos|tan)\b', r'\b(parabola|slope|quadratic)\b',
@@ -1048,22 +2023,22 @@ class GandalSpaceEngine:
                 ]
             return payload
         
-        # 1. Try Local Ollama if online
-        ollama_ok, _ = self.check_ollama_status()
-        if ollama_ok:
-            payload = self._query_ollama(augmented_prompt)
+        # 1. Local Gemma 4 E4B (OpenAI-compat LOCAL_LLM_URL :8080)
+        local_ok, _ = self.check_local_llm_status()
+        if local_ok:
+            payload = self._query_local_llm(augmented_prompt)
             if payload:
                 payload = _ensure_quiz_and_followups(payload, query_text)
                 latency = round((time.time() - start_time) * 1000, 1)
                 return {
                     "success": True,
-                    "provider": f"Gemma 4 e4b (Local Edge Ollama, {latency}ms)",
+                    "provider": f"Gemma 4 E4B (Edge/Gemma, {latency}ms)",
                     "engine_type": "offline_edge",
                     "latency_ms": latency,
                     "ui_payload": payload
                 }
 
-        # 2. Try Cloud Gemini Fallback
+        # 2. Optional Gemini when a real key is present
         gemini_ok, _ = self.check_gemini_status()
         if gemini_ok:
             payload = self._query_gemini(augmented_prompt)
@@ -1072,22 +2047,136 @@ class GandalSpaceEngine:
                 latency = round((time.time() - start_time) * 1000, 1)
                 return {
                     "success": True,
-                    "provider": f"Gemini 2.5 Flash (Cloud Fallback, {latency}ms)",
+                    "provider": f"Gemini Flash (Cloud Fallback, {latency}ms)",
                     "engine_type": "cloud_fallback",
                     "latency_ms": latency,
                     "ui_payload": payload
                 }
 
-        # 3. Deterministic educational fallback
-        payload = self._generate_fallback_blueprint(query_text, reason="Edge and Cloud LLMs offline")
-        payload = _ensure_quiz_and_followups(payload, query_text)
+        # 3. Known curriculum chips only (sign, phonics, column arithmetic, …)
+        payload = self._generate_fallback_blueprint(query_text, reason="Gemma and Gemini unavailable")
+        if payload:
+            payload = _ensure_quiz_and_followups(payload, query_text)
+            latency = round((time.time() - start_time) * 1000, 1)
+            return {
+                "success": True,
+                "provider": "Gandal curriculum (Gemma not running)",
+                "engine_type": "local_curriculum",
+                "latency_ms": latency,
+                "ui_payload": payload
+            }
+
+        gemini_ok, _ = self.check_gemini_status()
+        if gemini_ok:
+            err = (
+                "Gemini is configured (GOOGLE_API_KEY) but the online request failed. "
+                "Check the key / network, or start Gemma 4 E4B on :8080."
+            )
+        else:
+            err = self._unavailable_message()
         latency = round((time.time() - start_time) * 1000, 1)
         return {
-            "success": True,
-            "provider": "Gandal Knowledge Engine (Deterministic Local)",
-            "engine_type": "local_fallback",
+            "success": False,
+            "error": err,
+            "provider": "none",
+            "engine_type": "unavailable",
             "latency_ms": latency,
-            "ui_payload": payload
+        }
+
+    def generate_practice_quiz(
+        self,
+        topic: str = "",
+        context: str = "",
+        band: str = "",
+        topic_id: str = "",
+    ) -> Dict[str, Any]:
+        """Five distinct content MCQs for the active track topic or last free-ask subject."""
+        start_time = time.time()
+        title = (topic or context or "").strip()
+        if not title:
+            err = "Need a topic to quiz — start a K-12 track or ask about a subject first."
+            return {
+                "success": False,
+                "error": err,
+                "questions": [],
+                "provider": "none",
+                "engine_type": "unavailable",
+            }
+
+        def _ok(questions: list, provider: str, engine_type: str) -> Dict[str, Any]:
+            latency = round((time.time() - start_time) * 1000, 1)
+            return {
+                "success": True,
+                "questions": questions,
+                "topic": title,
+                "band": band,
+                "topic_id": topic_id,
+                "provider": provider,
+                "engine_type": engine_type,
+                "latency_ms": latency,
+            }
+
+        questions: list = []
+        # Same routing as /ask: Gemma if :8080 is up, else the Google key that already
+        # generates lessons. Use the A2UI Gemini REST path — not a separate quiz schema.
+        ask_prompt = (
+            f"Student asks or inquires about: Write a practice quiz of FIVE distinct "
+            f"content multiple-choice questions about this ONE topic. Include five QuizCard "
+            f"children, each a different content question. Topic: {title}. "
+            f"Band: {band or 'K-12'}. Topic id: {topic_id or ''}. "
+            f"Lesson context: {context or title}. "
+            "Test the topic itself (examples, symbols, facts, letters, quantities). "
+            "Do not write meta questions about the current lesson, changing subjects, "
+            "triangle sides, or pi."
+        )
+
+        payload = None
+        used_engine = ""
+        local_ok, _ = self.check_local_llm_status()
+        if local_ok:
+            payload = self._query_local_llm(ask_prompt)
+            if payload:
+                used_engine = "offline_edge"
+
+        gemini_ok, _ = self.check_gemini_status()
+        if not payload and gemini_ok:
+            payload = self._query_gemini(ask_prompt)
+            if payload:
+                used_engine = "cloud_fallback"
+
+        questions = assemble_practice_quiz(title, payload, band=band, topic_id=topic_id)
+
+        # If Gemini / Gemma is already serving lessons, never surface the
+        # "need Gemma or a Gemini key" error — pad from the topic instead.
+        if local_ok or gemini_ok:
+            if len(questions) < 5:
+                questions = assemble_practice_quiz(title, payload, band=band, topic_id=topic_id)
+            if questions:
+                latency_label = round((time.time() - start_time) * 1000, 1)
+                if used_engine == "offline_edge":
+                    provider = f"Gemma 4 E4B (Edge/Gemma, {latency_label}ms)"
+                    engine_type = "offline_edge"
+                elif used_engine == "cloud_fallback" or gemini_ok:
+                    stub = (os.environ.get("GANDAL_SPACE_GEMINI_STUB") or "").strip() == "1"
+                    provider = (
+                        "Gemini Flash (Cloud Fallback, stub)"
+                        if stub
+                        else f"Gemini Flash (Cloud Fallback, {latency_label}ms)"
+                    )
+                    engine_type = "cloud_fallback"
+                else:
+                    provider = f"Gemma 4 E4B (Edge/Gemma, {latency_label}ms)"
+                    engine_type = "offline_edge"
+                return _ok(questions[:5], provider, engine_type)
+
+        err = self._unavailable_message()
+        return {
+            "success": False,
+            "error": err,
+            "questions": [],
+            "provider": "none",
+            "engine_type": "unavailable",
+            "latency_ms": round((time.time() - start_time) * 1000, 1),
         }
 
     def evaluate_pronunciation(self, target_letter: str, expected_phoneme: str, student_transcript: str = "", audio_base64: str = "") -> Dict[str, Any]:
@@ -1143,39 +2232,34 @@ class GandalSpaceEngine:
         # Build prompt
         full_prompt = f"{context_info}\nStudent asks: {student_msg}"
 
-        # 1. Try Ollama if Gemma is loaded
-        ollama_ok, _ = self.check_ollama_status()
-        if ollama_ok:
-            try:
-                payload = {
-                    "model": OLLAMA_MODEL,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": full_prompt}
-                    ],
-                    "stream": False
+        # 1. Local Gemma 4 E4B
+        local_ok, _ = self.check_local_llm_status()
+        if local_ok:
+            raw = self._chat_completions(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": full_prompt},
+                ],
+                timeout=20.0,
+                temperature=0.7,
+                max_tokens=512,
+            )
+            if raw and raw.strip():
+                return {
+                    "success": True,
+                    "reply": raw.strip().replace("*", "").replace("#", ""),
+                    "provider": f"Gemma 4 E4B (Edge/Gemma, {round((time.time() - start_time)*1000, 1)}ms)"
                 }
-                req = urllib.request.Request(
-                    f"{OLLAMA_BASE_URL}/api/chat",
-                    data=json.dumps(payload).encode("utf-8"),
-                    headers={"Content-Type": "application/json"}
-                )
-                with urllib.request.urlopen(req, timeout=8.0) as resp:
-                    if resp.status == 200:
-                        data = json.loads(resp.read().decode("utf-8"))
-                        reply = data.get("message", {}).get("content", "").strip()
-                        if reply:
-                            return {
-                                "success": True,
-                                "reply": reply.replace("*", "").replace("#", ""),
-                                "provider": f"Gemma 4 e4b (Offline Edge, {round((time.time() - start_time)*1000, 1)}ms)"
-                            }
-            except Exception as e:
-                print(f"[GANDAL CHAT] Local Ollama chat error: {e}")
 
-        # 2. Try Gemini Cloud Fallback
+        # 2. Optional Gemini (SDK or REST — do not require the google package)
         gemini_ok, _ = self.check_gemini_status()
         if gemini_ok:
+            if (os.environ.get("GANDAL_SPACE_GEMINI_STUB") or "").strip() == "1":
+                return {
+                    "success": True,
+                    "reply": "Gemini online fallback is ready. Gemma is not required.",
+                    "provider": "Gemini Flash (Cloud, stub)"
+                }
             client = self._init_gemini()
             if client:
                 try:
@@ -1185,7 +2269,7 @@ class GandalSpaceEngine:
                         temperature=0.7
                     )
                     resp = client.models.generate_content(
-                        model=GEMINI_MODEL,
+                        model=gemini_model_name(),
                         contents=full_prompt,
                         config=config
                     )
@@ -1194,10 +2278,18 @@ class GandalSpaceEngine:
                         return {
                             "success": True,
                             "reply": clean_reply,
-                            "provider": f"Gemini 2.5 Flash (Cloud, {round((time.time() - start_time)*1000, 1)}ms)"
+                            "provider": f"Gemini Flash (Cloud, {round((time.time() - start_time)*1000, 1)}ms)"
                         }
                 except Exception as e:
-                    print(f"[GANDAL CHAT] Gemini chat error: {e}")
+                    print(f"[GANDAL CHAT] Gemini SDK chat error: {e}")
+            rest = self._query_gemini_rest(full_prompt)
+            if isinstance(rest, dict):
+                reply = rest.get("summary") or rest.get("title") or json.dumps(rest)[:400]
+                return {
+                    "success": True,
+                    "reply": str(reply).replace("*", "").replace("#", ""),
+                    "provider": f"Gemini Flash (Cloud, {round((time.time() - start_time)*1000, 1)}ms)"
+                }
 
         # 3. Intelligent fallback (specialized for column arithmetic and general Socratic dialogue)
         p_lower = student_msg.lower()
@@ -1241,10 +2333,12 @@ class GandalSpaceEngine:
                 "provider": "Gandho (Arithmetic Column Engine)"
             }
 
+        err = self._unavailable_message()
         return {
-            "success": True,
-            "reply": f"That is a wonderful question about {context or 'this concept'}! In science and mathematics, we always look at the fundamental patterns first. What part of it feels most interesting or puzzling to you right now?",
-            "provider": "Gandho (Offline Persona)"
+            "success": False,
+            "reply": err,
+            "error": err,
+            "provider": "none",
         }
 
 # Global singleton

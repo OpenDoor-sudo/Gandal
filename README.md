@@ -198,14 +198,16 @@ ventuno_ai_testbed/
 
 ### 1. Prerequisites
 - Python 3.14+ (or Python 3.10+)
-- Google Chrome or Microsoft Edge (with WebGL and Web Audio API enabled)
+- Firefox, Google Chrome, or Microsoft Edge. **Gandho voice works in Firefox on Linux.** Open `http://127.0.0.1:8000/` so the microphone and autoplay are allowed. Chrome/Edge are only required for screen share and some WebGL labs.
 - *(Optional for offline mode)*: Local Ollama instance with `qwen2.5` installed and Piper TTS.
 
-### 2. Launch the Edge Server
+### 2. Launch the Edge Server (Windows or Linux)
 Start the central HTTP and WebSocket coordinator:
 ```bash
 python display_client.py
 ```
+On Linux, `./boot_linux.sh` waits for `/api/health` and prints the session file path. See the Linux run notes if this tree was checked out without lecture MP4s or `.env` keys.
+
 > The dashboard will be live at `http://localhost:8000/`.
 
 ### 3. Start the Omni Graph Engine (Optional)

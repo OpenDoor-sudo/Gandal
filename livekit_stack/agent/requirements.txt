@@ -8,5 +8,5 @@ requests>=2.31.0
 sentence-transformers>=2.2.2
 faster-whisper>=0.10.0
 python-dotenv>=1.0.0
-pywin32>=306
+pywin32>=306; sys_platform == "win32"
 

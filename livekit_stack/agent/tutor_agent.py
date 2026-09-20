@@ -2,28 +2,53 @@
 import sys
 from types import ModuleType
 
-# Workaround: Mock livekit.local_inference to bypass Windows native DLL crashes
-class MockVAD:
-    def __init__(self, *args, **kwargs):
-        pass
-    def predict(self, window):
-        return 0.0
+# Workaround: Mock livekit.local_inference to bypass Windows native DLL crashes.
+# Linux can load the real module; a always-0 VAD mock would keep Gemini silent.
+if sys.platform == "win32":
+    class MockVAD:
+        def __init__(self, *args, **kwargs):
+            pass
+        def predict(self, window):
+            return 0.0
 
-mock_module = ModuleType("livekit.local_inference")
-mock_module.EOT_MAX_SAMPLES = 1000
-mock_module.VAD_WINDOW_SAMPLES = 512
-mock_module.EOT = object
-mock_module.VAD = MockVAD
-mock_module.init_eot = lambda *args, **kwargs: None
-mock_module.init_vad = lambda *args, **kwargs: None
-sys.modules["livekit.local_inference"] = mock_module
+    mock_module = ModuleType("livekit.local_inference")
+    mock_module.EOT_MAX_SAMPLES = 1000
+    mock_module.VAD_WINDOW_SAMPLES = 512
+    mock_module.EOT = object
+    mock_module.VAD = MockVAD
+    mock_module.init_eot = lambda *args, **kwargs: None
+    mock_module.init_vad = lambda *args, **kwargs: None
+    sys.modules["livekit.local_inference"] = mock_module
 
 import os
+import shutil
 import sqlite3
 import json
 import logging
-import lancedb
+try:
+    import lancedb
+except ImportError:
+    lancedb = None
 import asyncio
+import threading
+import time
+
+_AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _AGENT_DIR not in sys.path:
+    sys.path.insert(0, _AGENT_DIR)
+try:
+    from ffmpeg_path import ensure_ffmpeg_on_path, find_ffmpeg
+    _FFMPEG = ensure_ffmpeg_on_path()
+except Exception:
+    _FFMPEG = shutil.which("ffmpeg") or ""
+    if os.path.isfile("/usr/bin/ffmpeg"):
+        _FFMPEG = _FFMPEG or "/usr/bin/ffmpeg"
+        os.environ["PATH"] = "/usr/bin" + os.pathsep + os.environ.get("PATH", "")
+try:
+    from worker_heartbeat import write_worker_heartbeat
+except Exception:
+    write_worker_heartbeat = None
+
 from livekit import rtc
 from livekit.agents import AutoSubscribe, JobContext, WorkerOptions, cli, llm
 from livekit.agents.voice import AgentSession, Agent, ConversationItemAddedEvent, UserInputTranscribedEvent
@@ -42,7 +67,12 @@ for handler in logger.handlers:
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 os.chdir(PROJECT_ROOT)
 
-SESSION_JSON_PATH = "c:/Users/lalyb/Desktop/ventuno_ai_testbed/active_session.json"
+# Same file display_client.py writes (PROJECT_ROOT/active_session.json). Override with SESSION_JSON_PATH or GANDHO_PROJECT_ROOT.
+SESSION_JSON_PATH = os.environ.get(
+    "SESSION_JSON_PATH",
+    os.path.join(os.environ.get("GANDHO_PROJECT_ROOT", PROJECT_ROOT), "active_session.json"),
+)
+logger.info(f"[SESSION] Using session file: {SESSION_JSON_PATH} (exists={os.path.exists(SESSION_JSON_PATH)})")
 
 # Global memory cache to track greeted videos within the active server process
 GREETED_VIDEOS_CACHE = set()
@@ -85,13 +115,38 @@ if os.path.exists(env_path):
     except Exception as err:
         logger.warning(f"Failed to read .env file: {err}")
 
+def prefer_ipv4_livekit_url(ws_url):
+    """Linux often resolves localhost to ::1; LiveKit's default bind is IPv4."""
+    u = (ws_url or "").strip()
+    for scheme in ("ws://", "wss://", "http://", "https://"):
+        needle = scheme + "localhost"
+        if u.lower().startswith(needle):
+            return scheme + "127.0.0.1" + u[len(needle):]
+    return u
+
+
 # Ensure LiveKit cloud/dev variables are populated
 if "LIVEKIT_URL" not in os.environ:
-    os.environ["LIVEKIT_URL"] = "ws://localhost:7880"
+    os.environ["LIVEKIT_URL"] = "ws://127.0.0.1:7880"
+else:
+    os.environ["LIVEKIT_URL"] = prefer_ipv4_livekit_url(os.environ["LIVEKIT_URL"])
 if "LIVEKIT_API_KEY" not in os.environ:
     os.environ["LIVEKIT_API_KEY"] = "devkey"
 if "LIVEKIT_API_SECRET" not in os.environ:
     os.environ["LIVEKIT_API_SECRET"] = "secretsecretsecretsecretsecretsecretsecret"
+
+if not _FFMPEG:
+    logger.warning(
+        "[AUDIO] ffmpeg was not found in PATH or /usr/bin. LiveKit WebRTC audio often fails on Linux conda. "
+        "sudo apt install ffmpeg, then restart this worker in the same conda env."
+    )
+else:
+    logger.info(f"[AUDIO] Using ffmpeg at {_FFMPEG}")
+if not os.environ.get("GOOGLE_API_KEY", "").strip():
+    logger.error(
+        "[VOICE] GOOGLE_API_KEY is empty. Gemini Live cannot speak. "
+        "Put the key in the repo-root .env (gitignored) and restart the worker without sudo."
+    )
 
 # Connect to LanceDB curriculum vector database
 if os.path.exists("/app/.lancedb"):
@@ -102,15 +157,20 @@ else:
 TABLE_RAG = "curriculum_rag"
 TABLE_VIDEO = "curriculum_video_blocks"
 
-try:
-    db = lancedb.connect(LANCEDB_DIR)
-    table_rag = db.open_table(TABLE_RAG)
-    table_video = db.open_table(TABLE_VIDEO)
-    logger.info(f"Connected to LanceDB at '{LANCEDB_DIR}'. Both RAG and Video tables loaded.")
-except Exception as e:
-    logger.error(f"Failed connecting to LanceDB: {e}")
-    table_rag = None
-    table_video = None
+table_rag = None
+table_video = None
+if lancedb is None:
+    logger.warning("lancedb is not installed — curriculum RAG is off; Gemini Live can still speak. pip install lancedb")
+else:
+    try:
+        db = lancedb.connect(LANCEDB_DIR)
+        table_rag = db.open_table(TABLE_RAG)
+        table_video = db.open_table(TABLE_VIDEO)
+        logger.info(f"Connected to LanceDB at '{LANCEDB_DIR}'. Both RAG and Video tables loaded.")
+    except Exception as e:
+        logger.error(f"Failed connecting to LanceDB: {e}")
+        table_rag = None
+        table_video = None
 
 # Socratic tutoring system instructions
 SYSTEM_INSTRUCTIONS = (
@@ -122,6 +182,30 @@ SYSTEM_INSTRUCTIONS = (
 
 # LiveKit connection entrypoint
 async def entrypoint(ctx: JobContext):
+    student_audio_seen = False
+    send_greeting_holder = {"fn": None}
+
+    def _track_is_audio(track, publication=None):
+        for obj in (track, publication):
+            if obj is None:
+                continue
+            kind = getattr(obj, "kind", None)
+            if kind == rtc.TrackKind.KIND_AUDIO or str(kind).lower().endswith("audio") or str(kind).lower() == "audio":
+                return True
+        return False
+
+    @ctx.room.on("track_subscribed")
+    def on_early_audio_track(track, publication, participant):
+        nonlocal student_audio_seen
+        if not _track_is_audio(track, publication):
+            return
+        student_audio_seen = True
+        identity = getattr(participant, "identity", "?")
+        logger.info(f"[AUDIO TRACK SUBSCRIBED EARLY] Student '{identity}' audio track active.")
+        fn = send_greeting_holder.get("fn")
+        if fn:
+            asyncio.create_task(fn())
+
     logger.info(f"Connecting to room: {ctx.room.name}")
     await ctx.connect(auto_subscribe=AutoSubscribe.SUBSCRIBE_ALL)
 
@@ -149,6 +233,12 @@ async def entrypoint(ctx: JobContext):
                     active_mode = s_data.get("active_mode")
         except Exception as e:
             logger.warning(f"Failed to read active_session.json: {e}")
+    else:
+        logger.warning(
+            f"[SESSION] {session_json_path} is missing. Using defaults "
+            f"(student={student_name!r}, video={active_video_id!r}). "
+            "Start display_client.py so the classroom can write this file."
+        )
 
     # Check connected remote participants for dynamic student name and mode metadata
     for p in ctx.room.remote_participants.values():
@@ -861,9 +951,53 @@ async def entrypoint(ctx: JobContext):
         logger.warning("Room connection lost. Triggering memory synthesis...")
         asyncio.create_task(run_synthesis())
 
+    async def publish_agent_ready():
+        payload = json.dumps({
+            "type": "agent_ready",
+            "student": student_name,
+            "video": video_title,
+            "platform": sys.platform,
+        }).encode("utf-8")
+        try:
+            await ctx.room.local_participant.publish_data(payload, topic="gandho-status")
+            logger.info("[STATUS] Published agent_ready on gandho-status")
+        except Exception as err:
+            logger.warning(f"[STATUS] Failed to publish agent_ready: {err}")
+
+    def _publication_is_audio(pub):
+        kind = getattr(pub, "kind", None)
+        if kind == rtc.TrackKind.KIND_AUDIO or str(kind).lower().endswith("audio"):
+            return True
+        track = getattr(pub, "track", None)
+        if track is not None and (
+            getattr(track, "kind", None) == rtc.TrackKind.KIND_AUDIO
+            or str(getattr(track, "kind", "")).lower().endswith("audio")
+        ):
+            return True
+        return False
+
+    def greet_existing_student_mics(reason="existing-track"):
+        """track_subscribed is easy to miss: ctx.connect() already subscribed before this handler existed."""
+        for participant in ctx.room.remote_participants.values():
+            pubs = getattr(participant, "track_publications", None) or getattr(
+                participant, "audio_track_publications", None
+            )
+            if not pubs:
+                continue
+            values = pubs.values() if hasattr(pubs, "values") else pubs
+            for pub in values:
+                if not _publication_is_audio(pub):
+                    continue
+                logger.info(
+                    f"[AUDIO TRACK EXISTING] Student '{participant.identity}' already has audio ({reason})."
+                )
+                asyncio.create_task(send_greeting())
+                return True
+        return False
+
     @ctx.room.on("track_subscribed")
     def on_track_subscribed(track, publication, participant):
-        if track.kind == "audio":
+        if track.kind == "audio" or str(getattr(track, "kind", "")).lower().endswith("audio"):
             logger.info(f"[AUDIO TRACK SUBSCRIBED] Student '{participant.identity}' audio track active.")
             asyncio.create_task(send_greeting())
         elif track.kind == "video":
@@ -1216,6 +1350,7 @@ async def entrypoint(ctx: JobContext):
                 await asyncio.sleep(0.5)
 
             if getattr(session, "_activity", None):
+                await publish_agent_ready()
                 session.generate_reply(
                     user_input=greeting_instruction
                 )
@@ -1223,6 +1358,30 @@ async def entrypoint(ctx: JobContext):
                 logger.info("Session not active after 6 seconds waiting; skipping greeting.")
         except Exception as e:
             logger.error(f"Failed sending initial greeting: {e}")
+
+    async def greeting_watchdog():
+        for _ in range(48):
+            if greeting_sent:
+                return
+            if getattr(session, "_activity", None):
+                logger.info("[GREETING] Gemini session is live on Cloud/local; speaking even if the mic track event was missed.")
+                await send_greeting()
+                return
+            await asyncio.sleep(0.25)
+
+    async def publish_ready_when_active():
+        for _ in range(48):
+            if getattr(session, "_activity", None):
+                await publish_agent_ready()
+                return
+            await asyncio.sleep(0.25)
+
+    send_greeting_holder["fn"] = send_greeting
+    if student_audio_seen:
+        asyncio.create_task(send_greeting())
+    greet_existing_student_mics("post-handler-scan")
+    asyncio.create_task(greeting_watchdog())
+    asyncio.create_task(publish_ready_when_active())
 
     # Launch background task for live session state monitoring (greeting is triggered upon audio track subscription)
     asyncio.create_task(monitor_session_changes())
@@ -1235,7 +1394,31 @@ async def entrypoint(ctx: JobContext):
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(
-        entrypoint_fnc=entrypoint,
-        load_threshold=float("inf")  # Disable CPU load shedding so Windows dev CPU spikes never drop student sessions
-    ))
+    def _heartbeat_loop():
+        while True:
+            if write_worker_heartbeat:
+                try:
+                    write_worker_heartbeat(PROJECT_ROOT, {
+                        "ffmpeg": _FFMPEG or "",
+                        "registered": True,
+                        "role": "tutor_agent",
+                    })
+                except Exception:
+                    pass
+            time.sleep(15)
+
+    threading.Thread(target=_heartbeat_loop, daemon=True).start()
+    idle = int(os.environ.get("LIVEKIT_NUM_IDLE_PROCESSES", "0") or "0")
+    timeout = float(os.environ.get("LIVEKIT_INITIALIZE_PROCESS_TIMEOUT", "60") or "60")
+    worker_kwargs = {
+        "entrypoint_fnc": entrypoint,
+        "load_threshold": float("inf"),  # Disable CPU load shedding so Windows/Linux CPU spikes never drop sessions
+    }
+    try:
+        cli.run_app(WorkerOptions(
+            initialize_process_timeout=timeout,
+            num_idle_processes=idle,
+            **worker_kwargs,
+        ))
+    except TypeError:
+        cli.run_app(WorkerOptions(**worker_kwargs))
