@@ -95,6 +95,20 @@ def _rewrite_json_strings(path: str) -> None:
         handle.write("\n")
 
 
+def _rewrite_cover_config(root: str) -> None:
+    """The video cover map imports every locale file. Keep English and French."""
+    path = os.path.join(root, "lib", "video-export-app", "cover-config.ts")
+    if not os.path.isfile(path):
+        return
+    text = open(path, encoding="utf-8").read()
+    text = re.sub(r"import zhCN from '@/lib/i18n/locales/zh-CN\.json';\n", "", text)
+    text = re.sub(r"import zhTW from '@/lib/i18n/locales/zh-TW\.json';\n", "", text)
+    text = text.replace("  'zh-CN': zhCN,\n", "")
+    text = text.replace("  'zh-TW': zhTW,\n", "")
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(text)
+
+
 def _rewrite_generation_fallbacks(root: str) -> None:
     """English fallback lines the generator speaks if a model reply is thin."""
     path = os.path.join(root, "packages", "@openmaic", "generation", "src", "scene-generator.ts")
@@ -342,6 +356,7 @@ def apply(root: str) -> None:
     _rewrite_locales(root)
     _rewrite_prompts(root)
     _rewrite_generation_fallbacks(root)
+    _rewrite_cover_config(root)
     _rewrite_ui_and_skills(root)
     _enable_topic_autostart(root)
     _write_topic_page(root)

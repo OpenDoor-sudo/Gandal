@@ -15,7 +15,7 @@ def player_url() -> str:
 
 def player_ready() -> bool:
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{PLAYER_PORT}/", timeout=1.5) as resp:
+        with urllib.request.urlopen(f"http://127.0.0.1:{PLAYER_PORT}/gandal-topic", timeout=8) as resp:
             return resp.status < 500
     except Exception:
         return False
