@@ -2142,6 +2142,30 @@ def transcribe_spoken_math_formula(audio_bytes, mime_type="audio/webm", locale="
 # ---------------------------------------------------------
 # 1. HTTP Server for Serving index.html Dashboard
 # ---------------------------------------------------------
+def _serve_classroom_api(handler, method):
+    """Classroom tab API. Our Space routes stay in do_GET / do_POST."""
+    clean_path = handler.path.split("?")[0]
+    if not clean_path.startswith("/api/gandal_classroom/"):
+        return False
+    raw = b""
+    if method == "POST":
+        length = int(handler.headers.get("Content-Length", 0) or 0)
+        if length:
+            raw = handler.rfile.read(length)
+    from gandal_classroom.api import handle_http
+    status, payload = handle_http(method, clean_path, raw)
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/json; charset=utf-8")
+    handler.send_header("Access-Control-Allow-Origin", "*")
+    handler.send_header("Cache-Control", "no-store")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.end_headers()
+    handler.wfile.write(body)
+    handler.wfile.flush()
+    return True
+
+
 class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     # Suppress request logs to keep orchestrator console outputs clean
     def log_message(self, format, *args):
@@ -2154,7 +2178,7 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         if path.endswith(".wasm"):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Cross-Origin-Resource-Policy", "cross-origin")
-        if path.startswith("/gandal_space/") and (path.endswith(".js") or path.endswith(".css")):
+        if (path.startswith("/gandal_space/") or path.startswith("/gandal_classroom/")) and (path.endswith(".js") or path.endswith(".css")):
             self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
             self.send_header("Pragma", "no-cache")
         super().end_headers()
@@ -2178,6 +2202,8 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         import urllib.parse
+        if _serve_classroom_api(self, "GET"):
+            return
         clean_path = self.path.split('?')[0]
 
         if clean_path == '/api/gandal_space/status':
@@ -4502,6 +4528,8 @@ class QuietHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         import urllib.request
         import urllib.parse
         global DEPLOYMENT_MODE
+        if _serve_classroom_api(self, "POST"):
+            return
         clean_path = self.path.split('?')[0]
 
         if clean_path == '/api/gandal_space/ask':

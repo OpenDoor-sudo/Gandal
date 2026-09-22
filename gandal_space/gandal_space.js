@@ -952,6 +952,7 @@ class GandalSpaceClient {
     this._loadingTrackLesson = false;
     this._startingTrack = false;
     this._trackDelegateBound = false;
+    this.spaceMode = "space";
   }
 
   init() {
@@ -961,6 +962,7 @@ class GandalSpaceClient {
       return;
     }
     this.renderSkeleton();
+    this.bindSpaceModes();
     this.bindTrackDelegation();
     window.startGandalK12Track = () => this.submitTrackIntent();
     window.gandalSpaceApp = this;
@@ -972,6 +974,12 @@ class GandalSpaceClient {
 
   renderSkeleton() {
     this.container.innerHTML = `
+      <div class="gandal-space-shell">
+        <nav class="gandal-space-mode-tabs" role="tablist" aria-label="Gandal Space">
+          <button type="button" class="gandal-space-mode-tab is-active" role="tab" aria-selected="true" data-space-mode="space" id="gandalTabOurSpace">Our Space</button>
+          <button type="button" class="gandal-space-mode-tab" role="tab" aria-selected="false" data-space-mode="classroom" id="gandalTabClassroom">Classroom</button>
+        </nav>
+        <div class="gandal-space-mode-panel" data-space-panel="space" id="gandalOurSpacePanel">
       <div class="gandal-space-wrapper">
         <!-- LEFT 70% PANE: ANSWERS & A2UI EXPLORATION -->
         <div class="gandal-space-answers-pane">
@@ -1172,6 +1180,11 @@ class GandalSpaceClient {
           </div>
         </aside>
       </div>
+        </div>
+        <div class="gandal-space-mode-panel" data-space-panel="classroom" id="gandalClassroomPanel" hidden>
+          <div id="gandalClassroomMount"></div>
+        </div>
+      </div>
     `;
 
     // Close '+' menu when clicking outside
@@ -1182,6 +1195,35 @@ class GandalSpaceClient {
         menu.classList.remove("active");
       }
     });
+  }
+
+  bindSpaceModes() {
+    const nav = this.container && this.container.querySelector(".gandal-space-mode-tabs");
+    if (!nav || nav.dataset.bound === "1") return;
+    nav.dataset.bound = "1";
+    nav.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("[data-space-mode]");
+      if (!btn || !this.container.contains(btn)) return;
+      this.setSpaceMode(btn.getAttribute("data-space-mode"));
+    });
+  }
+
+  setSpaceMode(mode) {
+    const next = mode === "classroom" ? "classroom" : "space";
+    this.spaceMode = next;
+    const root = this.container;
+    if (!root) return;
+    root.querySelectorAll("[data-space-mode]").forEach((btn) => {
+      const on = btn.getAttribute("data-space-mode") === next;
+      btn.classList.toggle("is-active", on);
+      btn.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    root.querySelectorAll("[data-space-panel]").forEach((panel) => {
+      panel.hidden = panel.getAttribute("data-space-panel") !== next;
+    });
+    if (next === "classroom" && window.GandalClassroom && typeof window.GandalClassroom.mount === "function") {
+      window.GandalClassroom.mount("gandalClassroomMount");
+    }
   }
 
   toggleAddMenu(e) {
