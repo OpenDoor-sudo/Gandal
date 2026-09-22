@@ -37,6 +37,12 @@ def generate_payload(topic: str, locale: str = "en") -> dict:
     return generate_lesson(topic, normalize_locale(locale))
 
 
+def player_payload() -> dict:
+    from gandal_classroom.player_launch import ensure_player
+
+    return ensure_player()
+
+
 def handle_http(method: str, path: str, body: bytes = b""):
     """Return (status_code, payload) for a classroom API path."""
     if path == "/api/gandal_classroom/status" and method == "GET":
@@ -49,4 +55,6 @@ def handle_http(method: str, path: str, body: bytes = b""):
         if not isinstance(data, dict):
             data = {}
         return 200, generate_payload(data.get("topic") or "", data.get("locale") or "en")
+    if path == "/api/gandal_classroom/player" and method == "GET":
+        return 200, player_payload()
     return 404, {"success": False, "error": "Unknown classroom route."}

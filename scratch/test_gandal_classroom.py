@@ -51,13 +51,23 @@ def run_tests():
                 continue
             path = os.path.join(dirpath, name)
             text = open(path, encoding="utf-8").read()
-            _assert_no_cjk(text, path)
             lowered = text.lower()
-            # The locale normalizer names the codes only so it can refuse them.
+            # lesson.py names the codes only so it can refuse them.
+            # apply_patches.py names the locale files it deletes and the menu
+            # phrases it translates out of the player.
             if name == "lesson.py":
+                _assert_no_cjk(text, path)
                 assert lowered.count("zh-cn") == 1 and lowered.count("zh-tw") == 1, path
+            elif name == "apply_patches.py":
+                assert "zh-cn" in lowered and "zh-tw" in lowered, path
+                assert "Gandho" in text, path
             else:
+                _assert_no_cjk(text, path)
                 assert "zh-cn" not in lowered and "zh-tw" not in lowered, path
+    topic_page = os.path.join(root, "player", "topic_page.tsx")
+    topic_text = open(topic_page, encoding="utf-8").read()
+    _assert_no_cjk(topic_text, topic_page)
+    assert "Gandho" in topic_text and "widget_setState" in topic_text and "spotlight" in topic_text
     _assert_no_cjk(SYSTEM_PROMPT, "system prompt")
     assert "French" in SYSTEM_PROMPT and "English" in SYSTEM_PROMPT
 

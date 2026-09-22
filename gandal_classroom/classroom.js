@@ -778,15 +778,52 @@
     }
   }
 
+  function showFallback(el) {
+    const app = new ClassroomApp(el);
+    app.start();
+    return app;
+  }
+
   window.GandalClassroom = {
     _app: null,
     mount(id) {
       const el = document.getElementById(id);
       if (!el) return null;
-      if (this._app && this._app.root === el && el.childElementCount) return this._app;
-      if (this._app) this._app.destroy();
-      this._app = new ClassroomApp(el);
-      this._app.start();
+      if (this._app && this._app.root === el && el.querySelector("#gcPlayerFrame, #gcTopic")) return this._app;
+      if (this._app && this._app.destroy) this._app.destroy();
+      el.innerHTML = `
+        <div class="gc-player">
+          <p class="gc-player-status" id="gcPlayerStatus">Starting the classroom player...</p>
+          <iframe id="gcPlayerFrame" title="Classroom" hidden></iframe>
+        </div>`;
+      const status = el.querySelector("#gcPlayerStatus");
+      const frame = el.querySelector("#gcPlayerFrame");
+      const arm = (url) => {
+        frame.hidden = false;
+        frame.src = url;
+        if (status) status.hidden = true;
+      };
+      const poll = async (left) => {
+        try {
+          const resp = await fetch("/api/gandal_classroom/player");
+          const data = await resp.json();
+          if (data.ready && data.url) {
+            arm(data.url);
+            return;
+          }
+          if (status && data.detail) status.textContent = data.detail;
+        } catch (err) {
+          if (status) status.textContent = "The classroom player is not reachable.";
+        }
+        if (left <= 0) {
+          if (status) status.textContent = "The classroom player did not start. Showing offline scenes.";
+          this._app = showFallback(el);
+          return;
+        }
+        setTimeout(() => poll(left - 1), 2000);
+      };
+      poll(180);
+      this._app = { root: el, destroy() { if (frame) frame.src = "about:blank"; } };
       return this._app;
     },
   };

@@ -53,6 +53,29 @@
   min-height: 0;
 }
 
+.gc-player {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #0b1020;
+}
+
+.gc-player-status {
+  margin: 0;
+  padding: 14px 16px;
+  color: #f6e2bf;
+}
+
+.gc-player iframe {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #0b1020;
+}
+
 #gandalClassroomMount {
   flex: 1;
   min-height: 0;

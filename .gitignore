@@ -45,3 +45,6 @@ Thumbs.db
 
 # Node dependencies (if any)
 node_modules/
+
+# OpenMAIC checkout cloned by the classroom player (patched at launch, not vendored)
+gandal_classroom/player/checkout/
