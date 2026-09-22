@@ -210,10 +210,11 @@ On Linux, `./boot_linux.sh` waits for `/api/health` and prints the session file 
 
 > The dashboard will be live at `http://localhost:8000/`.
 
-Open **Gandal Space**. Two tabs sit in that pane:
+Open **Gandal Space**. Three tabs sit in that pane:
 
 - **Our Space** — home chips, K–12 tracks, one topic, Quiz me, Show graph, Tableau Noir, live voice.
 - **Classroom** — OpenMAIC’s classroom player. Type a topic such as “teach me derivatives”, or import a text file. Gandho teaches that lesson in the player: he spotlights the page, points with the laser, and moves the laboratory controls. English and French only. Live voice stays on Our Space.
+- **Code** — a Python playground (editor, Run, output, pass/fail tests, hints). It is not a lesson and it is not tied to a topic. Python runs in the page with Pyodide. English and French only.
 
 The player listens on `http://127.0.0.1:3210` and is started by `gandal_classroom/player/run_player.sh` (Node 22.22 or newer). A local proxy on `127.0.0.1:8099` calls Gemma 4 E4B at `http://127.0.0.1:8080/v1` (`gemma-4-e4b`) first. If that port is down and `GOOGLE_API_KEY` is a real key, it calls `gemini-3.8-flash`. If neither is available, the page says so and Gandho still teaches a classroom built from the topic. The six scene cards appear only when the player process itself cannot start. To run the app in Docker without losing the host model, use host networking (`gandal_classroom/docker-compose.yml`) or set `LOCAL_LLM_URL=http://host.docker.internal:8080/v1`. `./boot_linux.sh` is unchanged.
 

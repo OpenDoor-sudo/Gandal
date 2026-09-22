@@ -71,6 +71,20 @@ def run_tests():
     _assert_no_cjk(SYSTEM_PROMPT, "system prompt")
     assert "French" in SYSTEM_PROMPT and "English" in SYSTEM_PROMPT
 
+    print("=== Code tab is Python only ===")
+    code_root = os.path.join(PROJECT_ROOT, "gandal_code")
+    for dirpath, _, files in os.walk(code_root):
+        for name in files:
+            if not name.endswith((".js", ".css")):
+                continue
+            path = os.path.join(dirpath, name)
+            text = open(path, encoding="utf-8").read()
+            _assert_no_cjk(text, path)
+            assert "zh-cn" not in text.lower() and "zh-tw" not in text.lower(), path
+    playground = open(os.path.join(code_root, "playground.js"), encoding="utf-8").read()
+    assert "loadPyodide" in playground and 'mode: "python"' in playground
+    assert "javascript" not in playground.lower() and "typescript" not in playground.lower()
+
     print("=== Scene kit ===")
     en = lesson.build_scene_kit("Photosynthesis", "en")
     kinds = [s["type"] for s in en["scenes"]]

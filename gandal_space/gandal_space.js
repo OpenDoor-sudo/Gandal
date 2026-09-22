@@ -978,6 +978,7 @@ class GandalSpaceClient {
         <nav class="gandal-space-mode-tabs" role="tablist" aria-label="Gandal Space">
           <button type="button" class="gandal-space-mode-tab is-active" role="tab" aria-selected="true" data-space-mode="space" id="gandalTabOurSpace">Our Space</button>
           <button type="button" class="gandal-space-mode-tab" role="tab" aria-selected="false" data-space-mode="classroom" id="gandalTabClassroom">Classroom</button>
+          <button type="button" class="gandal-space-mode-tab" role="tab" aria-selected="false" data-space-mode="code" id="gandalTabCode">Code</button>
         </nav>
         <div class="gandal-space-mode-panel" data-space-panel="space" id="gandalOurSpacePanel">
       <div class="gandal-space-wrapper">
@@ -1184,6 +1185,9 @@ class GandalSpaceClient {
         <div class="gandal-space-mode-panel" data-space-panel="classroom" id="gandalClassroomPanel" hidden>
           <div id="gandalClassroomMount"></div>
         </div>
+        <div class="gandal-space-mode-panel" data-space-panel="code" id="gandalCodePanel" hidden>
+          <div id="gandalCodeMount"></div>
+        </div>
       </div>
     `;
 
@@ -1209,7 +1213,7 @@ class GandalSpaceClient {
   }
 
   setSpaceMode(mode) {
-    const next = mode === "classroom" ? "classroom" : "space";
+    const next = mode === "classroom" || mode === "code" ? mode : "space";
     this.spaceMode = next;
     const root = this.container;
     if (!root) return;
@@ -1223,6 +1227,9 @@ class GandalSpaceClient {
     });
     if (next === "classroom" && window.GandalClassroom && typeof window.GandalClassroom.mount === "function") {
       window.GandalClassroom.mount("gandalClassroomMount");
+    }
+    if (next === "code" && window.GandalCode && typeof window.GandalCode.mount === "function") {
+      window.GandalCode.mount("gandalCodeMount");
     }
   }
 

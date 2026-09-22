@@ -1,0 +1,201 @@
+/* Code tab — Python playground. Not a lesson. */
+
+#gandalCodeMount {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0b1020;
+  color: #f8fafc;
+}
+
+.gc-code {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 20px 28px;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.gc-code-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.gc-code-kicker {
+  margin: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #93c5fd;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.gc-code h1 {
+  margin: 4px 0;
+  font-size: 28px;
+}
+
+.gc-code-blurb,
+.gc-code-task {
+  margin: 0;
+  max-width: 720px;
+  line-height: 1.45;
+  color: #d6d8e6;
+}
+
+.gc-code-langs {
+  display: flex;
+  gap: 8px;
+}
+
+.gc-code-langs button,
+.gc-code-actions button {
+  font: 600 14px/1.2 "Segoe UI", sans-serif;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.gc-code-langs button {
+  background: #1f2937;
+  color: #f8fafc;
+}
+
+.gc-code-langs button.is-on {
+  background: #f8fafc;
+  color: #111827;
+}
+
+.gc-code-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(240px, 0.8fr);
+  gap: 16px;
+  align-items: start;
+  margin-top: 16px;
+}
+
+.gc-code-editor-wrap .CodeMirror {
+  height: 280px;
+  min-height: 200px;
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+.gc-code-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+#run-btn {
+  background: #e8b86d;
+  color: #1b1408;
+}
+
+#run-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+#hint-btn {
+  background: #1f2937;
+  color: #f8fafc;
+}
+
+.gc-code-status {
+  color: #f6e2bf;
+  font-size: 14px;
+}
+
+.gc-code-panel {
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.gc-code-panel h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #93c5fd;
+}
+
+#output {
+  margin: 0;
+  min-height: 72px;
+  white-space: pre-wrap;
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 14px;
+}
+
+.gc-code-tests {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.gc-code-test {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #0b1020;
+}
+
+.gc-code-badge {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #334155;
+}
+
+.gc-code-badge.is-pass {
+  background: #14532d;
+  color: #bbf7d0;
+}
+
+.gc-code-badge.is-fail {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
+.gc-code-hint,
+#solution {
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+
+#solution {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #0b1020;
+  white-space: pre-wrap;
+  font-family: ui-monospace, monospace;
+}
+
+@media (max-width: 800px) {
+  .gc-code-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .gc-code-editor-wrap .CodeMirror {
+    height: 220px;
+  }
+}
