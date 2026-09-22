@@ -1,4 +1,4 @@
-/* Python playground for the Code tab. Not a lesson and not a teacher. */
+/* Python playground for the Code tab. Gandho can review intent here. He does not teach a topic. */
 (function () {
   const CM_CSS = "https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css";
   const CM_THEME = "https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/material-darker.min.css";
@@ -13,6 +13,22 @@
       title: "Code",
       blurb: "A Python editor for practice. It is not tied to a lesson.",
       task: "Write solution(x) so it returns the square of x.",
+      intentLabel: "What are you trying to do?",
+      intentPlaceholder: "I want to create a function that will compute the square root of x and return the answer.",
+      questionLabel: "Ask Gandho",
+      questionPlaceholder: "Your question appears here when you use the mic.",
+      check: "Check with Gandho",
+      mic: "Mic",
+      micOn: "Listening...",
+      micMissing: "This browser has no speech recognition. Type your question instead.",
+      micError: "The microphone did not start. Type your question instead.",
+      checking: "Gandho is reading your code...",
+      gandho: "Gandho",
+      right: "What you did right",
+      wrong: "What you did wrong",
+      how: "How to do it",
+      needIntent: "Write what you are trying to do.",
+      reviewFailed: "Gandho could not answer. Try the check again.",
       run: "Run",
       hint: "Hint",
       output: "Output",
@@ -36,6 +52,22 @@
       title: "Code",
       blurb: "Un éditeur Python pour s'entraîner. Il n'est lié à aucune leçon.",
       task: "Écris solution(x) pour qu'elle renvoie le carré de x.",
+      intentLabel: "Que veux-tu faire ?",
+      intentPlaceholder: "Je veux une fonction qui calcule la racine carrée de x et renvoie la réponse.",
+      questionLabel: "Demander à Gandho",
+      questionPlaceholder: "Ta question apparaît ici quand tu utilises le micro.",
+      check: "Vérifier avec Gandho",
+      mic: "Micro",
+      micOn: "Écoute...",
+      micMissing: "Ce navigateur n'a pas de reconnaissance vocale. Écris ta question.",
+      micError: "Le micro n'a pas démarré. Écris ta question.",
+      checking: "Gandho lit ton code...",
+      gandho: "Gandho",
+      right: "Ce qui est juste",
+      wrong: "Ce qui ne va pas",
+      how: "Comment le faire",
+      needIntent: "Écris ce que tu essaies de faire.",
+      reviewFailed: "Gandho n'a pas pu répondre. Réessaie la vérification.",
       run: "Exécuter",
       hint: "Indice",
       output: "Sortie",
@@ -101,6 +133,11 @@
       this.editor = null;
       this.pyodide = null;
       this.ready = false;
+      this.intentText = "";
+      this.questionText = "";
+      this.reviewData = null;
+      this.listening = false;
+      this.recognition = null;
       this.render();
       this.boot();
     }
@@ -111,6 +148,10 @@
 
     render() {
       const kept = this._draft != null ? this._draft : (this.editor ? this.editor.getValue() : null);
+      const intentBox = this.root.querySelector("#intent-input");
+      const questionBox = this.root.querySelector("#code-question");
+      if (intentBox) this.intentText = intentBox.value;
+      if (questionBox) this.questionText = questionBox.value;
       this._draft = null;
       this.editor = null;
       const t = this.text();
@@ -135,6 +176,17 @@
           </div>
           <div class="gc-code-layout">
             <div class="gc-code-editor-wrap">
+              <section class="gc-code-intent" id="gandal-code-intent">
+                <label for="intent-input">${t.intentLabel}</label>
+                <textarea id="intent-input" placeholder="${t.intentPlaceholder}"></textarea>
+                <label for="code-question">${t.questionLabel}</label>
+                <textarea id="code-question" placeholder="${t.questionPlaceholder}"></textarea>
+                <div class="gc-code-actions">
+                  <button type="button" id="intent-check">${t.check}</button>
+                  <button type="button" id="code-mic" aria-label="${t.mic}">${t.mic}</button>
+                  <span class="gc-code-status" id="code-mic-status"></span>
+                </div>
+              </section>
               <textarea id="code-input" aria-label="Python editor"></textarea>
               <div class="gc-code-actions">
                 <button type="button" id="run-btn" disabled>${t.run}</button>
@@ -143,6 +195,7 @@
               </div>
             </div>
             <div>
+              <section class="gc-code-panel" id="gandal-code-review" hidden></section>
               <section class="gc-code-panel">
                 <h2>${t.output}</h2>
                 <pre id="output"></pre>
@@ -163,9 +216,14 @@
       this.root.querySelector("#gandal-code-fr").onclick = () => this.setLocale("fr");
       this.root.querySelector("#run-btn").onclick = () => this.runCode();
       this.root.querySelector("#hint-btn").onclick = () => this.revealHint();
+      this.root.querySelector("#intent-check").onclick = () => this.askGandho();
+      this.root.querySelector("#code-mic").onclick = () => this.toggleMic();
+      this.root.querySelector("#intent-input").value = this.intentText || "";
+      this.root.querySelector("#code-question").value = this.questionText || "";
       this.root.querySelector("#code-input").value = kept || STARTER;
       this.attachEditor(kept || STARTER);
       this.paintHints();
+      if (this.reviewData) this.paintReview(this.reviewData);
       const run = this.root.querySelector("#run-btn");
       run.disabled = !this.ready;
       this.root.querySelector("#status").textContent = this.ready ? t.ready : t.loading;
@@ -179,9 +237,14 @@
     }
 
     attachEditor(value) {
+      const next = value || STARTER;
+      if (this.editor) {
+        this.editor.setValue(next);
+        return;
+      }
       const area = this.root.querySelector("#code-input");
       if (!area || !window.CodeMirror) {
-        if (area) area.value = value || STARTER;
+        if (area) area.value = next;
         return;
       }
       this.editor = window.CodeMirror.fromTextArea(area, {
@@ -191,7 +254,145 @@
         indentUnit: 4,
         tabSize: 4,
       });
-      this.editor.setValue(value || STARTER);
+      this.editor.setValue(next);
+    }
+
+    paintReview(data) {
+      this.reviewData = data || null;
+      const box = this.root.querySelector("#gandal-code-review");
+      if (!box) return;
+      box.hidden = false;
+      box.replaceChildren();
+      const t = this.text();
+      const title = document.createElement("h2");
+      title.textContent = t.gandho;
+      box.appendChild(title);
+      const hasParts = data && (data.right || data.wrong || data.how || data.answer);
+      if (!hasParts) {
+        const note = document.createElement("p");
+        note.id = "review-message";
+        note.textContent = (data && data.message) || t.reviewFailed;
+        box.appendChild(note);
+        return;
+      }
+      const add = (id, label, value) => {
+        const line = document.createElement("p");
+        const strong = document.createElement("strong");
+        strong.textContent = label;
+        line.appendChild(strong);
+        const span = document.createElement("span");
+        span.id = id;
+        span.textContent = value ? ` ${value}` : "";
+        line.appendChild(span);
+        box.appendChild(line);
+      };
+      add("review-right", t.right, data.right || "");
+      add("review-wrong", t.wrong, data.wrong || "");
+      add("review-how", t.how, data.how || "");
+      if (data.answer) {
+        const answer = document.createElement("p");
+        answer.id = "review-answer";
+        answer.textContent = data.answer;
+        box.appendChild(answer);
+      }
+    }
+
+    currentCode() {
+      if (this.editor) return this.editor.getValue();
+      const area = this.root.querySelector("#code-input");
+      return area ? area.value : "";
+    }
+
+    async askGandho() {
+      const t = this.text();
+      const intentEl = this.root.querySelector("#intent-input");
+      const questionEl = this.root.querySelector("#code-question");
+      const intent = intentEl ? intentEl.value.trim() : "";
+      const question = questionEl ? questionEl.value.trim() : "";
+      this.intentText = intent;
+      this.questionText = question;
+      const status = this.root.querySelector("#code-mic-status");
+      if (!intent && !question) {
+        this.paintReview({ success: false, available: true, message: t.needIntent });
+        return;
+      }
+      if (status) status.textContent = t.checking;
+      try {
+        const resp = await fetch("/api/gandal_code/review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            intent,
+            code: this.currentCode(),
+            question,
+            locale: this.locale,
+          }),
+        });
+        const data = await resp.json();
+        this.paintReview(data);
+      } catch (err) {
+        this.paintReview({ success: false, available: false, message: t.reviewFailed });
+      } finally {
+        if (status && status.textContent === t.checking) status.textContent = "";
+      }
+    }
+
+    toggleMic() {
+      const t = this.text();
+      const status = this.root.querySelector("#code-mic-status");
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRec) {
+        if (status) status.textContent = t.micMissing;
+        return;
+      }
+      if (this.listening && this.recognition) {
+        this.recognition.stop();
+        return;
+      }
+      const rec = new SpeechRec();
+      this.recognition = rec;
+      rec.lang = this.locale === "fr" ? "fr-FR" : "en-US";
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.onstart = () => {
+        this.listening = true;
+        const btn = this.root.querySelector("#code-mic");
+        if (btn) btn.classList.add("is-on");
+        if (status) status.textContent = t.micOn;
+      };
+      rec.onresult = (event) => {
+        let finalText = "";
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i += 1) {
+          const chunk = event.results[i][0].transcript || "";
+          if (event.results[i].isFinal) finalText += chunk;
+          else interim += chunk;
+        }
+        const box = this.root.querySelector("#code-question");
+        const shown = (finalText || interim).trim();
+        if (box && shown) {
+          box.value = shown;
+          this.questionText = shown;
+        }
+        if (finalText.trim()) this.askGandho();
+      };
+      rec.onerror = () => {
+        this.listening = false;
+        const btn = this.root.querySelector("#code-mic");
+        if (btn) btn.classList.remove("is-on");
+        if (status) status.textContent = t.micError;
+      };
+      rec.onend = () => {
+        this.listening = false;
+        const btn = this.root.querySelector("#code-mic");
+        if (btn) btn.classList.remove("is-on");
+      };
+      try {
+        rec.start();
+      } catch (err) {
+        this.listening = false;
+        if (status) status.textContent = t.micError;
+      }
     }
 
     paintHints() {
@@ -233,7 +434,9 @@
         loadCss(CM_THEME);
         await loadScript(CM_JS);
         await loadScript(CM_PY);
-        this.attachEditor(STARTER);
+        const area = this.root.querySelector("#code-input");
+        const current = this.editor ? this.editor.getValue() : (area ? area.value : STARTER);
+        this.attachEditor(current || STARTER);
         await loadScript(PYODIDE);
         this.pyodide = await window.loadPyodide({ indexURL: PYODIDE_INDEX });
         this.ready = true;

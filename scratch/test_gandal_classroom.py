@@ -84,6 +84,46 @@ def run_tests():
     playground = open(os.path.join(code_root, "playground.js"), encoding="utf-8").read()
     assert "loadPyodide" in playground and 'mode: "python"' in playground
     assert "javascript" not in playground.lower() and "typescript" not in playground.lower()
+    assert 'id="intent-input"' in playground and 'id="code-mic"' in playground
+    assert "webkitSpeechRecognition" in playground
+    assert "toggleGandhoVoice" not in playground and "gandalMicBtn" not in playground
+    for dirpath, _, files in os.walk(code_root):
+        for name in files:
+            if name.endswith(".py"):
+                path = os.path.join(dirpath, name)
+                text = open(path, encoding="utf-8").read()
+                _assert_no_cjk(text, path)
+
+    print("=== Code intent review ===")
+    import gandal_code.review as code_review
+    original = code_review.complete
+    try:
+        code_review.complete = lambda system, user: (None, "none", "unavailable")
+        down = code_review.review("square root of x", "return x * x", "", "en")
+        assert down["available"] is False
+        assert "gemma-4-e4b" in down["message"] and "8080" in down["message"]
+        _assert_no_cjk(down["message"], "unavailable")
+        code_review.complete = lambda system, user: (json.dumps({
+            "right": "The function takes x and returns a number.",
+            "wrong": "It returns x * x, the square, not the square root of x.",
+            "how": "Return x ** 0.5 instead of x * x.",
+            "answer": "",
+        }), "Gemma 4 E4B (gemma-4-e4b)", "offline_edge")
+        checked = code_review.review(
+            "I want the square root of x",
+            "def solution(x):\n    return x * x\n",
+            "",
+            "en",
+        )
+        assert checked["success"] is True
+        assert "square root" in checked["wrong"]
+        assert "right" not in checked["wrong"].lower() or "square" in checked["wrong"]
+        code_review.complete = lambda system, user: ('{"right":"好","wrong":"错","how":"做","answer":"答"}', "x", "y")
+        dropped = code_review.review("intent", "return x", "", "en")
+        assert dropped["success"] is False
+        _assert_no_cjk(json.dumps(dropped), "dropped review")
+    finally:
+        code_review.complete = original
 
     print("=== Scene kit ===")
     en = lesson.build_scene_kit("Photosynthesis", "en")
