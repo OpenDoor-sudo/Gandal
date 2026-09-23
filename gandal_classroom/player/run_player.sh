@@ -11,6 +11,9 @@ PROXY_PORT="${GANDAL_CLASSROOM_PROXY_PORT:-8099}"
 PIN="$(tr -d '[:space:]' < "$PLAYER_DIR/PIN")"
 
 export PATH="${HOME}/.nvm/versions/node/v22.22.2/bin:${PATH}"
+# A background launch has no TTY. Without this, Corepack stops at
+# "Do you want to continue? [Y/n]" before it downloads pnpm.
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 
 if curl -sf -o /dev/null "http://127.0.0.1:${PORT}/" ; then
   echo "[classroom] player already listening on ${PORT}"
