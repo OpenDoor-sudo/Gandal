@@ -778,12 +778,6 @@
     }
   }
 
-  function showFallback(el) {
-    const app = new ClassroomApp(el);
-    app.start();
-    return app;
-  }
-
   window.GandalClassroom = {
     _app: null,
     mount(id) {
@@ -816,8 +810,7 @@
           if (status) status.textContent = "The classroom player is not reachable.";
         }
         if (left <= 0) {
-          if (status) status.textContent = "The classroom player did not start. Showing offline scenes.";
-          this._app = showFallback(el);
+          if (status) status.textContent = "The classroom player did not start. Try the Classroom tab again in a moment.";
           return;
         }
         setTimeout(() => poll(left - 1), 2000);

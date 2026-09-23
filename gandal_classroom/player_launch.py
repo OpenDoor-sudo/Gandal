@@ -10,12 +10,13 @@ _started = False
 
 
 def player_url() -> str:
-    return f"http://127.0.0.1:{PLAYER_PORT}/gandal-topic"
+    """OpenMAIC's own home. Their generate button opens their player."""
+    return f"http://127.0.0.1:{PLAYER_PORT}/"
 
 
 def player_ready() -> bool:
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{PLAYER_PORT}/gandal-topic", timeout=8) as resp:
+        with urllib.request.urlopen(player_url(), timeout=20) as resp:
             return resp.status < 500
     except Exception:
         return False

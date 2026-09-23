@@ -204,6 +204,22 @@ def run_tests():
     assert "Quiz me" in space_js and "Tableau Noir" in space_js
     assert "gandalClassroomMount" in space_js
 
+    print("=== Player is their OpenMAIC app ===")
+    from gandal_classroom.player_launch import player_url
+    assert "gandal-topic" not in player_url()
+    assert player_url().rstrip("/").endswith(":3210")
+    classroom_js = open(os.path.join(root, "classroom.js"), encoding="utf-8").read()
+    assert "Showing offline scenes" not in classroom_js
+    assert "showFallback" not in classroom_js
+    launcher = open(os.path.join(root, "player", "run_player.sh"), encoding="utf-8").read()
+    assert "next start" in launcher and "next dev" not in launcher
+    assert "gemini-3.8-flash" in launcher
+    assert "COREPACK_ENABLE_DOWNLOAD_PROMPT=0" in launcher
+    assert "unset OPENAI_BASE_URL" in launcher
+    patches = open(os.path.join(root, "player", "apply_patches.py"), encoding="utf-8").read()
+    assert "_write_topic_page" not in patches
+    assert "name: agent.role === 'teacher' ? 'Gandho'" in patches
+
     print("ALL CLASSROOM TESTS PASSED")
 
 

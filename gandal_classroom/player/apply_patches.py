@@ -96,15 +96,29 @@ def _rewrite_json_strings(path: str) -> None:
 
 
 def _rewrite_cover_config(root: str) -> None:
-    """The video cover map imports every locale file. Keep English and French."""
+    """The video cover map must use the same locales as the product: English and French."""
     path = os.path.join(root, "lib", "video-export-app", "cover-config.ts")
     if not os.path.isfile(path):
         return
     text = open(path, encoding="utf-8").read()
-    text = re.sub(r"import zhCN from '@/lib/i18n/locales/zh-CN\.json';\n", "", text)
-    text = re.sub(r"import zhTW from '@/lib/i18n/locales/zh-TW\.json';\n", "", text)
-    text = text.replace("  'zh-CN': zhCN,\n", "")
-    text = text.replace("  'zh-TW': zhTW,\n", "")
+    text = re.sub(r"import \w+ from '@/lib/i18n/locales/[^']+';\n", "", text)
+    anchor = "import type { Locale } from '@/lib/i18n';\n"
+    imports = (
+        "import enUS from '@/lib/i18n/locales/en-US.json';\n"
+        "import frFR from '@/lib/i18n/locales/fr-FR.json';\n"
+    )
+    if anchor in text and "locales/en-US.json" not in text:
+        text = text.replace(anchor, anchor + imports, 1)
+    text = re.sub(
+        r"const LOCALE_RESOURCES: Record<Locale, Record<string, unknown>> = \{.*?\};",
+        "const LOCALE_RESOURCES: Record<Locale, Record<string, unknown>> = {\n"
+        "  'en-US': enUS,\n"
+        "  'fr-FR': frFR,\n"
+        "};",
+        text,
+        count=1,
+        flags=re.S,
+    )
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(text)
 
@@ -208,6 +222,10 @@ def _rewrite_prompts(root: str) -> None:
             for name in files:
                 if name.endswith((".md", ".ts", ".tsx")):
                     path = os.path.join(dirpath, name)
+                    # TypeScript under lib/pbl uses Chinese inside regular
+                    # expressions. Leave those files intact so the build stays valid.
+                    if name.endswith((".ts", ".tsx")) and "/lib/pbl/" in path.replace("\\", "/"):
+                        continue
                     original = open(path, encoding="utf-8", errors="ignore").read()
                     updated = _strip_cjk(_replace_menu(original))
                     if (
@@ -234,7 +252,11 @@ def _rewrite_ui_and_skills(root: str) -> None:
         if not os.path.isdir(folder):
             continue
         for dirpath, _, files in os.walk(folder):
-            rel = os.path.relpath(dirpath, root)
+            rel = os.path.relpath(dirpath, root).replace("\\", "/")
+            # PBL matchers keep Chinese inside regular expressions. Stripping
+            # those characters leaves empty alternatives and the build fails.
+            if rel == "lib/pbl" or rel.startswith("lib/pbl/"):
+                continue
             _rewrite_ui_dir(root, dirpath, rel, files)
 
 
@@ -289,7 +311,6 @@ def _rewrite_agents(root: str) -> None:
     path = os.path.join(root, "lib", "orchestration", "registry", "store.ts")
     text = open(path, encoding="utf-8").read()
     text = text.replace("name: 'AI teacher'", "name: 'Gandho'", 1)
-    text = text.replace("avatar: '/avatars/teacher.png'", "avatar: '/avatars/gandho.svg'", 1)
     if "You are Gandho, the teacher of this classroom." not in text:
         text = text.replace(
             "You are the lead teacher of this classroom.",
@@ -310,41 +331,29 @@ def _rewrite_agents(root: str) -> None:
         handle.write(text)
 
 
-def _enable_topic_autostart(root: str) -> None:
-    path = os.path.join(root, "components", "edit", "PlaybackChromeRoot.tsx")
+def _pin_teacher_name(root: str) -> None:
+    """Their player stays. The teacher it shows is Gandho."""
+    path = os.path.join(root, "app", "api", "generate", "agent-profiles", "route.ts")
+    if not os.path.isfile(path):
+        return
     text = open(path, encoding="utf-8").read()
-    needle = """        // Auto-start if triggered by auto-play scene advance
-        if (autoStartRef.current) {
-          autoStartRef.current = false;"""
-    replacement = """        // Auto-start after a generated topic, and when the lecture advances.
-        const gandalPlay =
-          typeof window !== 'undefined' && window.sessionStorage.getItem('gandalPlay') === '1';
-        if (autoStartRef.current || gandalPlay) {
-          autoStartRef.current = false;
-          if (gandalPlay) {
-            try { window.sessionStorage.removeItem('gandalPlay'); } catch { /* keep playing */ }
-          }"""
-    if needle in text:
+    rule = '- Exactly 1 agent must have role "teacher", the rest can be "assistant" or "student"'
+    named = rule + "\n- The teacher is named Gandho"
+    if rule in text and named not in text:
+        text = text.replace(rule, named, 1)
+    needle = "name: agent.name,"
+    replacement = "name: agent.role === 'teacher' ? 'Gandho' : agent.name,"
+    if needle in text and replacement not in text:
         text = text.replace(needle, replacement, 1)
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(text)
 
 
-def _write_topic_page(root: str) -> None:
-    here = os.path.dirname(os.path.abspath(__file__))
-    source = os.path.join(here, "topic_page.tsx")
-    folder = os.path.join(root, "app", "gandal-topic")
-    os.makedirs(folder, exist_ok=True)
-    with open(source, encoding="utf-8") as handle:
-        page = handle.read()
-    with open(os.path.join(folder, "page.tsx"), "w", encoding="utf-8") as handle:
-        handle.write(page)
-    avatar_src = os.path.join(os.path.dirname(os.path.dirname(here)), "static", "gandho_avatar.svg")
-    avatar_dir = os.path.join(root, "public", "avatars")
-    os.makedirs(avatar_dir, exist_ok=True)
-    if os.path.isfile(avatar_src):
-        with open(avatar_src, "rb") as src, open(os.path.join(avatar_dir, "gandho.svg"), "wb") as dst:
-            dst.write(src.read())
+def _drop_custom_pages(root: str) -> None:
+    """Do not serve a restyled topic page in front of their player."""
+    page = os.path.join(root, "app", "gandal-topic", "page.tsx")
+    if os.path.isfile(page):
+        os.remove(page)
     readme = os.path.join(root, "README-zh.md")
     if os.path.exists(readme):
         os.remove(readme)
@@ -358,8 +367,8 @@ def apply(root: str) -> None:
     _rewrite_generation_fallbacks(root)
     _rewrite_cover_config(root)
     _rewrite_ui_and_skills(root)
-    _enable_topic_autostart(root)
-    _write_topic_page(root)
+    _pin_teacher_name(root)
+    _drop_custom_pages(root)
 
 
 if __name__ == "__main__":
