@@ -210,6 +210,14 @@ On Linux, `./boot_linux.sh` waits for `/api/health` and prints the session file 
 
 > The dashboard will be live at `http://localhost:8000/`.
 
+Open **Gandal Space**. Three tabs sit in that pane:
+
+- **Our Space** — home chips, K–12 tracks, one topic, Quiz me, Show graph, Tableau Noir, live voice.
+- **Classroom** — OpenMAIC’s own classroom, the same product as open.maic.chat: their slides, playback, teacher bar, scene list, and hands-on labs. Type a topic and use their generate button. Lessons are generated with `gemini-3.8-flash` and the Google key in `.env`. Generation does not call open.maic.chat. The teacher is Gandho. English and French only. Live voice stays on Our Space.
+- **Code** — a Python playground (editor, Run, output, pass/fail tests, hints). It is not a lesson and it is not tied to a topic. Above the editor, write what you are trying to do. Gandho checks that intent against the current Python and says what is right, what is wrong, and how to do it. A mic on this tab turns speech into a question he answers, with the intent and the Python in context. It does not start live voice on Our Space. Python runs in the page with Pyodide. The check uses Gemma 4 E4B at `http://127.0.0.1:8080/v1` (`gemma-4-e4b`) first, then `gemini-3.8-flash` only if that port is down and a real Google key exists. If neither is available, the page says so. English and French only.
+
+The player listens on `http://127.0.0.1:3210` and is started by `gandal_classroom/player/run_player.sh` (Node 22.22 or newer). The first launch builds OpenMAIC; the next launch serves that build with `next start`. Set `GOOGLE_API_KEY` in `.env` so generation uses `gemini-3.8-flash`. `COREPACK_ENABLE_DOWNLOAD_PROMPT=0` is set so install does not stop for a prompt. `./boot_linux.sh` is unchanged.
+
 ### 3. Start the Omni Graph Engine (Optional)
 To enable the calculus and function graphing module on port 8085:
 ```bash

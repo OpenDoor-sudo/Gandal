@@ -1,0 +1,373 @@
+/* Gandal Classroom — player mounted by the Space tab bar. */
+
+.gandal-space-shell {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.gandal-space-mode-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 20px 0;
+}
+
+.gandal-space-mode-tab {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d6d8e6;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font: 600 14px/1.2 "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+
+.gandal-space-mode-tab.is-active {
+  background: #f4f1ea;
+  color: #1b1730;
+  border-color: #f4f1ea;
+}
+
+.gandal-space-mode-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gandal-space-mode-panel[hidden] {
+  display: none !important;
+}
+
+.gandal-space-mode-panel > .gandal-space-wrapper {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+.gc-player {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #0b1020;
+}
+
+.gc-player-status {
+  margin: 0;
+  padding: 14px 16px;
+  color: #f6e2bf;
+}
+
+.gc-player iframe {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #0b1020;
+}
+
+#gandalClassroomMount {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.gc-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 18px 16px;
+  box-sizing: border-box;
+  color: #f4f6fb;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.gc-composer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gc-composer label {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #b7c0d8;
+}
+
+.gc-topic {
+  flex: 1 1 240px;
+  min-width: 180px;
+  background: #12182a;
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+}
+
+.gc-locale,
+.gc-generate,
+.gc-btn {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #1a2238;
+  color: #f8fafc;
+  padding: 10px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.gc-generate {
+  background: #e8b86d;
+  color: #1b1408;
+  font-weight: 700;
+  border-color: #e8b86d;
+}
+
+.gc-generate:disabled,
+.gc-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.gc-banner {
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.gc-banner.warn {
+  background: rgba(232, 184, 109, 0.14);
+  color: #f6e2bf;
+  border: 1px solid rgba(232, 184, 109, 0.4);
+}
+
+.gc-banner.ok {
+  background: rgba(52, 211, 153, 0.1);
+  color: #c8f5e4;
+  border: 1px solid rgba(52, 211, 153, 0.28);
+}
+
+.gc-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gc-rail button {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #d5dced;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.gc-rail button.is-on {
+  background: #243056;
+  color: white;
+  border-color: #7c93e6;
+}
+
+.gc-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 12px;
+}
+
+.gc-stage,
+.gc-teacher {
+  min-height: 0;
+  background: #101624;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: auto;
+}
+
+.gc-stage {
+  padding: 16px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gc-kicker {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #93a0c4;
+}
+
+.gc-stage h2,
+.gc-teacher h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.gc-slide-bullet {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.gc-slide-bullet.is-spot {
+  background: rgba(232, 184, 109, 0.2);
+  outline: 1px solid rgba(232, 184, 109, 0.7);
+}
+
+.gc-canvas {
+  width: 100%;
+  height: 360px;
+  border-radius: 12px;
+  background: #070b14;
+  display: block;
+}
+
+.gc-caption {
+  margin: 0;
+  color: #d5dced;
+  line-height: 1.45;
+}
+
+.gc-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gc-controls input[type="range"] {
+  flex: 1 1 160px;
+}
+
+.gc-readout {
+  font-variant-numeric: tabular-nums;
+  color: #f6e2bf;
+}
+
+.gc-choice {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 6px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #182033;
+  color: #f8fafc;
+  cursor: pointer;
+}
+
+.gc-choice.is-right {
+  background: rgba(52, 211, 153, 0.2);
+  border-color: #34d399;
+}
+
+.gc-choice.is-wrong {
+  background: rgba(248, 113, 113, 0.15);
+  border-color: #f87171;
+}
+
+.gc-map {
+  width: 100%;
+  height: 380px;
+  background: #0c1220;
+  border-radius: 12px;
+}
+
+.gc-map text {
+  font-family: "Segoe UI", sans-serif;
+  font-size: 13px;
+  fill: #f8fafc;
+}
+
+.gc-code {
+  width: 100%;
+  min-height: 180px;
+  box-sizing: border-box;
+  background: #070b14;
+  color: #e7edf8;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px;
+  font-family: ui-monospace, monospace;
+  font-size: 13px;
+}
+
+.gc-output {
+  margin: 0;
+  min-height: 48px;
+  white-space: pre-wrap;
+  background: #0c1220;
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: #c8f5e4;
+}
+
+.gc-teacher {
+  padding: 14px;
+  background: #1a140d;
+  border-color: rgba(232, 184, 109, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gc-say {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.gc-op {
+  margin: 0;
+  color: #e8b86d;
+  font-size: 13px;
+  min-height: 1.2em;
+}
+
+.gc-teacher-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gc-html-frame {
+  width: 100%;
+  min-height: 320px;
+  border: 0;
+  border-radius: 12px;
+  background: white;
+}
+
+@media (max-width: 960px) {
+  .gc-body {
+    grid-template-columns: 1fr;
+  }
+  .gc-canvas,
+  .gc-map {
+    height: 260px;
+  }
+}

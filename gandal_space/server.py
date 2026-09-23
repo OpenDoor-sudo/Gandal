@@ -24,6 +24,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from gandal_space.agent_engine import default_engine
+from gandal_classroom.api import generate_payload, status_payload
 
 app = FastAPI(
     title="Gandal Space AI - Universal K-12+ Appliance Server",
@@ -41,11 +42,25 @@ app.add_middleware(
 class QueryRequest(BaseModel):
     prompt: str
 
+class ClassroomGenerateRequest(BaseModel):
+    topic: str = ""
+    locale: str = "en"
+
 class AudioEvalRequest(BaseModel):
     target_letter: str
     expected_phoneme: str
     audio_base64: str = ""
     student_transcript: str = ""
+
+@app.get("/api/gandal_classroom/status")
+async def classroom_status():
+    """Gemma first, Gemini only when a real key exists. English and French."""
+    return status_payload()
+
+@app.post("/api/gandal_classroom/generate")
+async def classroom_generate(req: ClassroomGenerateRequest):
+    """Build slides plus interactive scenes for one topic."""
+    return JSONResponse(content=generate_payload(req.topic, req.locale))
 
 @app.get("/api/gandal_space/status")
 async def get_status():

@@ -1,0 +1,23 @@
+# Optional container for the Gandal display client (Our Space + Classroom).
+# ./boot_linux.sh on the host is unchanged. Use this only when you want the
+# app itself in a container.
+#
+# Gemma 4 E4B listens on the HOST at 127.0.0.1:8080. A bridge network would
+# make 127.0.0.1 point at the container, so this file uses the host network
+# and the same URL the classroom already tries first.
+#
+# If host networking is unavailable, remove network_mode and instead set:
+#   LOCAL_LLM_URL: http://host.docker.internal:8080/v1
+#   extra_hosts: ["host.docker.internal:host-gateway"]
+services:
+  gandal-classroom:
+    image: python:3.11-slim
+    network_mode: host
+    working_dir: /app
+    volumes:
+      - ..:/app
+    environment:
+      LOCAL_LLM_URL: http://127.0.0.1:8080/v1
+      LOCAL_LLM_MODEL: gemma-4-e4b
+      GEMINI_MODEL: gemini-3.8-flash
+    command: python3 display_client.py
